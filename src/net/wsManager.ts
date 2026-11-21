@@ -25,8 +25,8 @@ type ServerToClientMsg =
 
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
-// Default Cloudflare Worker WebSocket endpoint (can override via ?ws=ws://localhost:8787)
-export const DEFAULT_WS_BASE_URL = 'wss://arek-sarungan-slayer-mp.nabil-al-maruf.workers.dev';
+// Default Cloudflare Edge WebSocket endpoint via pages.dev (unblocked on Indonesian ISPs!)
+export const DEFAULT_WS_BASE_URL = 'wss://sarungan-slayer.pages.dev';
 
 function getWsBaseUrl(): string {
   const params = new URLSearchParams(window.location.search);
