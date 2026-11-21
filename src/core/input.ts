@@ -70,6 +70,17 @@ export class InputManager {
   }
 
   private handleKeyDown = (e: KeyboardEvent): void => {
+    const target = e.target as HTMLElement | null;
+    if (
+      target &&
+      (target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.tagName === 'SELECT' ||
+        target.isContentEditable)
+    ) {
+      return;
+    }
+
     this.triggerGesture();
     const action = KEY_TO_ACTION[e.code];
     if (action) {

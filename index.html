@@ -65,7 +65,7 @@
         <div id="menu-overlay" class="overlay-modal title-screen-bg">
           <div class="modal-card menu-card title-card-anim">
             <div class="title-top-meta">
-              <span class="version-badge">v1.0.0</span>
+              <span class="version-badge">v1.0.1</span>
               <span class="modal-eyebrow">SUROBOYO TOP-DOWN ACTION ARCADE</span>
               <span class="version-badge p2p-badge">P2P ONLINE</span>
             </div>
@@ -112,6 +112,7 @@
 
               <div class="menu-footer-actions anim-stagger-4">
                 <button id="btn-play-sandbox" class="secondary-btn">ARENA LATIHAN</button>
+                <button id="btn-open-changelog" class="changelog-btn">INFO UPDATE</button>
                 <button id="btn-open-credits" class="ghost-btn">CREDITS &amp; VERSI</button>
               </div>
             </div>
@@ -164,7 +165,7 @@
                 </div>
                 <div class="credit-row">
                   <span class="credit-role">VERSI RILIS</span>
-                  <strong>v1.0.0 — Full Edition (Story + Survival + 5P Mabar)</strong>
+                  <strong>v1.0.1 — Full Edition (Story + Survival + 5P Mabar)</strong>
                 </div>
               </div>
               <div class="menu-footer-actions">
@@ -172,9 +173,42 @@
               </div>
             </div>
 
+            <!-- View 4: Info Update / Changelog -->
+            <div id="menu-changelog-view" class="menu-view hidden">
+              <div class="changelog-box">
+                <div class="changelog-entry">
+                  <div class="changelog-head">
+                    <span class="version-badge">v1.0.1</span>
+                    <strong>Perbaikan Mabar &amp; Game Over</strong>
+                  </div>
+                  <ul class="changelog-list">
+                    <li>Perbaikan input Kode Room (sekarang semua huruf &amp; angka bisa diketik + Enter langsung Gabung).</li>
+                    <li>Koneksi Mabar P2P lebih stabil (handshake <code>hello</code>, STUN Cloudflare + Google, auto-reconnect, timeout jelas).</li>
+                    <li>Layar tidak lagi geter-geter saat mati / Game Over, dan pemain yang join langsung berhenti/keluar rapi saat Host selesai.</li>
+                    <li>Penambahan menu <b>Info Update</b> untuk melihat perubahan terbaru.</li>
+                  </ul>
+                </div>
+                <div class="changelog-entry">
+                  <div class="changelog-head">
+                    <span class="version-badge">v1.0.0</span>
+                    <strong>Rilis Perdana Arek Sarungan Slayer</strong>
+                  </div>
+                  <ul class="changelog-list">
+                    <li>Kamera Top-Down 3/4 ala RPG + gerak 8-arah, lompat 2x, Dash, Kibas Sarung, Pecut &amp; Badai Ultimate.</li>
+                    <li>Story Mode 3 Stage Surabaya (Tambak, Tunjungan, Suramadu) + 3 Boss.</li>
+                    <li>Mode Survival + Pos Warkop + 3 Barricade + Warung + 5 Varian Zombie + Rotasi Map tiap 10 Wave.</li>
+                    <li>Mabar Online 2–5 Pemain (WebRTC PeerJS tanpa database) + Title Screen beranimasi.</li>
+                  </ul>
+                </div>
+              </div>
+              <div class="menu-footer-actions">
+                <button id="btn-back-home-changelog" class="primary-btn">← KEMBALI KE MENU</button>
+              </div>
+            </div>
+
             <div class="title-bottom-credit">
               <span>© 2026 Nabil Al-Ma'ruf • Arek Sarungan Slayer</span>
-              <span>v1.0.0</span>
+              <span>v1.0.1</span>
             </div>
           </div>
         </div>

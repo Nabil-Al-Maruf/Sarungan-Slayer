@@ -21,6 +21,7 @@ type HostToClientMsg =
   | { type: 'room_full' };
 
 type ClientToHostMsg =
+  | { type: 'hello' }
   | { type: 'input'; input: PlayerInput }
   | { type: 'buy'; itemId: ShopItemId }
   | { type: 'skip_intermission' };
@@ -30,11 +31,13 @@ const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 const PEER_CONFIG = {
   debug: 1,
+  pingInterval: 5000,
   config: {
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
       { urls: 'stun:stun1.l.google.com:19302' },
       { urls: 'stun:stun2.l.google.com:19302' },
+      { urls: 'stun:stun.cloudflare.com:3478' },
     ],
   },
 };
@@ -68,13 +71,22 @@ export class PeerManager {
   private hostConn: DataConnection | null = null;
   private clientConns = new Map<string, { conn: DataConnection; playerId: string }>();
   private remoteInputs = new Map<string, PlayerInput>();
+  private joinTimeout: number | null = null;
   private callbacks: PeerCallbacks;
 
   constructor(callbacks: PeerCallbacks) {
     this.callbacks = callbacks;
   }
 
+  private clearJoinTimeout(): void {
+    if (this.joinTimeout !== null) {
+      window.clearTimeout(this.joinTimeout);
+      this.joinTimeout = null;
+    }
+  }
+
   public disconnect(): void {
+    this.clearJoinTimeout();
     this.clientConns.forEach((c) => c.conn.close());
     this.clientConns.clear();
     this.remoteInputs.clear();
@@ -92,6 +104,38 @@ export class PeerManager {
     this.lobbyPlayers = [];
   }
 
+  private registerClientConnection(conn: DataConnection): void {
+    if (this.clientConns.has(conn.peer)) {
+      this.broadcastLobby();
+      return;
+    }
+
+    if (this.lobbyPlayers.length >= 5) {
+      conn.send({ type: 'room_full' } satisfies HostToClientMsg);
+      setTimeout(() => conn.close(), 200);
+      return;
+    }
+
+    const usedIds = new Set(this.lobbyPlayers.map((p) => p.id));
+    let slotNum = 2;
+    while (usedIds.has(`p${slotNum}`) && slotNum <= 5) slotNum++;
+    const playerId = `p${slotNum}`;
+    const paletteIndex = (slotNum - 1) % PLAYER_PALETTES.length;
+    const pal = PLAYER_PALETTES[paletteIndex];
+
+    this.clientConns.set(conn.peer, { conn, playerId });
+    this.lobbyPlayers.push({
+      id: playerId,
+      peerId: conn.peer,
+      paletteIndex,
+      name: `${pal.label} • ${pal.name.split(' ')[1]}`,
+      isHost: false,
+    });
+
+    this.broadcastLobby();
+    this.callbacks.onStatus(`${pal.label} bergabung ke Room ${this.roomCode}!`);
+  }
+
   public createRoom(hostPaletteIndex = 0): void {
     this.disconnect();
     this.role = 'host';
@@ -99,7 +143,7 @@ export class PeerManager {
     this.localPlayerId = 'p1';
 
     const hostPeerId = `${ROOM_PREFIX}${this.roomCode}`;
-    this.callbacks.onStatus(`Membuat Room ${this.roomCode}...`);
+    this.callbacks.onStatus(`Menghubungkan server P2P & membuat Room ${this.roomCode}...`);
 
     const peer = new Peer(hostPeerId, PEER_CONFIG);
     this.peer = peer;
@@ -119,45 +163,38 @@ export class PeerManager {
       this.callbacks.onLobbyUpdate(this.roomCode, this.lobbyPlayers, 'p1');
     });
 
+    peer.on('disconnected', () => {
+      if (this.peer && !this.peer.destroyed) {
+        this.peer.reconnect();
+      }
+    });
+
     peer.on('connection', (conn) => {
       conn.on('open', () => {
-        if (this.lobbyPlayers.length >= 5) {
-          conn.send({ type: 'room_full' } satisfies HostToClientMsg);
-          setTimeout(() => conn.close(), 200);
-          return;
-        }
-
-        // Assign first unused slot p2..p5
-        const usedIds = new Set(this.lobbyPlayers.map((p) => p.id));
-        let slotNum = 2;
-        while (usedIds.has(`p${slotNum}`) && slotNum <= 5) slotNum++;
-        const playerId = `p${slotNum}`;
-        const paletteIndex = (slotNum - 1) % PLAYER_PALETTES.length;
-        const pal = PLAYER_PALETTES[paletteIndex];
-
-        this.clientConns.set(conn.peer, { conn, playerId });
-        this.lobbyPlayers.push({
-          id: playerId,
-          peerId: conn.peer,
-          paletteIndex,
-          name: `${pal.label} • ${pal.name.split(' ')[1]}`,
-          isHost: false,
-        });
-
-        this.broadcastLobby();
-        this.callbacks.onStatus(`${pal.label} bergabung ke Room ${this.roomCode}!`);
+        this.registerClientConnection(conn);
       });
 
       conn.on('data', (raw) => {
-        const entry = this.clientConns.get(conn.peer);
-        if (!entry || !raw || typeof raw !== 'object') return;
+        if (!raw || typeof raw !== 'object') return;
         const msg = raw as ClientToHostMsg;
+
+        if (msg.type === 'hello') {
+          this.registerClientConnection(conn);
+          return;
+        }
+
+        const entry = this.clientConns.get(conn.peer);
+        if (!entry) return;
 
         if (msg.type === 'input') {
           this.remoteInputs.set(entry.playerId, msg.input);
         } else if (msg.type === 'buy') {
           const res = this.callbacks.onClientBuy(entry.playerId, msg.itemId);
-          conn.send({ type: 'shop_result', ok: res.ok, message: res.message } satisfies HostToClientMsg);
+          conn.send({
+            type: 'shop_result',
+            ok: res.ok,
+            message: res.message,
+          } satisfies HostToClientMsg);
         } else if (msg.type === 'skip_intermission') {
           this.callbacks.onClientSkipIntermission();
         }
@@ -176,30 +213,52 @@ export class PeerManager {
     });
 
     peer.on('error', (err) => {
-      this.callbacks.onStatus(`PeerJS Error: ${err.type || err.message}`, true);
+      if (err.type === 'unavailable-id') {
+        // Extremely rare 4-char collision: automatically retry with a fresh code
+        this.createRoom(hostPaletteIndex);
+        return;
+      }
+      this.callbacks.onStatus(`Gagal buat room (${err.type || err.message}). Coba lagi!`, true);
     });
   }
 
   public joinRoom(rawCode: string): void {
-    const code = rawCode.trim().toUpperCase();
+    const code = rawCode.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
     if (code.length !== 4) {
-      this.callbacks.onStatus('Kode Room harus 4 karakter!', true);
+      this.callbacks.onStatus('Kode Room harus tepat 4 huruf/angka!', true);
       return;
     }
 
     this.disconnect();
     this.role = 'client';
     this.roomCode = code;
-    this.callbacks.onStatus(`Menghubungkan ke Room ${code}...`);
+    this.callbacks.onStatus(`Menghubungkan ke server P2P untuk Room ${code}...`);
 
     const peer = new Peer(PEER_CONFIG);
     this.peer = peer;
 
+    // Clear feedback if NAT/firewall prevents connecting within 12s
+    this.joinTimeout = window.setTimeout(() => {
+      if (this.role === 'client' && (!this.hostConn || !this.hostConn.open)) {
+        this.callbacks.onStatus(
+          `Waktu habis menghubungkan ke Room ${code}. Pastikan Host masih di lobi & jaringan tidak memblokir WebRTC.`,
+          true
+        );
+        this.disconnect();
+      }
+    }, 12000);
+
     peer.on('open', () => {
-      const conn = peer.connect(`${ROOM_PREFIX}${code}`, { reliable: true });
+      this.callbacks.onStatus(`Menemukan Host Room ${code}...`);
+      const conn = peer.connect(`${ROOM_PREFIX}${code}`, {
+        reliable: true,
+        serialization: 'json',
+      });
       this.hostConn = conn;
 
       conn.on('open', () => {
+        this.clearJoinTimeout();
+        conn.send({ type: 'hello' } satisfies ClientToHostMsg);
         this.callbacks.onStatus(`Terhubung ke Room ${code}! Menunggu Host mulai...`);
       });
 
@@ -208,9 +267,11 @@ export class PeerManager {
         const msg = raw as HostToClientMsg;
 
         if (msg.type === 'room_full') {
+          this.clearJoinTimeout();
           this.callbacks.onStatus('Room penuh (maksimal 5 pemain)!', true);
           this.disconnect();
         } else if (msg.type === 'lobby_update') {
+          this.clearJoinTimeout();
           this.roomCode = msg.roomCode;
           this.lobbyPlayers = msg.players;
           this.localPlayerId = msg.yourPlayerId;
@@ -225,6 +286,7 @@ export class PeerManager {
       });
 
       conn.on('close', () => {
+        this.clearJoinTimeout();
         if (this.role === 'client') {
           this.callbacks.onStatus('Koneksi ke Host terputus — kembali ke Lobi.', true);
           this.disconnect();
@@ -233,12 +295,19 @@ export class PeerManager {
       });
 
       conn.on('error', (err) => {
+        this.clearJoinTimeout();
         this.callbacks.onStatus(`Gagal koneksi: ${err.message}`, true);
       });
     });
 
     peer.on('error', (err) => {
-      this.callbacks.onStatus(`Room ${code} tidak ditemukan (${err.type}).`, true);
+      this.clearJoinTimeout();
+      const reason =
+        err.type === 'peer-unavailable'
+          ? `Room ${code} tidak ditemukan atau Host sudah keluar.`
+          : `Gagal terhubung (${err.type || err.message}).`;
+      this.callbacks.onStatus(reason, true);
+      this.disconnect();
     });
   }
 
@@ -292,7 +361,6 @@ export class PeerManager {
   public getRemoteInput(playerId: string): PlayerInput | undefined {
     const inp = this.remoteInputs.get(playerId);
     if (!inp) return undefined;
-    // Consume edge triggers after Host reads them once so presses don't repeat forever
     const copy: PlayerInput = { ...inp };
     inp.jumpPressed = false;
     inp.dashPressed = false;

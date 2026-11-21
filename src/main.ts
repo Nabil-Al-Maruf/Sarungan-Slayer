@@ -48,6 +48,7 @@ const menuOverlay = document.getElementById('menu-overlay') as HTMLDivElement;
 const menuHomeView = document.getElementById('menu-home-view') as HTMLDivElement;
 const menuStoryView = document.getElementById('menu-story-view') as HTMLDivElement;
 const menuCreditsView = document.getElementById('menu-credits-view') as HTMLDivElement;
+const menuChangelogView = document.getElementById('menu-changelog-view') as HTMLDivElement;
 const lobbyOverlay = document.getElementById('lobby-overlay') as HTMLDivElement;
 const shopOverlay = document.getElementById('shop-overlay') as HTMLDivElement;
 const resultOverlay = document.getElementById('result-overlay') as HTMLDivElement;
@@ -235,10 +236,11 @@ function toggleWarung(): void {
   shopOverlay.classList.remove('hidden');
 }
 
-function showMenuView(view: 'home' | 'story' | 'credits'): void {
+function showMenuView(view: 'home' | 'story' | 'credits' | 'changelog'): void {
   menuHomeView.classList.toggle('hidden', view !== 'home');
   menuStoryView.classList.toggle('hidden', view !== 'story');
   menuCreditsView.classList.toggle('hidden', view !== 'credits');
+  menuChangelogView.classList.toggle('hidden', view !== 'changelog');
 }
 
 function openMenu(): void {
@@ -327,8 +329,14 @@ document.getElementById('btn-open-credits')!.addEventListener('click', () => {
   showMenuView('credits');
 });
 
+document.getElementById('btn-open-changelog')!.addEventListener('click', () => {
+  audio.unlock();
+  showMenuView('changelog');
+});
+
 document.getElementById('btn-back-home-story')!.addEventListener('click', () => showMenuView('home'));
 document.getElementById('btn-back-home-credits')!.addEventListener('click', () => showMenuView('home'));
+document.getElementById('btn-back-home-changelog')!.addEventListener('click', () => showMenuView('home'));
 
 document.querySelectorAll<HTMLButtonElement>('.stage-btn[data-stage]').forEach((btn) => {
   btn.addEventListener('click', () => {
@@ -364,6 +372,18 @@ document.getElementById('btn-copy-link')!.addEventListener('click', () => {
 document.getElementById('btn-join-room')!.addEventListener('click', () => {
   audio.unlock();
   peerMgr.joinRoom(inputRoomCode.value);
+});
+
+inputRoomCode.addEventListener('input', () => {
+  inputRoomCode.value = inputRoomCode.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 4);
+});
+
+inputRoomCode.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    audio.unlock();
+    peerMgr.joinRoom(inputRoomCode.value);
+  }
 });
 
 btnStartMabar.addEventListener('click', () => {
