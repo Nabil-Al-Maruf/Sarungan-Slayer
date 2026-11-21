@@ -7,7 +7,7 @@
 * **Gaya Visual:** Clean 2D Vector/Cartoon (HTML5 Canvas 2D dengan garis tepi tegas, efek *squash-and-stretch*, partikel dinamis, tanpa aset gambar eksternal/berat)
 * **Audio:** Procedural Sound Effects & BGM via Web Audio API (tanpa file MP3 eksternal)
 * **Platform & Orientasi:** Web Browser (Desktop & Mobile), mendukung rotasi dinamis **Portrait** (tampilan ala konsol genggam: layar game di atas, kontrol virtual di bawah) dan **Landscape** (layar penuh dengan HUD & tombol transparan).
-* **Arsitektur Jaringan:** 100% Tanpa Database (*Serverless/Stateless*). Menggunakan **WebRTC (PeerJS)** topologi *Host-Client* untuk mode mabar 2–5 pemain, serta `localStorage` untuk progres lokal.
+* **Arsitektur Jaringan:** 100% Tanpa Database (*Serverless/Stateless*). Menggunakan **Cloudflare Workers + Durable Objects (WebSocket WSS)** otoritatif per room untuk mode mabar 2–5 pemain, serta `localStorage` untuk progres lokal.
 
 ---
 

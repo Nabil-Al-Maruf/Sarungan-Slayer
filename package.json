@@ -1,18 +1,17 @@
 {
   "name": "arek-sarungan-slayer",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "worker:dev": "wrangler dev --config worker/wrangler.toml",
+    "worker:deploy": "wrangler deploy --config worker/wrangler.toml"
   },
   "devDependencies": {
     "typescript": "^5.7.3",
     "vite": "^6.1.0"
-  },
-  "dependencies": {
-    "peerjs": "^1.5.5"
   }
 }

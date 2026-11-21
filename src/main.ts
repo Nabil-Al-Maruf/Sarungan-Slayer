@@ -2,7 +2,7 @@ import './style.css';
 import { ProceduralAudio } from './audio/sfx';
 import { FIXED_DT, PLAYER_PALETTES, VIRTUAL_HEIGHT, VIRTUAL_WIDTH } from './core/constants';
 import { InputManager } from './core/input';
-import type { GameState, PlayerInput } from './core/types';
+import type { GameState } from './core/types';
 import { createSandboxState, stepSandbox } from './modes/sandbox';
 import {
   createStoryState,
@@ -21,7 +21,7 @@ import {
   stepSurvival,
   type ShopItemId,
 } from './modes/survival';
-import { PeerManager, type LobbyPlayer } from './net/peerManager';
+import { WsManager, type LobbyPlayer } from './net/wsManager';
 import { renderGame } from './render/renderer';
 import { HudController } from './ui/hud';
 import { bindTouchControls } from './ui/touchControls';
@@ -40,8 +40,6 @@ let menuOpen = true;
 let lobbyOpen = false;
 let shopOpen = false;
 let resultShown = false;
-let snapshotAccum = 0;
-let clientInputAccum = 0;
 
 // Overlay DOM references
 const menuOverlay = document.getElementById('menu-overlay') as HTMLDivElement;
@@ -75,14 +73,14 @@ const shopTicketsEl = document.getElementById('shop-tickets') as HTMLElement;
 const shopFeedbackEl = document.getElementById('shop-feedback') as HTMLDivElement;
 const btnSkipIntermission = document.getElementById('btn-skip-intermission') as HTMLButtonElement;
 
-// ===== PEERJS MULTIPLAYER MANAGER =====
-const peerMgr = new PeerManager({
+// ===== CLOUDFLARE WORKER + DURABLE OBJECT WEBSOCKET MANAGER =====
+const wsMgr = new WsManager({
   onStatus(text, isError) {
     lobbyStatusEl.textContent = text;
     lobbyStatusEl.style.color = isError ? '#f87171' : '#94a3b8';
   },
-  onLobbyUpdate(roomCode, players, localId) {
-    renderLobbyRoster(roomCode, players, localId);
+  onLobbyUpdate(roomCode, players, localId, isHost) {
+    renderLobbyRoster(roomCode, players, localId, isHost);
   },
   onGameStart() {
     audio.unlock();
@@ -96,54 +94,86 @@ const peerMgr = new PeerManager({
     resultOverlay.classList.add('hidden');
   },
   onSnapshot(remoteState) {
+    const prevState = state;
+    const isSameMatch =
+      prevState.mode === 'survival' &&
+      remoteState.mode === 'survival' &&
+      remoteState.status === 'playing' &&
+      prevState.status === 'playing';
+
+    if (isSameMatch) {
+      // Preserve smooth client-side interpolated positions on snapshot arrival
+      // so applyPredictionAndLerp smoothly converges them at 60 FPS!
+      const prevPlayers = new Map(prevState.players.map((p) => [p.id, p]));
+      const prevEnemies = new Map(prevState.enemies.map((e) => [e.id, e]));
+
+      for (const np of remoteState.players) {
+        const old = prevPlayers.get(np.id);
+        if (old && Math.hypot(np.x - old.x, np.y - old.y) < 95) {
+          np.x = old.x;
+          np.y = old.y;
+          np.z = old.z;
+          np.animTime = old.animTime;
+        }
+      }
+      for (const ne of remoteState.enemies) {
+        const old = prevEnemies.get(ne.id);
+        if (old && Math.hypot(ne.x - old.x, ne.y - old.y) < 110) {
+          ne.x = old.x;
+          ne.y = old.y;
+          ne.z = old.z;
+          ne.animTime = old.animTime;
+        }
+      }
+    }
+
     if (remoteState.status !== 'playing') {
       remoteState.shakeTimer = 0;
       remoteState.shakeIntensity = 0;
       remoteState.hitstopTimer = 0;
     }
+
     state = remoteState;
     if (state.soundQueue.length > 0) {
       audio.playQueue(state.soundQueue);
+      state.soundQueue.length = 0;
     }
     if (shopOpen) {
       refreshShopUI();
     }
     showResultIfNeeded();
   },
-  onClientBuy(playerId, itemId) {
-    const p = state.players.find((pl) => pl.id === playerId);
-    if (!p) return { ok: false, message: 'Pemain tidak ditemukan' };
-    return buyShopItem(state, p, itemId);
-  },
-  onClientSkipIntermission() {
-    skipIntermission(state);
-  },
   onShopResult(ok, message) {
     shopFeedbackEl.textContent = message;
     shopFeedbackEl.style.color = ok ? '#4ade80' : '#f87171';
     refreshShopUI();
   },
-  onHostDisconnect() {
+  onDisconnect(reason) {
     state.shakeTimer = 0;
     state.shakeIntensity = 0;
     state.hitstopTimer = 0;
     shopOpen = false;
     resultShown = false;
     openLobby();
-    lobbyStatusEl.textContent = 'Host keluar dari room — permainan berakhir.';
+    lobbyStatusEl.textContent = reason;
     lobbyStatusEl.style.color = '#f87171';
   },
 });
 
 function getLocalPlayer() {
-  return state.players.find((p) => p.id === peerMgr.localPlayerId) ?? state.players[0];
+  return state.players.find((p) => p.id === wsMgr.localPlayerId) ?? state.players[0];
 }
 
-function renderLobbyRoster(roomCode: string, players: LobbyPlayer[], localId: string): void {
-  if (peerMgr.role === 'host' && roomCode) {
+function renderLobbyRoster(
+  roomCode: string,
+  players: LobbyPlayer[],
+  localId: string,
+  isHost: boolean
+): void {
+  if (roomCode && players.length > 0) {
     hostCodeWrap.classList.remove('hidden');
     lobbyRoomCodeEl.textContent = roomCode;
-    btnStartMabar.classList.remove('hidden');
+    btnStartMabar.classList.toggle('hidden', !isHost);
   } else {
     hostCodeWrap.classList.add('hidden');
     btnStartMabar.classList.add('hidden');
@@ -244,7 +274,10 @@ function showMenuView(view: 'home' | 'story' | 'credits' | 'changelog'): void {
 }
 
 function openMenu(): void {
-  peerMgr.disconnect();
+  wsMgr.disconnect(true);
+  state.shakeTimer = 0;
+  state.shakeIntensity = 0;
+  state.hitstopTimer = 0;
   menuOpen = true;
   lobbyOpen = false;
   shopOpen = false;
@@ -267,12 +300,12 @@ function openLobby(): void {
   shopOverlay.classList.add('hidden');
   resultOverlay.classList.add('hidden');
   lobbyOverlay.classList.remove('hidden');
-  renderLobbyRoster(peerMgr.roomCode, peerMgr.lobbyPlayers, peerMgr.localPlayerId);
+  renderLobbyRoster(wsMgr.roomCode, wsMgr.lobbyPlayers, wsMgr.localPlayerId, wsMgr.isHost);
 }
 
 function startStoryStage(stage: 1 | 2 | 3): void {
   audio.unlock();
-  peerMgr.disconnect();
+  wsMgr.disconnect(true);
   state = createStoryState(stage, selectedPalette);
   menuOpen = false;
   lobbyOpen = false;
@@ -284,15 +317,10 @@ function startStoryStage(stage: 1 | 2 | 3): void {
   resultOverlay.classList.add('hidden');
 }
 
-function startSurvival(mabarRoster?: LobbyPlayer[]): void {
+function startSoloSurvival(): void {
   audio.unlock();
-  if (!mabarRoster) {
-    peerMgr.disconnect();
-  }
-  state = createSurvivalState(
-    selectedPalette,
-    mabarRoster?.map((p) => ({ id: p.id, paletteIndex: p.paletteIndex }))
-  );
+  wsMgr.disconnect(true);
+  state = createSurvivalState(selectedPalette);
   menuOpen = false;
   lobbyOpen = false;
   shopOpen = false;
@@ -305,7 +333,7 @@ function startSurvival(mabarRoster?: LobbyPlayer[]): void {
 
 function startSandbox(): void {
   audio.unlock();
-  peerMgr.disconnect();
+  wsMgr.disconnect(true);
   state = createSandboxState(selectedPalette);
   menuOpen = false;
   lobbyOpen = false;
@@ -345,7 +373,7 @@ document.querySelectorAll<HTMLButtonElement>('.stage-btn[data-stage]').forEach((
   });
 });
 
-document.getElementById('btn-play-survival')!.addEventListener('click', () => startSurvival());
+document.getElementById('btn-play-survival')!.addEventListener('click', () => startSoloSurvival());
 document.getElementById('btn-open-lobby')!.addEventListener('click', () => openLobby());
 document.getElementById('btn-play-sandbox')!.addEventListener('click', () => startSandbox());
 
@@ -355,15 +383,15 @@ document.getElementById('btn-unlock-all')!.addEventListener('click', () => {
   refreshMenuProgress();
 });
 
-// Lobby Buttons
+// Lobby Buttons (Cloudflare Durable Objects WSS)
 document.getElementById('btn-create-room')!.addEventListener('click', () => {
   audio.unlock();
-  peerMgr.createRoom(selectedPalette);
+  wsMgr.createRoom(selectedPalette);
 });
 
 document.getElementById('btn-copy-link')!.addEventListener('click', () => {
-  if (!peerMgr.roomCode) return;
-  const url = `${window.location.origin}${window.location.pathname}?room=${peerMgr.roomCode}`;
+  if (!wsMgr.roomCode) return;
+  const url = `${window.location.origin}${window.location.pathname}?room=${wsMgr.roomCode}`;
   navigator.clipboard?.writeText(url).catch(() => {});
   lobbyStatusEl.textContent = `Link undangan disalin: ${url}`;
   lobbyStatusEl.style.color = '#4ade80';
@@ -371,7 +399,7 @@ document.getElementById('btn-copy-link')!.addEventListener('click', () => {
 
 document.getElementById('btn-join-room')!.addEventListener('click', () => {
   audio.unlock();
-  peerMgr.joinRoom(inputRoomCode.value);
+  wsMgr.joinRoom(inputRoomCode.value, selectedPalette);
 });
 
 inputRoomCode.addEventListener('input', () => {
@@ -382,15 +410,13 @@ inputRoomCode.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') {
     e.preventDefault();
     audio.unlock();
-    peerMgr.joinRoom(inputRoomCode.value);
+    wsMgr.joinRoom(inputRoomCode.value, selectedPalette);
   }
 });
 
 btnStartMabar.addEventListener('click', () => {
-  if (peerMgr.role !== 'host') return;
-  startSurvival(peerMgr.lobbyPlayers);
-  peerMgr.broadcastStartGame();
-  peerMgr.broadcastSnapshot(state);
+  if (!wsMgr.isHost) return;
+  wsMgr.sendStartGame();
 });
 
 document.getElementById('btn-close-lobby')!.addEventListener('click', () => openMenu());
@@ -401,8 +427,8 @@ document.querySelectorAll<HTMLButtonElement>('.shop-item-btn[data-item]').forEac
     audio.unlock();
     const itemId = btn.dataset.item as ShopItemId;
 
-    if (peerMgr.role === 'client') {
-      peerMgr.sendClientBuy(itemId);
+    if (wsMgr.connected) {
+      wsMgr.sendBuy(itemId);
       return;
     }
 
@@ -419,8 +445,8 @@ document.querySelectorAll<HTMLButtonElement>('.shop-item-btn[data-item]').forEac
 
 btnSkipIntermission.addEventListener('click', () => {
   audio.unlock();
-  if (peerMgr.role === 'client') {
-    peerMgr.sendClientSkipIntermission();
+  if (wsMgr.connected) {
+    wsMgr.sendSkipIntermission();
   } else {
     skipIntermission(state);
   }
@@ -446,15 +472,15 @@ btnRetryStage.addEventListener('click', () => {
   if (state.mode === 'story') {
     startStoryStage(state.stageNumber);
   } else if (state.mode === 'survival') {
-    if (peerMgr.role === 'host') {
-      startSurvival(peerMgr.lobbyPlayers);
-      peerMgr.broadcastStartGame();
-      peerMgr.broadcastSnapshot(state);
-    } else if (peerMgr.role === 'client') {
-      peerMgr.disconnect();
-      openLobby();
+    if (wsMgr.connected) {
+      if (wsMgr.isHost) {
+        wsMgr.sendStartGame();
+      } else {
+        wsMgr.disconnect(true);
+        openLobby();
+      }
     } else {
-      startSurvival();
+      startSoloSurvival();
     }
   } else {
     startSandbox();
@@ -507,7 +533,7 @@ btnPalette.addEventListener('click', () => {
   const pal = PLAYER_PALETTES[selectedPalette];
   btnPalette.textContent = pal.label;
   const player = getLocalPlayer();
-  if (player && peerMgr.role !== 'client') {
+  if (player && !wsMgr.connected) {
     player.paletteIndex = selectedPalette;
     state.floatingTexts.push({
       x: player.x,
@@ -548,7 +574,12 @@ function showResultIfNeeded(): void {
   state.hitstopTimer = 0;
   shopOpen = false;
   shopOverlay.classList.add('hidden');
-  btnRetryStage.textContent = peerMgr.role === 'client' ? 'KELUAR KE LOBI' : 'MAIN LAGI';
+
+  if (wsMgr.connected) {
+    btnRetryStage.textContent = wsMgr.isHost ? 'MAIN LAGI (HOST)' : 'KELUAR KE LOBI';
+  } else {
+    btnRetryStage.textContent = 'MAIN LAGI';
+  }
 
   if (state.mode === 'survival' && state.survival) {
     saveBestWave(state.survival.wave);
@@ -648,81 +679,50 @@ function frame(now: number): void {
     }
 
     if (!menuOpen && !lobbyOpen && state.status === 'playing') {
-      if (peerMgr.role === 'client') {
-        // Client sends input packets at ~30Hz to Host
-        clientInputAccum += FIXED_DT;
-        if (
-          clientInputAccum >= 1 / 30 ||
-          sampled.meleePressed ||
-          sampled.projPressed ||
-          sampled.jumpPressed ||
-          sampled.dashPressed ||
-          sampled.ultPressed
-        ) {
-          clientInputAccum = 0;
-          peerMgr.sendClientInput(sampled);
-        }
-      } else {
-        // Solo or Host authoritative simulation
-        const isMultiplayerHost = peerMgr.role === 'host';
-        if (!shopOpen || isMultiplayerHost) {
-          if (state.mode === 'story') {
-            stepStory(state, sampled, FIXED_DT);
-          } else if (state.mode === 'survival') {
-            if (isMultiplayerHost) {
-              const allInputs: Record<string, PlayerInput> = {
-                [peerMgr.localPlayerId]: shopOpen
-                  ? {
-                      up: false,
-                      down: false,
-                      left: false,
-                      right: false,
-                      jumpPressed: false,
-                      dashPressed: false,
-                      meleePressed: false,
-                      projPressed: false,
-                      ultPressed: false,
-                      shopPressed: false,
-                    }
-                  : sampled,
-              };
-              for (const p of state.players) {
-                if (p.id === peerMgr.localPlayerId) continue;
-                const rem = peerMgr.getRemoteInput(p.id);
-                if (rem) allInputs[p.id] = rem;
-              }
-              stepSurvival(state, allInputs, FIXED_DT);
-            } else {
-              stepSurvival(state, sampled, FIXED_DT);
+      if (wsMgr.connected) {
+        // Cloudflare Durable Object authoritative match:
+        // 1. Send Delta Input only when controls change or an action is pressed
+        const netInput = shopOpen
+          ? {
+              up: false,
+              down: false,
+              left: false,
+              right: false,
+              jumpPressed: false,
+              dashPressed: false,
+              meleePressed: false,
+              projPressed: false,
+              ultPressed: false,
+              shopPressed: false,
             }
-          } else {
-            stepSandbox(state, sampled, FIXED_DT);
-          }
-          audio.playQueue(state.soundQueue);
-          const endedNow = state.status !== 'playing';
-          if (endedNow) {
-            state.shakeTimer = 0;
-            state.shakeIntensity = 0;
-            state.hitstopTimer = 0;
-          }
-          showResultIfNeeded();
-        }
+          : sampled;
+        wsMgr.sendDeltaInput(netInput);
 
-        // Host broadcasts snapshot to Clients at 25Hz (or immediately on game end!)
-        if (isMultiplayerHost) {
-          snapshotAccum += FIXED_DT;
-          if (snapshotAccum >= 0.04 || state.status !== 'playing') {
-            snapshotAccum = 0;
-            peerMgr.broadcastSnapshot(state);
-          }
+        // 2. Smooth 60 FPS Entity Interpolation + Local Client-Side Prediction
+        wsMgr.applyPredictionAndLerp(state, netInput, FIXED_DT);
+      } else if (!shopOpen) {
+        // Offline Solo Mode (Story / Survival Solo / Sandbox)
+        if (state.mode === 'story') {
+          stepStory(state, sampled, FIXED_DT);
+        } else if (state.mode === 'survival') {
+          stepSurvival(state, sampled, FIXED_DT);
+        } else {
+          stepSandbox(state, sampled, FIXED_DT);
         }
+        audio.playQueue(state.soundQueue);
+        if (state.status !== 'playing') {
+          state.shakeTimer = 0;
+          state.shakeIntensity = 0;
+          state.hitstopTimer = 0;
+        }
+        showResultIfNeeded();
       }
     }
     accumulator -= FIXED_DT;
   }
 
   renderGame(ctx, state);
-  hud.update(state, peerMgr.localPlayerId);
+  hud.update(state, wsMgr.localPlayerId);
   requestAnimationFrame(frame);
 }
 
