@@ -1,0 +1,570 @@
+import { CRATE_SIZE, PLAYER_PALETTES, ULT_RADIUS } from '../core/constants';
+import type { CrateState, EnemyState, PickupState, PlayerState } from '../core/types';
+
+export function drawPlayer(ctx: CanvasRenderingContext2D, player: PlayerState, time: number): void {
+  const palette = PLAYER_PALETTES[player.paletteIndex % PLAYER_PALETTES.length];
+
+  for (const ghost of player.afterimages) {
+    ctx.save();
+    ctx.globalAlpha = ghost.alpha * 0.48;
+    ctx.fillStyle = ghost.color;
+    ctx.beginPath();
+    ctx.ellipse(ghost.x, ghost.y - ghost.z - 22, 14, 20, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  if (player.ultActiveTimer > 0) {
+    ctx.save();
+    ctx.translate(player.x, player.y - 6);
+    ctx.scale(1, 0.72);
+
+    ctx.fillStyle = 'rgba(56, 189, 248, 0.18)';
+    ctx.beginPath();
+    ctx.arc(0, 0, ULT_RADIUS, 0, Math.PI * 2);
+    ctx.fill();
+
+    for (let i = 0; i < 3; i++) {
+      ctx.save();
+      ctx.rotate(time * 16 + (i * Math.PI * 2) / 3);
+      ctx.strokeStyle = i % 2 === 0 ? palette.sarung : palette.sarungStripe;
+      ctx.lineWidth = 11;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.arc(0, 0, 52 + i * 20, 0, Math.PI * 0.85);
+      ctx.stroke();
+
+      ctx.strokeStyle = '#090c14';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(0, 0, 58 + i * 20, 0, Math.PI * 0.85);
+      ctx.stroke();
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
+  const shadowScale = Math.max(0.55, 1 - player.z / 160);
+  ctx.save();
+  ctx.fillStyle = 'rgba(9, 12, 20, 0.34)';
+  ctx.beginPath();
+  ctx.ellipse(player.x, player.y + 2, 16 * shadowScale, 7.5 * shadowScale, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  const aimAngle = Math.atan2(player.dirY, player.dirX);
+  ctx.save();
+  ctx.translate(player.x + player.dirX * 22, player.y + player.dirY * 15);
+  ctx.rotate(aimAngle);
+  ctx.fillStyle = 'rgba(253, 224, 71, 0.75)';
+  ctx.beginPath();
+  ctx.moveTo(6, 0);
+  ctx.lineTo(-4, -4);
+  ctx.lineTo(-4, 4);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+
+  if (player.knockedDown) {
+    ctx.save();
+    ctx.translate(player.x, player.y);
+    ctx.rotate(Math.PI * 0.45);
+    ctx.globalAlpha = 0.72;
+    drawTopDownArekRig(ctx, { ...player, x: 0, y: 0, z: 0 }, palette, time);
+    ctx.restore();
+
+    ctx.save();
+    ctx.font = '900 11px "Segoe UI", system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#090c14';
+    ctx.strokeText(`${palette.label} TUMBANG!`, player.x, player.y - 28);
+    ctx.fillStyle = '#f87171';
+    ctx.fillText(`${palette.label} TUMBANG!`, player.x, player.y - 28);
+    ctx.restore();
+    return;
+  }
+
+  if (player.invulnTimer > 0 && player.ultActiveTimer <= 0 && Math.floor(time * 20) % 2 === 0) {
+    ctx.save();
+    ctx.globalAlpha = 0.55;
+    drawTopDownArekRig(ctx, player, palette, time);
+    ctx.restore();
+  } else {
+    drawTopDownArekRig(ctx, player, palette, time);
+  }
+
+  // Player tag badge above head (useful in 2-5 player Mabar!)
+  ctx.save();
+  ctx.font = '900 10px "Segoe UI", system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = '#090c14';
+  ctx.strokeText(palette.label, player.x, player.y - player.z - 62);
+  ctx.fillStyle = '#fde047';
+  ctx.fillText(palette.label, player.x, player.y - player.z - 62);
+  ctx.restore();
+}
+
+function drawTopDownArekRig(
+  ctx: CanvasRenderingContext2D,
+  player: PlayerState,
+  palette: (typeof PLAYER_PALETTES)[number],
+  time: number
+): void {
+  const footX = player.x;
+  const footY = player.y - player.z;
+  const facingUp = player.dirY < -0.5;
+  const flipX = player.dirX < -0.15 ? -1 : 1;
+
+  ctx.save();
+  ctx.translate(footX, footY);
+
+  const spinScale = player.ultActiveTimer > 0 ? Math.cos(time * 28) || 0.2 : flipX;
+  ctx.scale(spinScale * player.scaleX, player.scaleY);
+
+  const speed = Math.hypot(player.vx, player.vy);
+  const isWalking = speed > 20 && player.z === 0;
+  const legStep = isWalking ? Math.sin(player.animTime) * 4.5 : 0;
+  const bob = isWalking ? Math.abs(Math.sin(player.animTime)) * -2.5 : Math.sin(player.animTime) * 1;
+
+  ctx.strokeStyle = '#090c14';
+  ctx.lineWidth = 2.8;
+  ctx.lineJoin = 'round';
+
+  ctx.fillStyle = '#1e293b';
+  ctx.beginPath();
+  ctx.roundRect(-9, -11 + legStep, 7, 11, 3);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.roundRect(2, -11 - legStep, 7, 11, 3);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = player.hitFlashTimer > 0 ? '#ffffff' : palette.shirt;
+  ctx.beginPath();
+  ctx.roundRect(-13, -31 + bob, 26, 22, 8);
+  ctx.fill();
+  ctx.stroke();
+
+  if (player.hitFlashTimer <= 0) {
+    ctx.fillStyle = palette.shirtShadow;
+    ctx.fillRect(-11, -15 + bob, 22, 4);
+  }
+
+  ctx.fillStyle = player.hitFlashTimer > 0 ? '#ffffff' : palette.sarung;
+  ctx.beginPath();
+  ctx.moveTo(-12, -30 + bob);
+  ctx.lineTo(-4, -30 + bob);
+  ctx.lineTo(12, -11 + bob);
+  ctx.lineTo(4, -10 + bob);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.strokeStyle = palette.sarungStripe;
+  ctx.lineWidth = 2.2;
+  ctx.beginPath();
+  ctx.moveTo(-8, -28 + bob);
+  ctx.lineTo(8, -12 + bob);
+  ctx.stroke();
+
+  ctx.strokeStyle = '#090c14';
+  ctx.lineWidth = 2.8;
+  ctx.fillStyle = player.hitFlashTimer > 0 ? '#ffffff' : '#f1c29b';
+  ctx.beginPath();
+  ctx.arc(0, -40 + bob, 13, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  if (!facingUp) {
+    const eyeShift = Math.abs(player.dirX) > 0.35 ? 3 : 0;
+    ctx.fillStyle = '#090c14';
+    ctx.beginPath();
+    ctx.arc(-4 + eyeShift, -39 + bob, 2.2, 0, Math.PI * 2);
+    ctx.arc(5 + eyeShift, -39 + bob, 2.2, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    ctx.fillStyle = '#1e293b';
+    ctx.beginPath();
+    ctx.arc(0, -40 + bob, 12, Math.PI * 0.1, Math.PI * 0.9);
+    ctx.fill();
+  }
+
+  ctx.fillStyle = palette.peci;
+  ctx.beginPath();
+  ctx.roundRect(-12, -55 + bob, 24, 12, [6, 6, 2, 2]);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = '#facc15';
+  ctx.fillRect(-10, -46 + bob, 20, 2.5);
+
+  const meleeActive = player.meleeTimer > 0;
+  const sarungLen = meleeActive ? 34 : 16;
+  const swingAngle = meleeActive ? -0.9 + (1 - player.meleeTimer / 0.22) * 2.1 : 0.25;
+
+  ctx.save();
+  ctx.translate(9, -22 + bob);
+  ctx.rotate(swingAngle);
+  ctx.fillStyle = palette.sarung;
+  ctx.strokeStyle = '#090c14';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(0, -4);
+  ctx.quadraticCurveTo(sarungLen * 0.6, -10, sarungLen, 0);
+  ctx.quadraticCurveTo(sarungLen * 0.5, 8, 0, 4);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.restore();
+}
+
+export function drawEnemy(ctx: CanvasRenderingContext2D, enemy: EnemyState, time: number): void {
+  const shadowScale = Math.max(0.55, 1 - enemy.z / 160);
+  const sizeScale = enemy.isBoss
+    ? 1.48
+    : enemy.kind === 'zombie_gendruwo'
+      ? 1.32
+      : enemy.kind === 'zombie_tuyul' || enemy.kind === 'zombie_bocil'
+        ? 0.84
+        : 1;
+
+  // Phase 2 glowing aura on Raja Sarung Baja Suramadu
+  if (enemy.isBoss && enemy.phase === 2) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(56, 189, 248, 0.25)';
+    ctx.beginPath();
+    ctx.ellipse(enemy.x, enemy.y, 44 + Math.sin(time * 12) * 4, 24, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Ground shadow
+  ctx.save();
+  ctx.fillStyle = 'rgba(9, 12, 20, 0.34)';
+  ctx.beginPath();
+  ctx.ellipse(
+    enemy.x,
+    enemy.y + 2,
+    14 * sizeScale * shadowScale,
+    6.5 * sizeScale * shadowScale,
+    0,
+    0,
+    Math.PI * 2
+  );
+  ctx.fill();
+  ctx.restore();
+
+  ctx.save();
+  ctx.translate(enemy.x, enemy.y - enemy.z);
+  const flipX = enemy.dirX < -0.15 ? -1 : 1;
+  ctx.scale(flipX * enemy.scaleX * sizeScale, enemy.scaleY * sizeScale);
+
+  ctx.strokeStyle = '#090c14';
+  ctx.lineWidth = 2.6;
+  ctx.lineJoin = 'round';
+
+  if (enemy.kind === 'dummy') {
+    ctx.fillStyle = '#78350f';
+    ctx.fillRect(-5, -12, 10, 12);
+    ctx.strokeRect(-5, -12, 10, 12);
+
+    ctx.fillStyle = enemy.hitFlashTimer > 0 ? '#ffffff' : '#d6b283';
+    ctx.beginPath();
+    ctx.roundRect(-14, -44, 28, 34, 10);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.strokeStyle = '#dc2626';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(-6, -33);
+    ctx.lineTo(6, -21);
+    ctx.moveTo(6, -33);
+    ctx.lineTo(-6, -21);
+    ctx.stroke();
+  } else if (enemy.kind === 'zombie_pocong') {
+    // Classic Indonesian Pocong wrapped in white kain kafan with top knot!
+    ctx.fillStyle = enemy.hitFlashTimer > 0 ? '#ffffff' : '#f1f5f9';
+    ctx.beginPath();
+    ctx.roundRect(-10, -42, 20, 42, 10);
+    ctx.fill();
+    ctx.stroke();
+
+    // Top tied knot (ikatan pocong)
+    ctx.beginPath();
+    ctx.moveTo(-5, -42);
+    ctx.lineTo(0, -52);
+    ctx.lineTo(5, -42);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Cloth ties
+    ctx.strokeStyle = '#64748b';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-9, -26);
+    ctx.lineTo(9, -26);
+    ctx.moveTo(-8, -12);
+    ctx.lineTo(8, -12);
+    ctx.stroke();
+
+    // Pale face oval & spooky dark eyes
+    ctx.fillStyle = '#cbd5e1';
+    ctx.beginPath();
+    ctx.ellipse(1, -33, 6.5, 5.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#090c14';
+    ctx.beginPath();
+    ctx.arc(-1, -33, 1.8, 0, Math.PI * 2);
+    ctx.arc(4, -33, 1.8, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    const hop = Math.abs(Math.sin(enemy.animTime)) * -3;
+    const isZombie = enemy.kind.startsWith('zombie_');
+    const skinColor =
+      enemy.kind === 'zombie_gendruwo'
+        ? '#4c1d95'
+        : enemy.kind === 'zombie_tuyul'
+          ? '#d9f99d'
+          : isZombie
+            ? '#86efac'
+            : '#f1c29b';
+
+    // Legs
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(-7, -9, 5, 9);
+    ctx.strokeRect(-7, -9, 5, 9);
+    ctx.fillRect(2, -9, 5, 9);
+    ctx.strokeRect(2, -9, 5, 9);
+
+    // Body / Shirt
+    ctx.fillStyle = enemy.hitFlashTimer > 0 ? '#ffffff' : enemy.shirtColor;
+    ctx.beginPath();
+    ctx.roundRect(-11, -26 + hop, 22, 18, 6);
+    ctx.fill();
+    ctx.stroke();
+
+    // Sarung wrap
+    ctx.fillStyle = enemy.sarungColor;
+    ctx.fillRect(-10, -14 + hop, 20, 6);
+    ctx.strokeRect(-10, -14 + hop, 20, 6);
+
+    // Head
+    ctx.fillStyle = enemy.hitFlashTimer > 0 ? '#ffffff' : skinColor;
+    ctx.beginPath();
+    ctx.arc(0, -34 + hop, 10.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Variant headwear
+    if (enemy.kind === 'boss_suramadu') {
+      ctx.fillStyle = '#94a3b8';
+      ctx.beginPath();
+      ctx.moveTo(-11, -40 + hop);
+      ctx.lineTo(-8, -51 + hop);
+      ctx.lineTo(0, -45 + hop);
+      ctx.lineTo(8, -51 + hop);
+      ctx.lineTo(11, -40 + hop);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    } else if (enemy.kind === 'boss_tunjungan' || enemy.kind === 'boss_koordinator') {
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.roundRect(-11, -47 + hop, 22, 10, [5, 5, 1, 1]);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#facc15';
+      ctx.fillRect(-9, -40 + hop, 18, 2.5);
+    } else if (enemy.kind === 'elite') {
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(-10, -43 + hop, 20, 7);
+      ctx.strokeRect(-10, -43 + hop, 20, 7);
+    } else if (enemy.kind === 'zombie_gendruwo') {
+      // Spiky horns
+      ctx.fillStyle = '#dc2626';
+      ctx.beginPath();
+      ctx.moveTo(-8, -42 + hop);
+      ctx.lineTo(-13, -51 + hop);
+      ctx.lineTo(-3, -44 + hop);
+      ctx.moveTo(8, -42 + hop);
+      ctx.lineTo(13, -51 + hop);
+      ctx.lineTo(3, -44 + hop);
+      ctx.fill();
+      ctx.stroke();
+    } else if (!isZombie) {
+      ctx.fillStyle = enemy.kind === 'pelari_cepat' ? '#fde047' : '#ef4444';
+      ctx.fillRect(-10, -40 + hop, 20, 4);
+      ctx.strokeRect(-10, -40 + hop, 20, 4);
+    }
+
+    // Eyes / Sunglasses
+    if (enemy.dirY >= -0.5) {
+      if (enemy.kind === 'boss_tunjungan') {
+        ctx.fillStyle = '#090c14';
+        ctx.fillRect(-5, -36 + hop, 14, 4.5);
+      } else {
+        ctx.fillStyle =
+          enemy.kind === 'boss_suramadu'
+            ? '#38bdf8'
+            : enemy.kind === 'zombie_gendruwo'
+              ? '#facc15'
+              : isZombie
+                ? '#dc2626'
+                : '#090c14';
+        ctx.beginPath();
+        ctx.arc(-2, -33 + hop, 1.9, 0, Math.PI * 2);
+        ctx.arc(5, -33 + hop, 1.9, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // Special held gear
+    if (enemy.kind === 'perisai_kardus') {
+      ctx.fillStyle = '#d6a574';
+      ctx.fillRect(8, -32 + hop, 10, 26);
+      ctx.strokeRect(8, -32 + hop, 10, 26);
+      ctx.fillStyle = '#fde68a';
+      ctx.fillRect(10, -22 + hop, 6, 6);
+    } else if (enemy.kind === 'pelempar_sandal') {
+      ctx.fillStyle = '#22c55e';
+      ctx.beginPath();
+      ctx.ellipse(13, -21 + hop, 5, 8, 0.3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+  }
+
+  ctx.restore();
+
+  // Regular Enemy HP Bar (Boss has dedicated screen-bottom HUD bar)
+  if (!enemy.isBoss) {
+    const barW = 34;
+    const barH = 5;
+    const bx = enemy.x - barW * 0.5;
+    const by = enemy.y - enemy.z - 54;
+    const ratio = Math.max(0, enemy.hp / enemy.maxHp);
+
+    ctx.save();
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(bx - 1, by - 1, barW + 2, barH + 2);
+    ctx.fillStyle = ratio > 0.4 ? '#22c55e' : '#ef4444';
+    ctx.fillRect(bx, by, barW * ratio, barH);
+    ctx.restore();
+  }
+}
+
+export function drawCrate(ctx: CanvasRenderingContext2D, crate: CrateState): void {
+  const half = CRATE_SIZE * 0.5;
+  const sx = crate.x - half;
+  const sy = crate.y - crate.z - CRATE_SIZE + 8;
+
+  ctx.save();
+  ctx.fillStyle = 'rgba(9, 12, 20, 0.3)';
+  ctx.beginPath();
+  ctx.ellipse(crate.x, crate.y + 4, 21, 9, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = '#090c14';
+  ctx.lineWidth = 2.8;
+
+  const frontColor =
+    crate.hitFlashTimer > 0 ? '#ffffff' : crate.style === 'wood' ? '#b45309' : '#b8834f';
+  const topColor =
+    crate.hitFlashTimer > 0 ? '#ffffff' : crate.style === 'wood' ? '#d97706' : '#d6a574';
+
+  ctx.fillStyle = topColor;
+  ctx.fillRect(sx, sy, CRATE_SIZE, 14);
+  ctx.strokeRect(sx, sy, CRATE_SIZE, 14);
+
+  ctx.fillStyle = frontColor;
+  ctx.fillRect(sx, sy + 14, CRATE_SIZE, CRATE_SIZE - 14);
+  ctx.strokeRect(sx, sy + 14, CRATE_SIZE, CRATE_SIZE - 14);
+
+  if (crate.style === 'wood') {
+    ctx.strokeStyle = '#78350f';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(sx + 5, sy + 18);
+    ctx.lineTo(sx + CRATE_SIZE - 5, sy + CRATE_SIZE - 4);
+    ctx.stroke();
+  } else {
+    ctx.fillStyle = '#fde68a';
+    ctx.fillRect(sx + half - 4, sy + 1, 8, CRATE_SIZE - 2);
+  }
+
+  ctx.restore();
+}
+
+export function drawPickup(ctx: CanvasRenderingContext2D, item: PickupState): void {
+  const bobY = Math.sin(item.bobPhase) * 4;
+  const cx = item.x;
+  const cy = item.y - item.z - 16 + bobY;
+
+  ctx.save();
+  ctx.fillStyle = 'rgba(9, 12, 20, 0.28)';
+  ctx.beginPath();
+  ctx.ellipse(item.x, item.y + 2, 12, 5.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle =
+    item.kind === 'es_teh' ? 'rgba(74, 222, 128, 0.26)' : 'rgba(250, 204, 21, 0.3)';
+  ctx.beginPath();
+  ctx.arc(cx, cy, 18, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = '#090c14';
+  ctx.lineWidth = 2.5;
+
+  if (item.kind === 'es_teh') {
+    ctx.fillStyle = '#d97706';
+    ctx.beginPath();
+    ctx.roundRect(cx - 9, cy - 10, 18, 20, 4);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#e0f2fe';
+    ctx.fillRect(cx - 5, cy - 6, 4.5, 4.5);
+    ctx.fillRect(cx + 1, cy - 4, 4.5, 4.5);
+
+    ctx.strokeStyle = '#22c55e';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(cx + 3, cy - 10);
+    ctx.lineTo(cx + 8, cy - 18);
+    ctx.stroke();
+  } else {
+    ctx.fillStyle = '#f8fafc';
+    ctx.beginPath();
+    ctx.roundRect(cx - 9, cy - 8, 18, 16, [2, 2, 6, 6]);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#451a03';
+    ctx.fillRect(cx - 7, cy - 6, 14, 4.5);
+
+    ctx.beginPath();
+    ctx.arc(cx + 9, cy, 4.5, -Math.PI * 0.5, Math.PI * 0.5);
+    ctx.stroke();
+
+    ctx.fillStyle = '#facc15';
+    ctx.beginPath();
+    ctx.moveTo(cx + 1, cy - 2);
+    ctx.lineTo(cx - 4, cy + 3);
+    ctx.lineTo(cx, cy + 3);
+    ctx.lineTo(cx - 2, cy + 7);
+    ctx.lineTo(cx + 4, cy + 1);
+    ctx.lineTo(cx, cy + 1);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  ctx.restore();
+}

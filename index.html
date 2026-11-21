@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <title>Arek Sarungan Slayer</title>
+  </head>
+  <body>
+    <div id="app" class="app-shell">
+      <!-- Game Stage Container (Top in Portrait, Fullscreen in Landscape) -->
+      <div id="stage-wrap" class="stage-wrap">
+        <canvas id="game-canvas" width="960" height="540"></canvas>
+
+        <!-- In-Game HUD Overlay -->
+        <header id="hud" class="hud" aria-label="Status Pemain">
+          <div class="hud-left">
+            <div class="player-badge" id="hud-player-badge">P1</div>
+            <div class="bars-stack">
+              <div class="bar-row">
+                <span class="bar-label">HP</span>
+                <div class="bar-track hp-track">
+                  <div id="hud-hp-fill" class="bar-fill hp-fill" style="width: 100%"></div>
+                </div>
+                <span id="hud-hp-text" class="bar-val">100/100</span>
+              </div>
+              <div class="bar-row">
+                <span class="bar-label">ULT</span>
+                <div class="bar-track ult-track">
+                  <div id="hud-ult-fill" class="bar-fill ult-fill" style="width: 0%"></div>
+                </div>
+                <span id="hud-ult-text" class="bar-val">0%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="hud-center">
+            <div id="hud-mode-title" class="mode-pill">FASE 1 • ARENA LATIHAN TAMBAK</div>
+            <div class="cooldown-pill">
+              <span>PECUT</span>
+              <div class="cd-track">
+                <div id="hud-proj-fill" class="cd-fill" style="width: 100%"></div>
+              </div>
+              <span id="hud-proj-text">SIAP</span>
+            </div>
+          </div>
+
+          <div class="hud-right">
+            <div class="score-pill hidden" id="hud-coins">Rp 0</div>
+            <div class="score-pill" id="hud-ko-count">KO: 0</div>
+            <button id="btn-warung-hud" class="hud-btn warung-hud-btn hidden" title="Buka Warung [B]">
+              WARUNG
+            </button>
+            <button id="btn-menu" class="hud-btn" title="Pilih Mode / Stage">MENU</button>
+            <button id="btn-palette" class="hud-btn" title="Ganti Warna Arek (P1-P5)">P1</button>
+            <button id="btn-touch-toggle" class="hud-btn" title="Tampilkan Kontrol Sentuh">PAD</button>
+            <button id="btn-sfx" class="hud-btn" title="Suara SFX">SFX</button>
+            <button id="btn-bgm" class="hud-btn" title="Musik Latar">BGM</button>
+          </div>
+        </header>
+
+        <!-- Animated Title Screen / Main Menu Overlay -->
+        <div id="menu-overlay" class="overlay-modal title-screen-bg">
+          <div class="modal-card menu-card title-card-anim">
+            <div class="title-top-meta">
+              <span class="version-badge">v1.0.0</span>
+              <span class="modal-eyebrow">SUROBOYO TOP-DOWN ACTION ARCADE</span>
+              <span class="version-badge p2p-badge">P2P ONLINE</span>
+            </div>
+
+            <div class="title-hero">
+              <h1 class="game-logo-title">
+                <span class="logo-line-1">AREK SARUNGAN</span>
+                <span class="logo-line-2">SLAYER</span>
+              </h1>
+              <div class="sarung-ribbon-bar"></div>
+              <p class="title-tagline">Kibas Sarungmu, Bela Kampung Suroboyo!</p>
+            </div>
+
+            <!-- View 1: Main Title Menu -->
+            <div id="menu-home-view" class="menu-view">
+              <div class="title-menu-stack">
+                <button id="btn-open-story" class="title-cta-btn cta-story anim-stagger-1">
+                  <span class="cta-icon">⚔</span>
+                  <span class="cta-text">
+                    <strong>STORY MODE</strong>
+                    <small>3 Stage Surabaya + 3 Boss</small>
+                  </span>
+                  <span class="cta-arrow">➔</span>
+                </button>
+
+                <button id="btn-play-survival" class="title-cta-btn cta-survival anim-stagger-2">
+                  <span class="cta-icon">🛡</span>
+                  <span class="cta-text">
+                    <strong>SURVIVAL SOLO <span id="menu-best-wave"></span></strong>
+                    <small>Jaga Pos Warkop, 3 Barricade &amp; Wave Zombie</small>
+                  </span>
+                  <span class="cta-arrow">➔</span>
+                </button>
+
+                <button id="btn-open-lobby" class="title-cta-btn cta-mabar anim-stagger-3">
+                  <span class="cta-icon">🌐</span>
+                  <span class="cta-text">
+                    <strong>MABAR ONLINE (2–5 PEMAIN)</strong>
+                    <small>WebRTC P2P Tanpa Database • Kode Room 4 Karakter</small>
+                  </span>
+                  <span class="cta-arrow">➔</span>
+                </button>
+              </div>
+
+              <div class="menu-footer-actions anim-stagger-4">
+                <button id="btn-play-sandbox" class="secondary-btn">ARENA LATIHAN</button>
+                <button id="btn-open-credits" class="ghost-btn">CREDITS &amp; VERSI</button>
+              </div>
+            </div>
+
+            <!-- View 2: Story Stage Select -->
+            <div id="menu-story-view" class="menu-view hidden">
+              <p class="modal-sub">Pilih Stage Petualangan Surabaya</p>
+              <div class="stage-grid">
+                <button class="stage-btn" data-stage="1" id="btn-stage-1">
+                  <span class="stage-tag">STAGE 1</span>
+                  <strong>Gang Tambak &amp; Kenjeran</strong>
+                  <small>Boss: Cak Koordinator</small>
+                  <span class="stage-status" id="status-stage-1">TERBUKA</span>
+                </button>
+                <button class="stage-btn" data-stage="2" id="btn-stage-2">
+                  <span class="stage-tag">STAGE 2</span>
+                  <strong>Kawasan Jalan Tunjungan</strong>
+                  <small>Boss: Jagoan Tunjungan</small>
+                  <span class="stage-status" id="status-stage-2">TERKUNCI</span>
+                </button>
+                <button class="stage-btn" data-stage="3" id="btn-stage-3">
+                  <span class="stage-tag">STAGE 3</span>
+                  <strong>Jembatan Suramadu (Malam)</strong>
+                  <small>Boss: Raja Sarung Baja</small>
+                  <span class="stage-status" id="status-stage-3">TERKUNCI</span>
+                </button>
+              </div>
+              <div class="menu-footer-actions">
+                <button id="btn-back-home-story" class="ghost-btn">← KEMBALI</button>
+                <button id="btn-unlock-all" class="secondary-btn" title="Buka semua stage">
+                  BUKA SEMUA STAGE
+                </button>
+              </div>
+            </div>
+
+            <!-- View 3: Credits & Version -->
+            <div id="menu-credits-view" class="menu-view hidden">
+              <div class="credits-box">
+                <div class="credit-row">
+                  <span class="credit-role">CREATOR &amp; DEVELOPER</span>
+                  <strong>Nabil Al-Ma'ruf</strong>
+                </div>
+                <div class="credit-row">
+                  <span class="credit-role">TEMA &amp; KULTUR</span>
+                  <strong>Boso Suroboyoan • Tambak, Tunjungan, Suramadu</strong>
+                </div>
+                <div class="credit-row">
+                  <span class="credit-role">TEKNOLOGI</span>
+                  <strong>TypeScript • HTML5 Canvas 2D • Web Audio API • PeerJS WebRTC</strong>
+                </div>
+                <div class="credit-row">
+                  <span class="credit-role">VERSI RILIS</span>
+                  <strong>v1.0.0 — Full Edition (Story + Survival + 5P Mabar)</strong>
+                </div>
+              </div>
+              <div class="menu-footer-actions">
+                <button id="btn-back-home-credits" class="primary-btn">← KEMBALI KE MENU</button>
+              </div>
+            </div>
+
+            <div class="title-bottom-credit">
+              <span>© 2026 Nabil Al-Ma'ruf • Arek Sarungan Slayer</span>
+              <span>v1.0.0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- PeerJS Mabar Online Lobby Overlay (100% Tanpa Database) -->
+        <div id="lobby-overlay" class="overlay-modal hidden">
+          <div class="modal-card lobby-card">
+            <div class="modal-eyebrow">WEBRTC P2P • TANPA DATABASE (2–5 PEMAIN)</div>
+            <h2 class="modal-title">LOBI MABAR SURVIVAL</h2>
+            <p id="lobby-status" class="modal-sub">
+              Buat Room baru atau masukkan Kode Room 4 karakter dari temanmu.
+            </p>
+
+            <div class="lobby-actions-row">
+              <div class="lobby-box">
+                <span class="lobby-box-title">JADI HOST</span>
+                <button id="btn-create-room" class="primary-btn">BUAT ROOM BARU</button>
+                <div id="host-code-wrap" class="host-code-wrap hidden">
+                  <div class="room-code-display" id="lobby-room-code">----</div>
+                  <button id="btn-copy-link" class="secondary-btn">SALIN LINK UNDANGAN</button>
+                </div>
+              </div>
+
+              <div class="lobby-box">
+                <span class="lobby-box-title">GABUNG TEMAN</span>
+                <div class="join-row">
+                  <input
+                    id="input-room-code"
+                    class="room-input"
+                    type="text"
+                    maxlength="4"
+                    placeholder="KODE"
+                    autocomplete="off"
+                  />
+                  <button id="btn-join-room" class="secondary-btn">GABUNG</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="roster-section">
+              <div class="roster-header">
+                <span>DAFTAR PEMAIN</span>
+                <span id="lobby-player-count">0/5</span>
+              </div>
+              <div id="lobby-roster" class="roster-list">
+                <div class="roster-empty">Belum ada room aktif.</div>
+              </div>
+            </div>
+
+            <div class="result-actions">
+              <button id="btn-start-mabar" class="primary-btn hidden">
+                MULAI MABAR SURVIVAL ➔
+              </button>
+              <button id="btn-close-lobby" class="ghost-btn">KEMBALI KE MENU</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Warung / Toko Survival Overlay -->
+        <div id="shop-overlay" class="overlay-modal hidden">
+          <div class="modal-card shop-card">
+            <div class="modal-eyebrow">WARUNG POS RONDA • SURABAYA</div>
+            <h2 class="modal-title">TOKO PERLENGKAPAN</h2>
+            <p class="modal-sub">
+              Saldo Receh: <b id="shop-coins" class="coin-text">0</b> • Tiket Revive:
+              <b id="shop-tickets">0</b>
+            </p>
+            <div id="shop-feedback" class="shop-feedback"></div>
+
+            <div class="shop-grid">
+              <button class="shop-item-btn" data-item="barricade_left" id="shop-bar-left">
+                <strong>Barricade Kiri</strong>
+                <small id="shop-bar-left-desc">Perbaiki / Upgrade</small>
+                <span class="price-pill" id="shop-bar-left-cost">40 Receh</span>
+              </button>
+              <button class="shop-item-btn" data-item="barricade_top" id="shop-bar-top">
+                <strong>Barricade Atas</strong>
+                <small id="shop-bar-top-desc">Perbaiki / Upgrade</small>
+                <span class="price-pill" id="shop-bar-top-cost">40 Receh</span>
+              </button>
+              <button class="shop-item-btn" data-item="barricade_right" id="shop-bar-right">
+                <strong>Barricade Kanan</strong>
+                <small id="shop-bar-right-desc">Perbaiki / Upgrade</small>
+                <span class="price-pill" id="shop-bar-right-cost">40 Receh</span>
+              </button>
+              <button class="shop-item-btn" data-item="tiket_revive">
+                <strong>Tiket Revive</strong>
+                <small>Hidupkan teman / Auto-bangkit</small>
+                <span class="price-pill">100 Receh</span>
+              </button>
+              <button class="shop-item-btn" data-item="es_teh_jumbo">
+                <strong>Es Teh Jumbo</strong>
+                <small>Full HP Pribadi + 150 HP Pos</small>
+                <span class="price-pill">55 Receh</span>
+              </button>
+              <button class="shop-item-btn" data-item="kopi_pekat">
+                <strong>Kopi Hitam Pekat</strong>
+                <small>Langsung 100% Bar Ultimate</small>
+                <span class="price-pill">75 Receh</span>
+              </button>
+            </div>
+
+            <div class="result-actions">
+              <button id="btn-skip-intermission" class="secondary-btn hidden">
+                SIAP WAVE BERIKUTNYA ➔
+              </button>
+              <button id="btn-close-shop" class="ghost-btn">TUTUP WARUNG [B]</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Victory / Game Over Overlay -->
+        <div id="result-overlay" class="overlay-modal hidden">
+          <div class="modal-card result-card">
+            <div id="result-eyebrow" class="modal-eyebrow">STAGE CLEAR</div>
+            <h2 id="result-title" class="modal-title">MANTAP REK!</h2>
+            <p id="result-desc" class="modal-sub">Boss kampung sebelah berhasil ditumbangkan!</p>
+            <div class="result-actions">
+              <button id="btn-next-stage" class="primary-btn">STAGE BERIKUTNYA ➔</button>
+              <button id="btn-retry-stage" class="secondary-btn">MAIN LAGI</button>
+              <button id="btn-back-menu" class="ghost-btn">MENU UTAMA</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Landscape Hint Bar (Desktop only) -->
+        <div id="desktop-hints" class="desktop-hints">
+          <span><b>WASD/Panah</b> Gerak 8-Arah</span>
+          <span><b>Space</b> Lompat 2x</span>
+          <span><b>Shift/L</b> Dash</span>
+          <span><b>J/Z</b> Kibas</span>
+          <span><b>K/X</b> Pecut</span>
+          <span><b>U/C</b> Ultimate</span>
+        </div>
+      </div>
+
+      <!-- Virtual Controls (Solid Handheld Deck in Portrait, Transparent Overlay in Landscape) -->
+      <section id="controls-deck" class="controls-deck" aria-label="Kontrol Virtual">
+        <div class="deck-header">
+          <span class="deck-brand">AREK SARUNGAN SLAYER</span>
+          <span class="deck-sub">SUROBOYO ARCADE DECK</span>
+        </div>
+
+        <div class="deck-body">
+          <!-- Left: D-Pad -->
+          <div class="dpad-zone">
+            <button class="vbtn dpad-btn dpad-up" data-action="up" aria-label="Atas">▲</button>
+            <button class="vbtn dpad-btn dpad-left" data-action="left" aria-label="Kiri">◀</button>
+            <div class="dpad-center"></div>
+            <button class="vbtn dpad-btn dpad-right" data-action="right" aria-label="Kanan">▶</button>
+            <button class="vbtn dpad-btn dpad-down" data-action="down" aria-label="Bawah">▼</button>
+          </div>
+
+          <!-- Center utility (Portrait only) -->
+          <div class="deck-mid">
+            <button class="vbtn util-btn" data-action="shop" id="vbtn-shop" title="Warung / Toko (Fase 3)">
+              WARUNG
+            </button>
+          </div>
+
+          <!-- Right: Action Buttons -->
+          <div class="action-zone">
+            <button class="vbtn act-btn act-ult" data-action="ult" id="vbtn-ult">
+              <span class="act-title">BADAI</span>
+              <span class="act-sub">ULT</span>
+            </button>
+            <button class="vbtn act-btn act-proj" data-action="proj" id="vbtn-proj">
+              <span class="act-title">PECUT</span>
+              <span class="act-sub" id="vbtn-proj-cd">SIAP</span>
+            </button>
+            <button class="vbtn act-btn act-dash" data-action="dash">
+              <span class="act-title">DASH</span>
+              <span class="act-sub">NGELES</span>
+            </button>
+            <button class="vbtn act-btn act-jump" data-action="jump">
+              <span class="act-title">LOMPAT</span>
+              <span class="act-sub">2X</span>
+            </button>
+            <button class="vbtn act-btn act-melee" data-action="melee">
+              <span class="act-title">KIBAS</span>
+              <span class="act-sub">SARUNG</span>
+            </button>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
