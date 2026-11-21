@@ -346,10 +346,16 @@ export function damagePlayer(
       const anyAlive = state.players.some((p) => !p.knockedDown);
       if (!anyAlive) {
         state.status = 'gameover';
+        state.shakeTimer = 0;
+        state.shakeIntensity = 0;
+        state.hitstopTimer = 0;
         state.soundQueue.push('ko');
       }
     } else {
       state.status = 'gameover';
+      state.shakeTimer = 0;
+      state.shakeIntensity = 0;
+      state.hitstopTimer = 0;
       state.soundQueue.push('ko');
     }
   }

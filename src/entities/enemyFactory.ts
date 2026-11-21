@@ -649,6 +649,9 @@ function updateZombieSurvivalAI(state: GameState, zombie: EnemyState, dt: number
 
       if (surv.core.hp <= 0) {
         state.status = 'gameover';
+        state.shakeTimer = 0;
+        state.shakeIntensity = 0;
+        state.hitstopTimer = 0;
         state.soundQueue.push('ko');
       }
     }

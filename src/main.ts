@@ -95,6 +95,11 @@ const peerMgr = new PeerManager({
     resultOverlay.classList.add('hidden');
   },
   onSnapshot(remoteState) {
+    if (remoteState.status !== 'playing') {
+      remoteState.shakeTimer = 0;
+      remoteState.shakeIntensity = 0;
+      remoteState.hitstopTimer = 0;
+    }
     state = remoteState;
     if (state.soundQueue.length > 0) {
       audio.playQueue(state.soundQueue);
@@ -116,6 +121,16 @@ const peerMgr = new PeerManager({
     shopFeedbackEl.textContent = message;
     shopFeedbackEl.style.color = ok ? '#4ade80' : '#f87171';
     refreshShopUI();
+  },
+  onHostDisconnect() {
+    state.shakeTimer = 0;
+    state.shakeIntensity = 0;
+    state.hitstopTimer = 0;
+    shopOpen = false;
+    resultShown = false;
+    openLobby();
+    lobbyStatusEl.textContent = 'Host keluar dari room — permainan berakhir.';
+    lobbyStatusEl.style.color = '#f87171';
   },
 });
 
@@ -414,7 +429,9 @@ btnRetryStage.addEventListener('click', () => {
     if (peerMgr.role === 'host') {
       startSurvival(peerMgr.lobbyPlayers);
       peerMgr.broadcastStartGame();
+      peerMgr.broadcastSnapshot(state);
     } else if (peerMgr.role === 'client') {
+      peerMgr.disconnect();
       openLobby();
     } else {
       startSurvival();
@@ -506,8 +523,12 @@ btnBgm.addEventListener('click', () => {
 function showResultIfNeeded(): void {
   if (resultShown || state.status === 'playing') return;
   resultShown = true;
+  state.shakeTimer = 0;
+  state.shakeIntensity = 0;
+  state.hitstopTimer = 0;
   shopOpen = false;
   shopOverlay.classList.add('hidden');
+  btnRetryStage.textContent = peerMgr.role === 'client' ? 'KELUAR KE LOBI' : 'MAIN LAGI';
 
   if (state.mode === 'survival' && state.survival) {
     saveBestWave(state.survival.wave);
@@ -658,13 +679,19 @@ function frame(now: number): void {
             stepSandbox(state, sampled, FIXED_DT);
           }
           audio.playQueue(state.soundQueue);
+          const endedNow = state.status !== 'playing';
+          if (endedNow) {
+            state.shakeTimer = 0;
+            state.shakeIntensity = 0;
+            state.hitstopTimer = 0;
+          }
           showResultIfNeeded();
         }
 
-        // Host broadcasts snapshot to Clients at 25Hz (every 40ms)
+        // Host broadcasts snapshot to Clients at 25Hz (or immediately on game end!)
         if (isMultiplayerHost) {
           snapshotAccum += FIXED_DT;
-          if (snapshotAccum >= 0.04) {
+          if (snapshotAccum >= 0.04 || state.status !== 'playing') {
             snapshotAccum = 0;
             peerMgr.broadcastSnapshot(state);
           }

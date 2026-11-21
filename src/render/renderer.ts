@@ -22,7 +22,7 @@ export function renderGame(ctx: CanvasRenderingContext2D, state: GameState): voi
 
   let shakeX = 0;
   let shakeY = 0;
-  if (state.shakeTimer > 0) {
+  if (state.status === 'playing' && state.shakeTimer > 0) {
     const mag = state.shakeIntensity * (state.shakeTimer / 0.15);
     shakeX = (Math.random() - 0.5) * 2 * Math.min(state.shakeIntensity, mag);
     shakeY = (Math.random() - 0.5) * 2 * Math.min(state.shakeIntensity, mag);

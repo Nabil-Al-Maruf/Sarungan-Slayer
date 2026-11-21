@@ -55,6 +55,7 @@ export interface PeerCallbacks {
   onClientBuy: (playerId: string, itemId: ShopItemId) => { ok: boolean; message: string };
   onClientSkipIntermission: () => void;
   onShopResult: (ok: boolean, message: string) => void;
+  onHostDisconnect: () => void;
 }
 
 export class PeerManager {
@@ -224,7 +225,11 @@ export class PeerManager {
       });
 
       conn.on('close', () => {
-        this.callbacks.onStatus('Koneksi ke Host terputus.', true);
+        if (this.role === 'client') {
+          this.callbacks.onStatus('Koneksi ke Host terputus — kembali ke Lobi.', true);
+          this.disconnect();
+          this.callbacks.onHostDisconnect();
+        }
       });
 
       conn.on('error', (err) => {
