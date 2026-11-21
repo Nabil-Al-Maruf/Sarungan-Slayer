@@ -94,15 +94,16 @@ export function drawPlayer(ctx: CanvasRenderingContext2D, player: PlayerState, t
     drawTopDownArekRig(ctx, player, palette, time);
   }
 
-  // Player tag badge above head (useful in 2-5 player Mabar!)
+  // Player tag badge & custom nickname above head
+  const displayName = player.name ? `${palette.label} • ${player.name}` : palette.label;
   ctx.save();
   ctx.font = '900 10px "Segoe UI", system-ui, sans-serif';
   ctx.textAlign = 'center';
   ctx.lineWidth = 3;
   ctx.strokeStyle = '#090c14';
-  ctx.strokeText(palette.label, player.x, player.y - player.z - 62);
+  ctx.strokeText(displayName, player.x, player.y - player.z - 62);
   ctx.fillStyle = '#fde047';
-  ctx.fillText(palette.label, player.x, player.y - player.z - 62);
+  ctx.fillText(displayName, player.x, player.y - player.z - 62);
   ctx.restore();
 }
 

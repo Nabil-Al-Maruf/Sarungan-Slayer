@@ -940,6 +940,204 @@ body {
   line-height: 1.35;
 }
 
+/* ===== PROFILE NAME, LOBBY SKIN PICKER, HOTSPOT TABS & 2-WAVE BUFF MODAL ===== */
+.profile-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.profile-label {
+  font-size: 10.5px;
+  font-weight: 900;
+  color: var(--accent-gold);
+  letter-spacing: 0.6px;
+}
+
+.profile-name-input {
+  background: #0f172a;
+  color: #fde047;
+  border: 2px solid var(--border-ink);
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 800;
+  width: 155px;
+  text-align: center;
+}
+
+.conn-mode-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin: 6px 0 10px;
+}
+
+.conn-tab {
+  background: #172033;
+  color: #94a3b8;
+  border: 2px solid var(--border-ink);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 11px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.conn-tab.active {
+  background: linear-gradient(135deg, #0284c7, #2563eb);
+  color: #fff;
+  box-shadow: 0 3px 0 var(--border-ink);
+}
+
+.hotspot-guide {
+  background: rgba(234, 179, 8, 0.14);
+  border: 1.5px solid #eab308;
+  border-radius: 10px;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 10.5px;
+  color: #fef08a;
+}
+
+.hotspot-guide.hidden {
+  display: none;
+}
+
+.lan-ip-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px dashed rgba(250, 204, 21, 0.35);
+}
+
+.lan-ip-input {
+  background: #090c14;
+  color: #38bdf8;
+  border: 1.5px solid var(--border-ink);
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 10.5px;
+  font-weight: 700;
+  width: 175px;
+}
+
+.lobby-profile-bar {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  background: #172033;
+  border: 2px solid var(--border-ink);
+  border-radius: 10px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  align-items: center;
+}
+
+.lobby-name-col,
+.lobby-skin-col {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+}
+
+.skin-picker-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  justify-content: center;
+}
+
+.skin-swatch {
+  background: var(--sw, #ef4444);
+  color: #fff;
+  border: 2px solid var(--border-ink);
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 9.5px;
+  font-weight: 900;
+  cursor: pointer;
+  opacity: 0.65;
+  transition: transform 0.08s ease, opacity 0.1s ease;
+}
+
+.skin-swatch.active {
+  opacity: 1;
+  transform: scale(1.07);
+  box-shadow: 0 0 0 2px #fde047, 0 3px 0 var(--border-ink);
+}
+
+.tower-shop-btn {
+  background: linear-gradient(135deg, #7c2d12, #9a3412);
+}
+
+.buff-card {
+  width: min(600px, 96%);
+}
+
+.buff-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.buff-choice-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(180deg, #273554 0%, #172033 100%);
+  color: #f8fafc;
+  border: 2.5px solid var(--border-ink);
+  box-shadow: 0 5px 0 var(--border-ink);
+  border-radius: 14px;
+  padding: 12px 10px;
+  cursor: pointer;
+  transition: transform 0.1s ease, filter 0.12s ease;
+}
+
+.buff-choice-btn:hover {
+  transform: translateY(-3px);
+  filter: brightness(1.12);
+  border-color: #fde047;
+}
+
+.buff-icon {
+  font-size: 26px;
+}
+
+.buff-choice-btn strong {
+  font-size: 12px;
+  color: #fde047;
+}
+
+.buff-choice-btn small {
+  font-size: 10px;
+  color: #cbd5e1;
+  line-height: 1.3;
+}
+
+.buff-pick-tag {
+  margin-top: auto;
+  background: #16a34a;
+  color: #fff;
+  font-size: 9.5px;
+  font-weight: 900;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
 .title-bottom-credit {
   margin-top: 12px;
   padding-top: 8px;
@@ -999,7 +1197,7 @@ body {
   }
 }
 
-/* ===== VIRTUAL CONTROLS DECK ===== */
+/* ===== VIRTUAL CONTROLS DECK (360° ANALOG JOYSTICK + ERGONOMIC ARC PAD) ===== */
 .controls-deck {
   display: none;
 }
@@ -1019,86 +1217,126 @@ body {
 
 .vbtn.pressed,
 .vbtn:active {
-  transform: scale(0.93);
-  filter: brightness(1.22);
+  transform: scale(0.92);
+  filter: brightness(1.25);
 }
 
-/* D-Pad Grid */
-.dpad-zone {
-  display: grid;
-  grid-template-columns: 52px 52px 52px;
-  grid-template-rows: 52px 52px 52px;
-  gap: 4px;
+/* 360° Virtual Analog Thumbstick */
+.joystick-zone {
+  width: 154px;
+  height: 154px;
+  display: flex;
   align-items: center;
-  justify-items: center;
+  justify-content: center;
+  touch-action: none;
+  position: relative;
 }
 
-.dpad-btn {
-  width: 52px;
-  height: 52px;
-  border-radius: 12px;
-  background: #2b354f;
-  box-shadow: 0 4px 0 var(--border-ink);
-  font-size: 18px;
-}
-
-.dpad-up {
-  grid-column: 2;
-  grid-row: 1;
-}
-.dpad-left {
-  grid-column: 1;
-  grid-row: 2;
-}
-.dpad-center {
-  grid-column: 2;
-  grid-row: 2;
-  width: 30px;
-  height: 30px;
+.joystick-base {
+  width: 128px;
+  height: 128px;
   border-radius: 50%;
-  background: #141926;
-  border: 2px solid var(--border-ink);
-}
-.dpad-right {
-  grid-column: 3;
-  grid-row: 2;
-}
-.dpad-down {
-  grid-column: 2;
-  grid-row: 3;
+  background: radial-gradient(circle, rgba(30, 41, 59, 0.92) 0%, rgba(15, 23, 42, 0.96) 100%);
+  border: 3px solid var(--border-ink);
+  box-shadow: inset 0 0 14px rgba(0, 0, 0, 0.65), 0 4px 0 var(--border-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
 }
 
-/* Action Buttons Cluster */
-.action-zone {
-  display: grid;
-  grid-template-columns: repeat(3, 62px);
-  grid-template-rows: repeat(2, 62px);
-  gap: 8px;
-  align-items: center;
-  justify-items: center;
+.joystick-ring {
+  width: 82px;
+  height: 82px;
+  border-radius: 50%;
+  border: 1.5px dashed rgba(248, 250, 252, 0.18);
+  position: absolute;
+  pointer-events: none;
+}
+
+.joystick-knob {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #facc15, #ea580c);
+  border: 3px solid var(--border-ink);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.55);
+  transition: transform 0.02s linear;
+  pointer-events: none;
+}
+
+.joystick-zone.active .joystick-knob {
+  filter: brightness(1.15);
+  box-shadow: 0 0 14px rgba(250, 204, 21, 0.65);
+}
+
+/* Ergonomic Arc Action Cluster (Mobile Legends / Brawl Stars thumb layout) */
+.action-arc-zone {
+  position: relative;
+  width: 196px;
+  height: 162px;
+  touch-action: none;
 }
 
 .act-btn {
-  width: 62px;
-  height: 62px;
+  position: absolute;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
   box-shadow: 0 4px 0 var(--border-ink);
   line-height: 1.05;
 }
 
 .act-title {
-  font-size: 11px;
+  font-size: 10px;
   letter-spacing: 0.3px;
 }
 
 .act-sub {
-  font-size: 9px;
-  opacity: 0.88;
+  font-size: 8.5px;
+  opacity: 0.9;
+}
+
+/* Big Primary Melee Button at bottom-right thumb home */
+.act-melee {
+  right: 4px;
+  bottom: 4px;
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #dc2626, #f97316);
+  box-shadow: 0 0 14px rgba(239, 68, 68, 0.4), 0 5px 0 var(--border-ink);
+}
+
+.act-melee .act-title {
+  font-size: 13px;
+}
+
+/* Arc around primary button: Jump (bottom-left), Pecut (mid-left), Dash (top-mid), Ult (top-right) */
+.act-jump {
+  left: 6px;
+  bottom: 6px;
+  background: #16a34a;
+}
+
+.act-proj {
+  left: 16px;
+  top: 38px;
+  background: #0284c7;
+}
+.act-proj.cooling {
+  opacity: 0.55;
+}
+
+.act-dash {
+  left: 72px;
+  top: 4px;
+  background: #0f766e;
 }
 
 .act-ult {
-  grid-column: 1;
-  grid-row: 1;
+  right: 6px;
+  top: 4px;
   background: #7e22ce;
   opacity: 0.55;
 }
@@ -1108,43 +1346,13 @@ body {
   box-shadow: 0 0 14px rgba(250, 204, 21, 0.7), 0 4px 0 var(--border-ink);
 }
 
-.act-proj {
-  grid-column: 2;
-  grid-row: 1;
-  background: #0284c7;
-}
-.act-proj.cooling {
-  opacity: 0.55;
-}
-
-.act-dash {
-  grid-column: 3;
-  grid-row: 1;
-  background: #0f766e;
-}
-
-.act-jump {
-  grid-column: 1;
-  grid-row: 2;
-  background: #16a34a;
-}
-
-.act-melee {
-  grid-column: 2 / span 2;
-  grid-row: 2;
-  width: 128px;
-  height: 62px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, #dc2626, #f97316);
-}
-
 .util-btn {
-  background: #334155;
+  background: linear-gradient(135deg, #ca8a04, #eab308);
+  color: #090c14;
   border-radius: 999px;
-  padding: 8px 14px;
-  font-size: 11px;
-  box-shadow: 0 3px 0 var(--border-ink);
-  color: var(--accent-gold);
+  padding: 5px 12px;
+  font-size: 10.5px;
+  box-shadow: 0 2px 0 var(--border-ink);
 }
 
 /* ===== LANDSCAPE MODE ===== */
@@ -1161,25 +1369,24 @@ body {
     display: none;
   }
 
-  .app-shell.touch-active .deck-header,
-  .app-shell.touch-active .deck-mid {
+  .app-shell.touch-active .deck-header {
     display: none;
   }
 
   .app-shell.touch-active .deck-body {
     position: absolute;
-    left: 14px;
-    right: 14px;
+    left: 16px;
+    right: 16px;
     bottom: 12px;
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
   }
 
-  .app-shell.touch-active .dpad-zone,
-  .app-shell.touch-active .action-zone {
+  .app-shell.touch-active .joystick-zone,
+  .app-shell.touch-active .action-arc-zone {
     pointer-events: auto;
-    opacity: 0.68;
+    opacity: 0.78;
   }
 }
 
@@ -1273,14 +1480,14 @@ body {
   }
 
   .deck-brand {
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 900;
-    letter-spacing: 1px;
+    letter-spacing: 0.8px;
     color: var(--accent-gold);
   }
 
   .deck-sub {
-    font-size: 10px;
+    font-size: 9.5px;
     font-weight: 700;
     color: var(--text-muted);
   }
@@ -1288,67 +1495,8 @@ body {
   .deck-body {
     flex: 1;
     display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 14px;
-  }
-
-  .deck-mid {
-    display: flex;
-    justify-content: center;
-    order: -1;
-  }
-
-  /* Put D-Pad and Action Zone side by side nicely on portrait */
-  .deck-body {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    grid-template-rows: auto 1fr;
     align-items: center;
-    justify-items: center;
-    gap: 10px;
-  }
-
-  .deck-mid {
-    grid-column: 1 / -1;
-    grid-row: 1;
-  }
-
-  .dpad-zone {
-    grid-column: 1;
-    grid-row: 2;
-    grid-template-columns: 46px 46px 46px;
-    grid-template-rows: 46px 46px 46px;
-  }
-
-  .dpad-btn {
-    width: 46px;
-    height: 46px;
-  }
-
-  .action-zone {
-    grid-column: 2;
-    grid-row: 2;
-    grid-template-columns: repeat(3, 54px);
-    grid-template-rows: repeat(2, 54px);
-    gap: 6px;
-  }
-
-  .act-btn {
-    width: 54px;
-    height: 54px;
-  }
-
-  .act-title {
-    font-size: 9.5px;
-  }
-
-  .act-sub {
-    font-size: 8px;
-  }
-
-  .act-melee {
-    width: 112px;
-    height: 54px;
+    justify-content: space-between;
+    padding: 0 4px;
   }
 }

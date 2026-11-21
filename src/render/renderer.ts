@@ -256,6 +256,44 @@ function drawSurvivalCore(
     label: core.hitFlashTimer > 0 ? 'DISERANG!' : 'POS WARKOP',
   });
 
+  // Draw 1-Wave Auto-Turret Tower on top of Pos Warkop Roof if active!
+  if (core.towerActive) {
+    ctx.save();
+    ctx.translate(cx, core.y - 38);
+    ctx.strokeStyle = '#090c14';
+    ctx.lineWidth = 2.5;
+
+    // Turret bamboo tripod & base
+    ctx.fillStyle = '#f97316';
+    ctx.beginPath();
+    ctx.arc(0, 0, 11, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Rotating cannon barrel
+    ctx.save();
+    ctx.rotate(core.towerAimAngle || 0);
+    ctx.fillStyle = '#334155';
+    ctx.fillRect(2, -4, 18, 8);
+    ctx.strokeRect(2, -4, 18, 8);
+    ctx.fillStyle = '#fde047';
+    ctx.fillRect(16, -3, 4, 6);
+    ctx.restore();
+
+    ctx.restore();
+
+    // Tower Active badge
+    ctx.save();
+    ctx.fillStyle = '#fb923c';
+    ctx.font = '900 9px "Segoe UI", system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.strokeStyle = '#090c14';
+    ctx.lineWidth = 3;
+    ctx.strokeText('🗼 TOWER AKTIF (1 WAVE)', cx, core.y - 82);
+    ctx.fillText('🗼 TOWER AKTIF (1 WAVE)', cx, core.y - 82);
+    ctx.restore();
+  }
+
   const barW = 104;
   const barH = 10;
   const bx = cx - barW * 0.5;

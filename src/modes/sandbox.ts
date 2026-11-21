@@ -5,7 +5,7 @@ import { spawnCrate, updateCratesAndPickups } from '../entities/crate';
 import { spawnEnemy, updateEnemies } from '../entities/enemyFactory';
 import { createPlayer, updatePlayer } from '../entities/player';
 
-export function createSandboxState(paletteIndex = 0): GameState {
+export function createSandboxState(paletteIndex = 0, customName?: string): GameState {
   const state: GameState = {
     mode: 'sandbox',
     theme: 'tambak',
@@ -25,7 +25,7 @@ export function createSandboxState(paletteIndex = 0): GameState {
       { x: 112, y: 185, w: 40, h: 28, kind: 'tree' },
       { x: 785, y: 192, w: 66, h: 34, kind: 'gerobak', label: 'TAHU TEK' },
     ],
-    players: [createPlayer('p1', 260, 345, paletteIndex)],
+    players: [createPlayer('p1', 260, 345, paletteIndex, customName)],
     enemies: [],
     projectiles: [],
     enemyProjectiles: [],

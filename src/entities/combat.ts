@@ -53,7 +53,7 @@ export function resolveCombat(state: GameState, dt: number): void {
           const ny = dy / d;
 
           // Perisai Kardus blocks frontal melee attacks!
-          let finalDmg = MELEE_DAMAGE;
+          let finalDmg = Math.round(MELEE_DAMAGE * player.dmgMult);
           let blocked = false;
           if (enemy.kind === 'perisai_kardus') {
             const facingDot = nx * enemy.dirX + ny * enemy.dirY;
@@ -70,7 +70,7 @@ export function resolveCombat(state: GameState, dt: number): void {
             finalDmg,
             nx * (blocked ? 150 : MELEE_KNOCKBACK),
             ny * (blocked ? 150 : MELEE_KNOCKBACK),
-            blocked ? 4 : MELEE_ULT_GAIN,
+            Math.round((blocked ? 4 : MELEE_ULT_GAIN) * player.ultGainMult),
             blocked
           );
           state.hitstopTimer = Math.max(state.hitstopTimer, 0.032);
@@ -126,7 +126,7 @@ export function resolveCombat(state: GameState, dt: number): void {
               state,
               enemy,
               player,
-              ULT_DAMAGE_PER_TICK,
+              Math.round(ULT_DAMAGE_PER_TICK * player.dmgMult),
               nx * ULT_KNOCKBACK,
               ny * ULT_KNOCKBACK,
               0,
@@ -185,7 +185,7 @@ export function resolveCombat(state: GameState, dt: number): void {
           proj.damage,
           (proj.vx / speed) * 230,
           (proj.vy / speed) * 230,
-          PROJ_ULT_GAIN,
+          Math.round(PROJ_ULT_GAIN * (owner?.ultGainMult ?? 1)),
           false
         );
         if (proj.pierceLeft <= 0) break;
@@ -361,9 +361,9 @@ function hitEnemy(
     state.koCount++;
     state.soundQueue.push('ko');
 
-    // Award Uang Receh in Survival Mode
-    if (state.mode === 'survival' && attacker) {
-      const reward =
+    // Award Uang Receh in Survival Mode (including Tower kills credited to all alive players!)
+    if (state.mode === 'survival') {
+      const baseReward =
         enemy.kind === 'zombie_gendruwo'
           ? 60
           : enemy.kind === 'zombie_tuyul'
@@ -373,17 +373,21 @@ function hitEnemy(
               : enemy.kind === 'zombie_bocil'
                 ? 25
                 : 20;
-      attacker.coins += reward;
-      state.floatingTexts.push({
-        x: enemy.x,
-        y: enemy.y - enemy.z - 72,
-        vy: -55,
-        text: `+${reward} RECEH`,
-        color: '#fde047',
-        scale: 1.0,
-        life: 0.95,
-        maxLife: 0.95,
-      });
+      const recipient = attacker ?? state.players[0];
+      if (recipient) {
+        const reward = Math.round(baseReward * (recipient.coinMult ?? 1));
+        recipient.coins += reward;
+        state.floatingTexts.push({
+          x: enemy.x,
+          y: enemy.y - enemy.z - 72,
+          vy: -55,
+          text: `+${reward} RECEH`,
+          color: '#fde047',
+          scale: 1.0,
+          life: 0.95,
+          maxLife: 0.95,
+        });
+      }
     }
 
     const line = enemy.isBoss

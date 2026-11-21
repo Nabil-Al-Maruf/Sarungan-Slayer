@@ -1,4 +1,4 @@
-import type { GameState, PlayerInput } from '../core/types';
+import type { BuffId, GameState, PlayerInput } from '../core/types';
 import { stepTopDownPhysics } from '../core/physics';
 import { MOVE_SPEED } from '../core/constants';
 import type { ShopItemId } from '../modes/survival';
@@ -7,8 +7,11 @@ export interface LobbyPlayer {
   id: string;
   paletteIndex: number;
   name: string;
+  customName?: string;
   isHost: boolean;
 }
+
+export type ConnectionMode = 'online' | 'hotspot';
 
 type ServerToClientMsg =
   | {
@@ -27,23 +30,6 @@ const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 // Default Cloudflare Edge WebSocket endpoint via pages.dev (unblocked on Indonesian ISPs!)
 export const DEFAULT_WS_BASE_URL = 'wss://sarungan-slayer.pages.dev';
-
-function getWsBaseUrl(): string {
-  const params = new URLSearchParams(window.location.search);
-  const override = params.get('ws');
-  if (override && (override.startsWith('ws://') || override.startsWith('wss://'))) {
-    return override.replace(/\/+$/, '');
-  }
-  return DEFAULT_WS_BASE_URL;
-}
-
-function generateRoomCode(): string {
-  let code = '';
-  for (let i = 0; i < 4; i++) {
-    code += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)];
-  }
-  return code;
-}
 
 export interface WsCallbacks {
   onStatus: (text: string, isError?: boolean) => void;
@@ -65,17 +51,42 @@ export class WsManager {
   public roomCode = '';
   public localPlayerId = 'p1';
   public lobbyPlayers: LobbyPlayer[] = [];
+  public connectionMode: ConnectionMode = 'online';
+  public customHotspotHost = '';
 
   private ws: WebSocket | null = null;
   private connectTimeout: number | null = null;
   private lastSentHeld = '';
   private callbacks: WsCallbacks;
-
-  // Authoritative latest snapshot for 60 FPS Lerp Interpolation & Local Prediction
   private latestServerState: GameState | null = null;
 
   constructor(callbacks: WsCallbacks) {
     this.callbacks = callbacks;
+  }
+
+  private getWsBaseUrl(): string {
+    // If user entered a custom Local Hotspot IP (e.g. 192.168.43.1:8787) in Hotspot mode
+    if (this.connectionMode === 'hotspot' && this.customHotspotHost.trim()) {
+      const raw = this.customHotspotHost.trim().replace(/\/+$/, '');
+      if (raw.startsWith('ws://') || raw.startsWith('wss://')) return raw;
+      return `ws://${raw}`;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const override = params.get('ws');
+    if (override && (override.startsWith('ws://') || override.startsWith('wss://'))) {
+      return override.replace(/\/+$/, '');
+    }
+    return DEFAULT_WS_BASE_URL;
+  }
+
+  private generateRoomCode(): string {
+    // Hotspot rooms start with 'H' (e.g. H7K2) so players clearly see it's a Hotspot/Tethering Room!
+    let code = this.connectionMode === 'hotspot' ? 'H' : '';
+    while (code.length < 4) {
+      code += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)];
+    }
+    return code;
   }
 
   private clearConnectTimeout(): void {
@@ -112,27 +123,37 @@ export class WsManager {
     }
   }
 
-  public createRoom(hostPaletteIndex = 0): void {
-    const code = generateRoomCode();
-    this.connectToRoom(code, hostPaletteIndex);
+  public createRoom(hostPaletteIndex = 0, playerName = 'Cak Bima'): void {
+    const code = this.generateRoomCode();
+    this.connectToRoom(code, hostPaletteIndex, playerName);
   }
 
-  public joinRoom(rawCode: string, paletteIndex = 0): void {
+  public joinRoom(rawCode: string, paletteIndex = 0, playerName = 'Arek SBY'): void {
     const code = rawCode.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
     if (code.length !== 4) {
       this.callbacks.onStatus('Kode Room harus tepat 4 huruf/angka!', true);
       return;
     }
-    this.connectToRoom(code, paletteIndex);
+    if (this.connectionMode === 'hotspot' && !code.startsWith('H')) {
+      this.callbacks.onStatus(
+        'Kode Room Hotspot selalu diawali huruf H (contoh: H7K2). Pastikan temanmu sudah konek ke Hotspot/Tethering Host!',
+        true
+      );
+      return;
+    }
+    this.connectToRoom(code, paletteIndex, playerName);
   }
 
-  private connectToRoom(code: string, paletteIndex: number): void {
+  private connectToRoom(code: string, paletteIndex: number, playerName: string): void {
     this.disconnect(true);
     this.roomCode = code;
-    const baseUrl = getWsBaseUrl();
-    const wsUrl = `${baseUrl}/room/${code}?palette=${paletteIndex}`;
+    const baseUrl = this.getWsBaseUrl();
+    const encodedName = encodeURIComponent(playerName.trim().slice(0, 14) || 'Arek');
+    const wsUrl = `${baseUrl}/room/${code}?palette=${paletteIndex}&name=${encodedName}`;
 
-    this.callbacks.onStatus(`Menghubungkan ke Cloudflare Server (Room ${code})...`);
+    const modeLabel =
+      this.connectionMode === 'hotspot' ? 'Hotspot / Tethering Room' : 'Cloudflare Server Room';
+    this.callbacks.onStatus(`Menghubungkan ke ${modeLabel} (${code})...`);
 
     const ws = new WebSocket(wsUrl);
     this.ws = ws;
@@ -140,7 +161,9 @@ export class WsManager {
     this.connectTimeout = window.setTimeout(() => {
       if (this.ws === ws && ws.readyState !== WebSocket.OPEN) {
         this.callbacks.onStatus(
-          `Gagal terhubung ke server untuk Room ${code}. Cek koneksi internetmu!`,
+          this.connectionMode === 'hotspot'
+            ? `Gagal terhubung ke Hotspot Room ${code}. Pastikan semua HP sudah tersambung ke Hotspot Wi-Fi / Bluetooth Tethering Host!`
+            : `Gagal terhubung ke Room ${code}. Cek koneksi internetmu!`,
           true
         );
         this.disconnect(true);
@@ -170,10 +193,11 @@ export class WsManager {
         this.lobbyPlayers = msg.players;
         this.localPlayerId = msg.yourPlayerId;
         this.isHost = msg.isHost;
+        const prefix = this.connectionMode === 'hotspot' ? '[HOTSPOT] ' : '';
         this.callbacks.onStatus(
           msg.isHost
-            ? `Room ${msg.roomCode} siap! Bagikan kode atau link ke teman.`
-            : `Bergabung di Room ${msg.roomCode}! Menunggu Host mulai...`
+            ? `${prefix}Room ${msg.roomCode} siap! Pastikan teman terhubung ke Hotspotmu & masukkan kode.`
+            : `${prefix}Bergabung di Room ${msg.roomCode}! Menunggu Host mulai...`
         );
         this.callbacks.onLobbyUpdate(msg.roomCode, msg.players, msg.yourPlayerId, msg.isHost);
       } else if (msg.type === 'start_game') {
@@ -199,15 +223,27 @@ export class WsManager {
       const wasConnected = this.connected;
       this.disconnect(true);
       if (wasConnected) {
-        this.callbacks.onDisconnect('Koneksi ke server terputus.');
+        this.callbacks.onDisconnect('Koneksi ke room terputus.');
       }
     };
 
     ws.onerror = () => {
       this.clearConnectTimeout();
       if (this.ws !== ws) return;
-      this.callbacks.onStatus('Gagal terhubung ke Cloudflare WebSocket Server.', true);
+      this.callbacks.onStatus('Gagal terhubung ke Room Server.', true);
     };
+  }
+
+  public sendSetProfile(name: string, paletteIndex: number): void {
+    this.send({
+      type: 'set_profile',
+      name: name.trim().slice(0, 14) || 'Arek',
+      paletteIndex,
+    });
+  }
+
+  public sendPickBuff(buffId: BuffId): void {
+    this.send({ type: 'pick_buff', buffId });
   }
 
   public sendStartGame(): void {
@@ -215,15 +251,12 @@ export class WsManager {
     this.send({ type: 'start' });
   }
 
-  /**
-   * Delta Input Optimization:
-   * Only transmits an input packet when held movement directions change
-   * OR when an edge-triggered action (jump, dash, melee, proj, ult) fires.
-   */
   public sendDeltaInput(input: PlayerInput): void {
     if (!this.connected || !this.ws || this.ws.readyState !== WebSocket.OPEN) return;
 
-    const heldSig = `${input.up ? 1 : 0}${input.down ? 1 : 0}${input.left ? 1 : 0}${input.right ? 1 : 0}`;
+    const mx = typeof input.moveX === 'number' ? Math.round(input.moveX * 10) : 0;
+    const my = typeof input.moveY === 'number' ? Math.round(input.moveY * 10) : 0;
+    const heldSig = `${input.up ? 1 : 0}${input.down ? 1 : 0}${input.left ? 1 : 0}${input.right ? 1 : 0}:${mx},${my}`;
     const hasAction =
       input.jumpPressed ||
       input.dashPressed ||
@@ -247,10 +280,6 @@ export class WsManager {
     this.send({ type: 'skip_intermission' });
   }
 
-  /**
-   * Client-Side Prediction (Local Player) + 60 FPS Entity Interpolation (Remote Entities):
-   * Smooths 20 Hz server snapshots into silky 60 FPS motion.
-   */
   public applyPredictionAndLerp(
     renderState: GameState,
     localInput: PlayerInput,
@@ -261,30 +290,40 @@ export class WsManager {
 
     const lerpAlpha = Math.min(1, dt * 16);
 
-    // 1. Players: Client-Side Prediction for local player, Lerp for remote players
     for (const rp of renderState.players) {
       const tp = target.players.find((p) => p.id === rp.id);
       if (!tp) continue;
 
       if (rp.id === this.localPlayerId && !rp.knockedDown) {
-        // Predict local movement immediately for zero-delay responsiveness
-        let ix = (localInput.right ? 1 : 0) - (localInput.left ? 1 : 0);
-        let iy = (localInput.down ? 1 : 0) - (localInput.up ? 1 : 0);
+        let ix =
+          typeof localInput.moveX === 'number' && Math.abs(localInput.moveX) > 0.05
+            ? localInput.moveX
+            : (localInput.right ? 1 : 0) - (localInput.left ? 1 : 0);
+        let iy =
+          typeof localInput.moveY === 'number' && Math.abs(localInput.moveY) > 0.05
+            ? localInput.moveY
+            : (localInput.down ? 1 : 0) - (localInput.up ? 1 : 0);
         const len = Math.hypot(ix, iy);
         if (len > 0) {
-          ix /= len;
-          iy /= len;
-          rp.dirX = ix;
-          rp.dirY = iy;
+          const cl = Math.min(1, len);
+          ix = (ix / len) * cl;
+          iy = (iy / len) * cl;
+          rp.dirX = ix / cl;
+          rp.dirY = iy / cl;
         }
         if (rp.dashTimer <= 0) {
-          const mult = rp.ultActiveTimer > 0 ? 1.15 : 1;
+          const mult = (rp.ultActiveTimer > 0 ? 1.15 : 1) * (rp.speedMult || 1);
           rp.vx = ix * MOVE_SPEED * mult;
           rp.vy = iy * MOVE_SPEED * mult;
         }
-        stepTopDownPhysics(rp, dt, renderState.obstacles, renderState.activeMinX, renderState.activeMaxX);
+        stepTopDownPhysics(
+          rp,
+          dt,
+          renderState.obstacles,
+          renderState.activeMinX,
+          renderState.activeMaxX
+        );
 
-        // Soft reconciliation toward authoritative server position (snap if huge drift)
         const drift = Math.hypot(tp.x - rp.x, tp.y - rp.y);
         if (drift > 95) {
           rp.x = tp.x;
@@ -297,7 +336,6 @@ export class WsManager {
           rp.z += (tp.z - rp.z) * recon;
         }
       } else {
-        // Remote player smooth interpolation
         rp.x += (tp.x - rp.x) * lerpAlpha;
         rp.y += (tp.y - rp.y) * lerpAlpha;
         rp.z += (tp.z - rp.z) * lerpAlpha;
@@ -306,7 +344,6 @@ export class WsManager {
       rp.animTime += dt * (Math.hypot(rp.vx, rp.vy) > 20 ? 12 : 3);
     }
 
-    // 2. Enemies smooth interpolation
     for (const re of renderState.enemies) {
       const te = target.enemies.find((e) => e.id === re.id);
       if (!te) continue;
@@ -316,7 +353,6 @@ export class WsManager {
       re.animTime += dt * 10;
     }
 
-    // 3. Projectiles linear extrapolation between 20 Hz snapshots
     for (const pr of renderState.projectiles) {
       pr.x += pr.vx * dt;
       pr.y += pr.vy * dt;

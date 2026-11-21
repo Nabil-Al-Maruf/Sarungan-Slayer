@@ -1,7 +1,14 @@
-import { ARENA_MAX_X, ARENA_MIN_X, VIRTUAL_HEIGHT, VIRTUAL_WIDTH } from '../core/constants';
+import {
+  ARENA_MAX_X,
+  ARENA_MIN_X,
+  PROJ_SPEED,
+  VIRTUAL_HEIGHT,
+  VIRTUAL_WIDTH,
+} from '../core/constants';
 import type {
   BarricadeSlot,
   BarricadeState,
+  BuffId,
   EnemyKind,
   GameState,
   MapTheme,
@@ -19,9 +26,130 @@ export type ShopItemId =
   | 'barricade_left'
   | 'barricade_top'
   | 'barricade_right'
+  | 'tower_pos'
   | 'tiket_revive'
   | 'es_teh_jumbo'
   | 'kopi_pekat';
+
+export interface BuffDef {
+  id: BuffId;
+  icon: string;
+  title: string;
+  desc: string;
+}
+
+export const BUFF_DEFS: Record<BuffId, BuffDef> = {
+  max_hp: {
+    id: 'max_hp',
+    icon: '❤️',
+    title: 'Raga Baja Suroboyo',
+    desc: 'Max HP +25 (misal 100 → 125) & langsung pulih +25 HP',
+  },
+  dmg_up: {
+    id: 'dmg_up',
+    icon: '⚔️',
+    title: 'Sarung Sutra Tajam',
+    desc: 'Damage Kibas Sarung, Pecut & Badai +20% lebih sakit',
+  },
+  cd_fast: {
+    id: 'cd_fast',
+    icon: '⚡',
+    title: 'Tangan Kilat Pecut',
+    desc: 'Reload Pecut, Kibas & Dash 18% lebih cepat',
+  },
+  move_speed: {
+    id: 'move_speed',
+    icon: '👟',
+    title: 'Sandal Balap Kenjeran',
+    desc: 'Kecepatan lari karakter +15% lebih gesit',
+  },
+  ult_charge: {
+    id: 'ult_charge',
+    icon: '🔥',
+    title: 'Semangat Bonek',
+    desc: 'Bar Ultimate terisi +25% lebih cepat tiap serang',
+  },
+  coin_boost: {
+    id: 'coin_boost',
+    icon: '💰',
+    title: 'Dompet Juragan',
+    desc: 'Uang Receh dari zombie +25% lebih banyak',
+  },
+};
+
+const ALL_BUFF_IDS: BuffId[] = [
+  'max_hp',
+  'dmg_up',
+  'cd_fast',
+  'move_speed',
+  'ult_charge',
+  'coin_boost',
+];
+
+export function rollRandomBuffChoices(count = 3): BuffId[] {
+  const pool = [...ALL_BUFF_IDS];
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = pool[i];
+    pool[i] = pool[j];
+    pool[j] = tmp;
+  }
+  return pool.slice(0, count);
+}
+
+export function applyPlayerBuff(
+  state: GameState,
+  player: PlayerState,
+  buffId: BuffId
+): { ok: boolean; message: string } {
+  if (
+    player.pendingBuffChoices.length > 0 &&
+    !player.pendingBuffChoices.includes(buffId)
+  ) {
+    return { ok: false, message: 'Buff tidak ada di pilihan!' };
+  }
+
+  const def = BUFF_DEFS[buffId];
+  if (!def) return { ok: false, message: 'Buff tidak valid' };
+
+  switch (buffId) {
+    case 'max_hp':
+      player.maxHp += 25;
+      player.hp = Math.min(player.maxHp, player.hp + 25);
+      break;
+    case 'dmg_up':
+      player.dmgMult = Math.round((player.dmgMult + 0.2) * 100) / 100;
+      break;
+    case 'cd_fast':
+      player.cdMult = Math.max(0.35, Math.round(player.cdMult * 0.82 * 100) / 100);
+      break;
+    case 'move_speed':
+      player.speedMult = Math.round((player.speedMult + 0.15) * 100) / 100;
+      break;
+    case 'ult_charge':
+      player.ultGainMult = Math.round((player.ultGainMult + 0.25) * 100) / 100;
+      break;
+    case 'coin_boost':
+      player.coinMult = Math.round((player.coinMult + 0.25) * 100) / 100;
+      break;
+  }
+
+  player.pendingBuffChoices = [];
+  player.buffCount++;
+  state.soundQueue.push('buff_pick');
+  state.floatingTexts.push({
+    x: player.x,
+    y: player.y - player.z - 58,
+    vy: -50,
+    text: `BUFF: ${def.title.toUpperCase()}!`,
+    color: '#4ade80',
+    scale: 1.08,
+    life: 1.25,
+    maxLife: 1.25,
+  });
+
+  return { ok: true, message: `${def.title} aktif!` };
+}
 
 export const BARRICADE_MAX_HP: Record<1 | 2 | 3, number> = {
   1: 120,
@@ -64,7 +192,8 @@ export function getThemeForWave(wave: number): { theme: MapTheme; locationName: 
 
 export function createSurvivalState(
   paletteIndex = 0,
-  roster?: Array<{ id: string; paletteIndex: number }>
+  roster?: Array<{ id: string; paletteIndex: number; name?: string }>,
+  customName?: string
 ): GameState {
   const { theme, locationName } = getThemeForWave(1);
 
@@ -76,6 +205,9 @@ export function createSurvivalState(
     hp: 500,
     maxHp: 500,
     hitFlashTimer: 0,
+    towerActive: false,
+    towerCooldown: 0,
+    towerAimAngle: 0,
   };
 
   const barricades: BarricadeState[] = [
@@ -129,9 +261,9 @@ export function createSurvivalState(
     roster && roster.length > 0
       ? roster.map((r, idx) => {
           const pt = spawnPoints[idx % spawnPoints.length];
-          return createPlayer(r.id, pt.x, pt.y, r.paletteIndex);
+          return createPlayer(r.id, pt.x, pt.y, r.paletteIndex, r.name);
         })
-      : [createPlayer('p1', 370, 345, paletteIndex)];
+      : [createPlayer('p1', 370, 345, paletteIndex, customName)];
 
   const state: GameState = {
     mode: 'survival',
@@ -198,7 +330,11 @@ export function getBarricadeActionInfo(bar: BarricadeState): {
   disabled: boolean;
 } {
   if (bar.hp <= 0) {
-    return { actionLabel: `Bangun Ulang (${BARRICADE_TIER_NAME[bar.level]})`, cost: 60, disabled: false };
+    return {
+      actionLabel: `Bangun Ulang (${BARRICADE_TIER_NAME[bar.level]})`,
+      cost: 60,
+      disabled: false,
+    };
   }
   if (bar.hp < bar.maxHp) {
     return { actionLabel: `Perbaiki Penuh (Lv.${bar.level})`, cost: 40, disabled: false };
@@ -254,11 +390,33 @@ export function buyShopItem(
     return { ok: true, message: `${bar.label} diperkuat!` };
   }
 
+  if (itemId === 'tower_pos') {
+    const cost = 85;
+    if (surv.core.towerActive) {
+      return { ok: false, message: 'Tower Pos Warkop sudah aktif untuk wave ini!' };
+    }
+    if (player.coins < cost) return { ok: false, message: 'Uang Receh kurang rek!' };
+    player.coins -= cost;
+    surv.core.towerActive = true;
+    surv.core.towerCooldown = 0.2;
+    state.soundQueue.push('pickup_kopi');
+    state.floatingTexts.push({
+      x: surv.core.x + surv.core.w * 0.5,
+      y: surv.core.y - 72,
+      vy: -45,
+      text: 'TOWER MERCON POS AKTIF (1 WAVE)!',
+      color: '#fb923c',
+      scale: 1.12,
+      life: 1.3,
+      maxLife: 1.3,
+    });
+    return { ok: true, message: 'Tower Pos Warkop aktif selama 1 Wave!' };
+  }
+
   if (itemId === 'tiket_revive') {
     const cost = 100;
     if (player.coins < cost) return { ok: false, message: 'Uang Receh kurang rek!' };
 
-    // If a teammate is knocked down, revive them immediately; else store ticket!
     const downed = state.players.find((p) => p.knockedDown);
     player.coins -= cost;
     if (downed) {
@@ -332,7 +490,6 @@ function pickZombieKindForWave(wave: number): EnemyKind {
 
 function spawnSurvivalZombie(state: GameState, wave: number): void {
   const kind = pickZombieKindForWave(wave);
-  // Spawn from 3 symmetrical lanes (Left, Top Gate, Right)
   const lane = Math.floor(Math.random() * 3);
   let sx = 46;
   let sy = 325;
@@ -348,7 +505,6 @@ function spawnSurvivalZombie(state: GameState, wave: number): void {
   }
 
   const z = spawnEnemy(state, kind, sx, sy);
-  // Scale HP slightly each wave
   const hpMult = 1 + (wave - 1) * 0.1;
   z.hp = Math.round(z.hp * hpMult);
   z.maxHp = z.hp;
@@ -390,7 +546,7 @@ export function stepSurvival(
 
   state.time += dt;
 
-  // 1. Update All Players (1..5 players in Mabar Survival)
+  // 1. Update All Players
   const isSingleInput = 'up' in inputs;
   for (const player of state.players) {
     if (player.knockedDown) continue;
@@ -400,7 +556,49 @@ export function stepSurvival(
     updatePlayer(state, player, pInput, dt);
   }
 
-  // 2. Wave / Intermission State Machine
+  // 2. Central Pos Warkop Defense Tower Auto-Turret (Active for 1 Wave!)
+  if (surv.core.towerActive && surv.phase === 'wave') {
+    surv.core.towerCooldown = Math.max(0, surv.core.towerCooldown - dt);
+    if (surv.core.towerCooldown <= 0 && state.enemies.length > 0) {
+      const cx = surv.core.x + surv.core.w * 0.5;
+      const cy = surv.core.y - 24;
+      let nearest = state.enemies[0];
+      let bestDist = Infinity;
+      for (const e of state.enemies) {
+        if (e.hp <= 0) continue;
+        const d = Math.hypot(e.x - cx, e.y - cy);
+        if (d < bestDist) {
+          bestDist = d;
+          nearest = e;
+        }
+      }
+      if (nearest && bestDist <= 420) {
+        surv.core.towerCooldown = 0.52;
+        const angle = Math.atan2(nearest.y - cy, nearest.x - cx);
+        surv.core.towerAimAngle = angle;
+        const spd = PROJ_SPEED * 1.15;
+        state.soundQueue.push('tower_shoot');
+        state.projectiles.push({
+          id: state.nextEntityId++,
+          ownerId: state.players[0]?.id ?? 'p1',
+          x: cx + Math.cos(angle) * 18,
+          y: cy + Math.sin(angle) * 14,
+          vx: Math.cos(angle) * spd,
+          vy: Math.sin(angle) * spd,
+          angle,
+          radius: 14,
+          damage: 34,
+          pierceLeft: 2,
+          hitIds: [],
+          life: 1.1,
+          maxLife: 1.1,
+          color: '#fb923c',
+        });
+      }
+    }
+  }
+
+  // 3. Wave / Intermission State Machine
   if (surv.phase === 'wave') {
     if (surv.zombiesRemainingToSpawn > 0) {
       surv.spawnTimer -= dt;
@@ -411,20 +609,51 @@ export function stepSurvival(
         surv.spawnTimer = baseInterval * (0.75 + Math.random() * 0.5);
       }
     } else if (state.enemies.length === 0) {
-      // Wave cleared! Enter 10s Intermission (Warung buka!)
+      // Wave cleared!
       saveBestWave(surv.wave);
       surv.phase = 'intermission';
-      surv.intermissionTimer = 10.0;
+      surv.intermissionTimer = 12.0;
       state.soundQueue.push('pickup_kopi');
-      surv.mapBannerText = `WAVE ${surv.wave} BERES! JEDA WARUNG 10 DETIK`;
-      surv.mapBannerTimer = 2.8;
+
+      // Expire 1-Wave Center Tower when the wave finishes!
+      if (surv.core.towerActive) {
+        surv.core.towerActive = false;
+        state.floatingTexts.push({
+          x: surv.core.x + surv.core.w * 0.5,
+          y: surv.core.y - 72,
+          vy: -35,
+          text: 'MASA SEWA TOWER HABIS!',
+          color: '#fde047',
+          scale: 0.95,
+          life: 1.4,
+          maxLife: 1.4,
+        });
+      }
+
+      // Every 2 Waves (Wave 2, 4, 6, 8, ...), grant 3 random Buff choices (Player picks 1!)
+      if (surv.wave % 2 === 0) {
+        for (const p of state.players) {
+          p.pendingBuffChoices = rollRandomBuffChoices(3);
+        }
+        surv.mapBannerText = `WAVE ${surv.wave} BERES! PILIH 1 BUFF ATRIBUT!`;
+      } else {
+        surv.mapBannerText = `WAVE ${surv.wave} BERES! JEDA WARUNG 12 DETIK`;
+      }
+      surv.mapBannerTimer = 3.0;
     }
   } else {
     surv.intermissionTimer -= dt;
     if (surv.intermissionTimer <= 0) {
+      // Auto-pick first buff if any player didn't pick before intermission ended
+      for (const p of state.players) {
+        if (p.pendingBuffChoices.length > 0) {
+          applyPlayerBuff(state, p, p.pendingBuffChoices[0]);
+        }
+      }
+
       surv.wave++;
       surv.phase = 'wave';
-      surv.zombiesRemainingToSpawn = 5 + surv.wave * 2;
+      surv.zombiesRemainingToSpawn = 5 + surv.wave * 2 + (state.players.length - 1) * 2;
       surv.spawnTimer = 0.8;
 
       const { theme, locationName } = getThemeForWave(surv.wave);
@@ -436,7 +665,6 @@ export function stepSurvival(
         state.soundQueue.push('ult_start');
         surv.mapBannerText = `PINDAH LOKASI: ${locationName}!`;
         surv.mapBannerTimer = 3.5;
-        // Bonus heal core slightly on map rotation!
         surv.core.hp = Math.min(surv.core.maxHp, surv.core.hp + 100);
       } else {
         surv.mapBannerText = `WAVE ${surv.wave} DIMULAI!`;
@@ -445,12 +673,11 @@ export function stepSurvival(
     }
   }
 
-  // 3. Resolve Combat, Enemies & Crates
+  // 4. Resolve Combat, Enemies & Crates
   resolveCombat(state, dt);
   updateEnemies(state, dt);
   updateCratesAndPickups(state, dt);
 
-  // Periodic logistics crate drop
   if (state.crates.length < 2) {
     state.crateSpawnTimer -= dt;
     if (state.crateSpawnTimer <= 0) {
@@ -466,7 +693,6 @@ export function stepSurvival(
     }
   }
 
-  // 4. Visual effects
   for (let i = state.slashes.length - 1; i >= 0; i--) {
     state.slashes[i].life -= dt;
     if (state.slashes[i].life <= 0) state.slashes.splice(i, 1);

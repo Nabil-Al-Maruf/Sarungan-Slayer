@@ -22,9 +22,18 @@ import {
 import { stepTopDownPhysics } from '../core/physics';
 import type { GameState, PlayerInput, PlayerState } from '../core/types';
 
-export function createPlayer(id: string, x: number, y: number, paletteIndex = 0): PlayerState {
+export function createPlayer(
+  id: string,
+  x: number,
+  y: number,
+  paletteIndex = 0,
+  customName?: string
+): PlayerState {
+  const pal = PLAYER_PALETTES[paletteIndex % PLAYER_PALETTES.length];
+  const defaultName = pal.name.split(' (')[0];
   return {
     id,
+    name: (customName && customName.trim().slice(0, 14)) || defaultName,
     paletteIndex: paletteIndex % PLAYER_PALETTES.length,
     x,
     y,
@@ -46,6 +55,14 @@ export function createPlayer(id: string, x: number, y: number, paletteIndex = 0)
     knockedDown: false,
     invulnTimer: 0,
     hitFlashTimer: 0,
+
+    dmgMult: 1,
+    cdMult: 1,
+    speedMult: 1,
+    ultGainMult: 1,
+    coinMult: 1,
+    pendingBuffChoices: [],
+    buffCount: 0,
 
     dashTimer: 0,
     dashCooldown: 0,
@@ -78,7 +95,6 @@ export function updatePlayer(
 ): void {
   const palette = PLAYER_PALETTES[player.paletteIndex % PLAYER_PALETTES.length];
 
-  // Timers
   if (player.invulnTimer > 0) player.invulnTimer = Math.max(0, player.invulnTimer - dt);
   if (player.hitFlashTimer > 0) player.hitFlashTimer = Math.max(0, player.hitFlashTimer - dt);
   if (player.dashCooldown > 0) player.dashCooldown = Math.max(0, player.dashCooldown - dt);
@@ -90,16 +106,24 @@ export function updatePlayer(
     player.jumpsRemaining = 2;
   }
 
-  // 8-way movement vector
-  let ix = (input.right ? 1 : 0) - (input.left ? 1 : 0);
-  let iy = (input.down ? 1 : 0) - (input.up ? 1 : 0);
+  // Support both 360° analog thumbstick vector and 8-way digital keys
+  let ix =
+    typeof input.moveX === 'number' && Math.abs(input.moveX) > 0.05
+      ? input.moveX
+      : (input.right ? 1 : 0) - (input.left ? 1 : 0);
+  let iy =
+    typeof input.moveY === 'number' && Math.abs(input.moveY) > 0.05
+      ? input.moveY
+      : (input.down ? 1 : 0) - (input.up ? 1 : 0);
+
   const len = Math.hypot(ix, iy);
   if (len > 0) {
-    ix /= len;
-    iy /= len;
+    const clampedLen = Math.min(1, len);
+    ix = (ix / len) * clampedLen;
+    iy = (iy / len) * clampedLen;
     if (player.dashTimer <= 0) {
-      player.dirX = ix;
-      player.dirY = iy;
+      player.dirX = ix / clampedLen;
+      player.dirY = iy / clampedLen;
     }
   }
 
@@ -126,14 +150,12 @@ export function updatePlayer(
     });
   }
 
-  // 8-Way Dash Activation
+  // 8-Way / 360° Dash Activation
   if (input.dashPressed && player.dashCooldown <= 0 && player.dashTimer <= 0) {
-    player.dashDirX = len > 0 ? ix : player.dirX;
-    player.dashDirY = len > 0 ? iy : player.dirY;
-    player.dirX = player.dashDirX;
-    player.dirY = player.dashDirY;
+    player.dashDirX = len > 0 ? player.dirX : player.dirX;
+    player.dashDirY = len > 0 ? player.dirY : player.dirY;
     player.dashTimer = DASH_DURATION;
-    player.dashCooldown = DASH_COOLDOWN;
+    player.dashCooldown = DASH_COOLDOWN * player.cdMult;
     player.invulnTimer = Math.max(player.invulnTimer, DASH_DURATION + 0.08);
     player.scaleX = 1.3;
     player.scaleY = 0.76;
@@ -157,8 +179,9 @@ export function updatePlayer(
     }
   } else {
     const ultSpeedMult = player.ultActiveTimer > 0 ? 1.15 : 1;
-    const targetVx = ix * MOVE_SPEED * ultSpeedMult;
-    const targetVy = iy * MOVE_SPEED * ultSpeedMult;
+    const effSpeed = MOVE_SPEED * player.speedMult * ultSpeedMult;
+    const targetVx = ix * effSpeed;
+    const targetVy = iy * effSpeed;
 
     const dvx = targetVx - player.vx;
     const dvy = targetVy - player.vy;
@@ -184,10 +207,10 @@ export function updatePlayer(
     spawnDust(state, player.x, player.y, 6);
   }
 
-  // Melee — 8-Way Kibas Sarung
+  // Melee — Kibas Sarung
   if (input.meleePressed && player.meleeCooldown <= 0 && player.ultActiveTimer <= 0) {
     player.meleeTimer = MELEE_DURATION;
-    player.meleeCooldown = MELEE_COOLDOWN;
+    player.meleeCooldown = MELEE_COOLDOWN * player.cdMult;
     player.meleeSwingId++;
     player.meleeComboStep = (player.meleeComboStep + 1) % 2;
     player.meleeAngle = Math.atan2(player.dirY, player.dirX);
@@ -207,9 +230,9 @@ export function updatePlayer(
     });
   }
 
-  // Secondary — 8-Way Sabetan Angin Pecut (Projectile)
+  // Secondary — Sabetan Angin Pecut (Projectile)
   if (input.projPressed && player.projCooldown <= 0 && player.ultActiveTimer <= 0) {
-    player.projCooldown = PROJ_COOLDOWN;
+    player.projCooldown = PROJ_COOLDOWN * player.cdMult;
     player.scaleX = 1.24;
     player.scaleY = 0.82;
     state.soundQueue.push('pecut');
@@ -224,7 +247,7 @@ export function updatePlayer(
       vy: player.dirY * PROJ_SPEED,
       angle,
       radius: PROJ_RADIUS,
-      damage: PROJ_DAMAGE,
+      damage: Math.round(PROJ_DAMAGE * player.dmgMult),
       pierceLeft: PROJ_MAX_PIERCE,
       hitIds: [],
       life: PROJ_LIFETIME,
@@ -258,7 +281,6 @@ export function updatePlayer(
     spawnDust(state, player.x, player.y, 5);
   }
 
-  // Smooth squash & stretch recovery
   player.scaleX += (1 - player.scaleX) * Math.min(1, dt * 15);
   player.scaleY += (1 - player.scaleY) * Math.min(1, dt * 15);
 
@@ -271,7 +293,6 @@ export function updatePlayer(
     player.animTime += dt * 3;
   }
 
-  // Fade afterimages
   for (let i = player.afterimages.length - 1; i >= 0; i--) {
     player.afterimages[i].alpha -= dt * 3.4;
     if (player.afterimages[i].alpha <= 0) {

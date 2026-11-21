@@ -50,9 +50,10 @@ export class HudController {
       this.vbtnUltEl.classList.toggle('ready', ultReady);
     }
 
-    // Projectile Cooldown (2.5s)
+    // Projectile Cooldown (2.5s * cdMult)
     const cd = player.projCooldown;
-    const cdRatio = Math.max(0, Math.min(1, 1 - cd / PROJ_COOLDOWN));
+    const maxCd = PROJ_COOLDOWN * (player.cdMult || 1);
+    const cdRatio = Math.max(0, Math.min(1, 1 - cd / maxCd));
     this.projFillEl.style.width = `${cdRatio * 100}%`;
     const cdLabel = cd > 0 ? `${cd.toFixed(1)}s` : 'SIAP';
     this.projTextEl.textContent = cdLabel;

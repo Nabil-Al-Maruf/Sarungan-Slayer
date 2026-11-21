@@ -231,7 +231,11 @@ function getStageConfig(stage: 1 | 2 | 3): StageConfig {
   };
 }
 
-export function createStoryState(stageNumber: 1 | 2 | 3, paletteIndex = 0): GameState {
+export function createStoryState(
+  stageNumber: 1 | 2 | 3,
+  paletteIndex = 0,
+  customName?: string
+): GameState {
   const cfg = getStageConfig(stageNumber);
   const arenaWidth = VIRTUAL_WIDTH * 3; // 2880px 3-zone Surabaya corridor
 
@@ -250,7 +254,7 @@ export function createStoryState(stageNumber: 1 | 2 | 3, paletteIndex = 0): Game
     goPromptTimer: 0,
     storyZones: cfg.zones,
     obstacles: cfg.obstacles,
-    players: [createPlayer('p1', 120, 340, paletteIndex)],
+    players: [createPlayer('p1', 120, 340, paletteIndex, customName)],
     enemies: [],
     projectiles: [],
     enemyProjectiles: [],

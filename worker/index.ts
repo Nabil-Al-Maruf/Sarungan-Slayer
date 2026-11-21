@@ -1,7 +1,8 @@
 import { DurableObject } from 'cloudflare:workers';
 import { FIXED_DT, PLAYER_PALETTES } from '../src/core/constants';
-import type { GameState, PlayerInput, SoundEvent } from '../src/core/types';
+import type { BuffId, GameState, PlayerInput, SoundEvent } from '../src/core/types';
 import {
+  applyPlayerBuff,
   buyShopItem,
   createSurvivalState,
   skipIntermission,
@@ -17,6 +18,7 @@ export interface LobbyPlayer {
   id: string;
   paletteIndex: number;
   name: string;
+  customName: string;
   isHost: boolean;
 }
 
@@ -24,6 +26,7 @@ interface ClientSession {
   ws: WebSocket;
   id: string;
   paletteIndex: number;
+  customName: string;
   name: string;
   isHost: boolean;
   input: PlayerInput;
@@ -31,6 +34,8 @@ interface ClientSession {
 
 type ClientMsg =
   | { type: 'input'; input: PlayerInput }
+  | { type: 'set_profile'; name: string; paletteIndex: number }
+  | { type: 'pick_buff'; buffId: BuffId }
   | { type: 'start' }
   | { type: 'buy'; itemId: ShopItemId }
   | { type: 'skip_intermission' };
@@ -50,11 +55,18 @@ function makeIdleInput(): PlayerInput {
   };
 }
 
-/**
- * Slim Snapshot Builder (20 Hz):
- * - Rounds coordinates & velocities with Math.round
- * - Omits heavy particles & afterimages to minimize bandwidth & stay well inside Free Plan
- */
+function formatLobbyDisplayName(
+  slotId: string,
+  customName: string,
+  paletteIndex: number,
+  isHost: boolean
+): string {
+  const pal = PLAYER_PALETTES[paletteIndex % PLAYER_PALETTES.length];
+  const clean = customName.trim().slice(0, 14) || pal.name.split(' ')[1];
+  const slotLabel = slotId.toUpperCase();
+  return `${slotLabel} • ${clean}${isHost ? ' (HOST)' : ''}`;
+}
+
 function buildSlimSnapshot(state: GameState, pendingSounds: SoundEvent[]): GameState {
   return {
     ...state,
@@ -155,6 +167,7 @@ export class GameRoom extends DurableObject<Env> {
     const url = new URL(request.url);
     const code = (url.searchParams.get('code') || 'ROOM').toUpperCase().slice(0, 4);
     const preferredPalette = Number(url.searchParams.get('palette') || '0') || 0;
+    const rawName = (url.searchParams.get('name') || '').trim().slice(0, 14);
     this.roomCode = code;
 
     if (request.headers.get('Upgrade') !== 'websocket') {
@@ -175,22 +188,21 @@ export class GameRoom extends DurableObject<Env> {
       return new Response(null, { status: 101, webSocket: clientWs });
     }
 
-    // Assign first available slot p1..p5
     const usedIds = new Set([...this.sessions.values()].map((s) => s.id));
     let slotNum = 1;
     while (usedIds.has(`p${slotNum}`) && slotNum <= 5) slotNum++;
     const playerId = `p${slotNum}`;
     const isHost = this.sessions.size === 0;
-    const paletteIndex = isHost
-      ? preferredPalette % PLAYER_PALETTES.length
-      : (slotNum - 1) % PLAYER_PALETTES.length;
+    const paletteIndex = preferredPalette % PLAYER_PALETTES.length;
     const pal = PLAYER_PALETTES[paletteIndex];
+    const customName = rawName || pal.name.split(' ')[1];
 
     const session: ClientSession = {
       ws: serverWs,
       id: playerId,
       paletteIndex,
-      name: `${pal.label} • ${pal.name.split(' ')[1]}${isHost ? ' (HOST)' : ''}`,
+      customName,
+      name: formatLobbyDisplayName(playerId, customName, paletteIndex, isHost),
       isHost,
       input: makeIdleInput(),
     };
@@ -210,7 +222,6 @@ export class GameRoom extends DurableObject<Env> {
 
     this.broadcastLobby();
 
-    // If match is already running, let late joiner spectate/receive current snapshot immediately
     if (this.state && this.state.status === 'playing') {
       this.safeSend(serverWs, { type: 'start_game' });
       this.safeSend(serverWs, {
@@ -231,8 +242,29 @@ export class GameRoom extends DurableObject<Env> {
       return;
     }
 
+    if (msg.type === 'set_profile') {
+      const cleanName =
+        (typeof msg.name === 'string' ? msg.name.trim().slice(0, 14) : '') || session.customName;
+      const palIdx =
+        typeof msg.paletteIndex === 'number'
+          ? Math.abs(Math.floor(msg.paletteIndex)) % PLAYER_PALETTES.length
+          : session.paletteIndex;
+      session.customName = cleanName;
+      session.paletteIndex = palIdx;
+      session.name = formatLobbyDisplayName(session.id, cleanName, palIdx, session.isHost);
+
+      if (this.state) {
+        const p = this.state.players.find((pl) => pl.id === session.id);
+        if (p) {
+          p.name = cleanName;
+          p.paletteIndex = palIdx;
+        }
+      }
+      this.broadcastLobby();
+      return;
+    }
+
     if (msg.type === 'input' && msg.input) {
-      // Preserve any edge triggers until the next 60Hz tick consumes them
       const prev = session.input;
       const next = msg.input;
       session.input = {
@@ -240,6 +272,8 @@ export class GameRoom extends DurableObject<Env> {
         down: Boolean(next.down),
         left: Boolean(next.left),
         right: Boolean(next.right),
+        moveX: typeof next.moveX === 'number' ? Math.max(-1, Math.min(1, next.moveX)) : undefined,
+        moveY: typeof next.moveY === 'number' ? Math.max(-1, Math.min(1, next.moveY)) : undefined,
         jumpPressed: prev.jumpPressed || Boolean(next.jumpPressed),
         dashPressed: prev.dashPressed || Boolean(next.dashPressed),
         meleePressed: prev.meleePressed || Boolean(next.meleePressed),
@@ -247,6 +281,18 @@ export class GameRoom extends DurableObject<Env> {
         ultPressed: prev.ultPressed || Boolean(next.ultPressed),
         shopPressed: false,
       };
+      return;
+    }
+
+    if (msg.type === 'pick_buff' && this.state && this.state.status === 'playing') {
+      const player = this.state.players.find((p) => p.id === session.id);
+      if (!player) return;
+      applyPlayerBuff(this.state, player, msg.buffId);
+      if (this.state.soundQueue.length > 0) {
+        this.pendingSounds.push(...this.state.soundQueue);
+        this.state.soundQueue.length = 0;
+      }
+      this.broadcastSnapshotNow();
       return;
     }
 
@@ -283,7 +329,6 @@ export class GameRoom extends DurableObject<Env> {
     if (!this.sessions.has(session.ws)) return;
     this.sessions.delete(session.ws);
 
-    // Remove disconnected player from active match without disrupting remaining players
     if (this.state) {
       this.state.players = this.state.players.filter((p) => p.id !== session.id);
       if (this.state.players.length === 0) {
@@ -298,13 +343,16 @@ export class GameRoom extends DurableObject<Env> {
       return;
     }
 
-    // Migrate Host role seamlessly if the Host left
     if (session.isHost) {
       const nextHost = this.sessions.values().next().value;
       if (nextHost) {
         nextHost.isHost = true;
-        const pal = PLAYER_PALETTES[nextHost.paletteIndex % PLAYER_PALETTES.length];
-        nextHost.name = `${pal.label} • ${pal.name.split(' ')[1]} (HOST)`;
+        nextHost.name = formatLobbyDisplayName(
+          nextHost.id,
+          nextHost.customName,
+          nextHost.paletteIndex,
+          true
+        );
       }
     }
 
@@ -316,6 +364,7 @@ export class GameRoom extends DurableObject<Env> {
     const roster = [...this.sessions.values()].map((s) => ({
       id: s.id,
       paletteIndex: s.paletteIndex,
+      name: s.customName,
     }));
 
     this.state = createSurvivalState(roster[0]?.paletteIndex ?? 0, roster);
@@ -329,7 +378,6 @@ export class GameRoom extends DurableObject<Env> {
 
     this.broadcastSnapshotNow();
 
-    // Authoritative 60Hz Simulation Loop; broadcasts Slim Snapshot every 3 ticks (20 Hz)
     this.tickInterval = setInterval(() => {
       if (!this.state || this.state.status !== 'playing' || this.sessions.size === 0) {
         this.stopLoop();
@@ -339,7 +387,6 @@ export class GameRoom extends DurableObject<Env> {
       const inputsMap: Record<string, PlayerInput> = {};
       for (const s of this.sessions.values()) {
         inputsMap[s.id] = { ...s.input };
-        // Clear edge triggers after consuming
         s.input.jumpPressed = false;
         s.input.dashPressed = false;
         s.input.meleePressed = false;
@@ -383,6 +430,7 @@ export class GameRoom extends DurableObject<Env> {
       id: s.id,
       paletteIndex: s.paletteIndex,
       name: s.name,
+      customName: s.customName,
       isHost: s.isHost,
     }));
 
@@ -406,7 +454,7 @@ export class GameRoom extends DurableObject<Env> {
       try {
         s.ws.send(payload);
       } catch {
-        // Ignore closed socket; close handler will clean up
+        // Ignore closed socket
       }
     }
   }
@@ -439,7 +487,7 @@ export default {
         {
           ok: true,
           service: 'arek-sarungan-slayer-mp',
-          version: '1.1.0',
+          version: '1.2.0',
         },
         { headers: CORS_HEADERS }
       );

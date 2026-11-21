@@ -2,7 +2,7 @@ import './style.css';
 import { ProceduralAudio } from './audio/sfx';
 import { FIXED_DT, PLAYER_PALETTES, VIRTUAL_HEIGHT, VIRTUAL_WIDTH } from './core/constants';
 import { InputManager } from './core/input';
-import type { GameState } from './core/types';
+import type { BuffId, GameState } from './core/types';
 import { createSandboxState, stepSandbox } from './modes/sandbox';
 import {
   createStoryState,
@@ -11,6 +11,8 @@ import {
   stepStory,
 } from './modes/story';
 import {
+  BUFF_DEFS,
+  applyPlayerBuff,
   buyShopItem,
   canOpenWarung,
   createSurvivalState,
@@ -21,10 +23,13 @@ import {
   stepSurvival,
   type ShopItemId,
 } from './modes/survival';
-import { WsManager, type LobbyPlayer } from './net/wsManager';
+import { WsManager, type ConnectionMode, type LobbyPlayer } from './net/wsManager';
 import { renderGame } from './render/renderer';
 import { HudController } from './ui/hud';
 import { bindTouchControls } from './ui/touchControls';
+
+const NAME_STORAGE_KEY = 'arek_slayer_player_name_v1';
+const SKIN_STORAGE_KEY = 'arek_slayer_player_skin_v1';
 
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 const stageWrap = document.getElementById('stage-wrap') as HTMLDivElement;
@@ -34,12 +39,16 @@ const audio = new ProceduralAudio();
 const input = new InputManager(() => audio.unlock());
 const hud = new HudController();
 
-let selectedPalette = 0;
-let state: GameState = createStoryState(1, selectedPalette);
+let selectedPalette = Number(localStorage.getItem(SKIN_STORAGE_KEY) || '0') % PLAYER_PALETTES.length;
+let playerName = (localStorage.getItem(NAME_STORAGE_KEY) || 'Cak Bima').slice(0, 14);
+
+let state: GameState = createStoryState(1, selectedPalette, playerName);
 let menuOpen = true;
 let lobbyOpen = false;
 let shopOpen = false;
+let buffModalOpen = false;
 let resultShown = false;
+let lastBuffSig = '';
 
 // Overlay DOM references
 const menuOverlay = document.getElementById('menu-overlay') as HTMLDivElement;
@@ -49,6 +58,8 @@ const menuCreditsView = document.getElementById('menu-credits-view') as HTMLDivE
 const menuChangelogView = document.getElementById('menu-changelog-view') as HTMLDivElement;
 const lobbyOverlay = document.getElementById('lobby-overlay') as HTMLDivElement;
 const shopOverlay = document.getElementById('shop-overlay') as HTMLDivElement;
+const buffOverlay = document.getElementById('buff-overlay') as HTMLDivElement;
+const buffChoicesGrid = document.getElementById('buff-choices-grid') as HTMLDivElement;
 const resultOverlay = document.getElementById('result-overlay') as HTMLDivElement;
 const resultEyebrow = document.getElementById('result-eyebrow') as HTMLDivElement;
 const resultTitle = document.getElementById('result-title') as HTMLHeadingElement;
@@ -58,7 +69,15 @@ const btnRetryStage = document.getElementById('btn-retry-stage') as HTMLButtonEl
 const btnBackMenu = document.getElementById('btn-back-menu') as HTMLButtonElement;
 const menuBestWaveEl = document.getElementById('menu-best-wave') as HTMLSpanElement;
 
-// Lobby DOM references
+// Profile & Lobby DOM references
+const inputPlayerName = document.getElementById('input-player-name') as HTMLInputElement;
+const inputLobbyName = document.getElementById('input-lobby-name') as HTMLInputElement;
+const tabConnOnline = document.getElementById('tab-conn-online') as HTMLButtonElement;
+const tabConnHotspot = document.getElementById('tab-conn-hotspot') as HTMLButtonElement;
+const hotspotGuideEl = document.getElementById('hotspot-guide') as HTMLDivElement;
+const inputHotspotIp = document.getElementById('input-hotspot-ip') as HTMLInputElement;
+const labelHostModeEl = document.getElementById('label-host-mode') as HTMLSpanElement;
+const btnCreateRoom = document.getElementById('btn-create-room') as HTMLButtonElement;
 const lobbyStatusEl = document.getElementById('lobby-status') as HTMLParagraphElement;
 const hostCodeWrap = document.getElementById('host-code-wrap') as HTMLDivElement;
 const lobbyRoomCodeEl = document.getElementById('lobby-room-code') as HTMLDivElement;
@@ -73,7 +92,63 @@ const shopTicketsEl = document.getElementById('shop-tickets') as HTMLElement;
 const shopFeedbackEl = document.getElementById('shop-feedback') as HTMLDivElement;
 const btnSkipIntermission = document.getElementById('btn-skip-intermission') as HTMLButtonElement;
 
-// ===== CLOUDFLARE WORKER + DURABLE OBJECT WEBSOCKET MANAGER =====
+inputPlayerName.value = playerName;
+inputLobbyName.value = playerName;
+
+function syncPlayerName(newName: string): void {
+  const cleaned = newName.trim().slice(0, 14) || 'Arek SBY';
+  playerName = cleaned;
+  try {
+    localStorage.setItem(NAME_STORAGE_KEY, cleaned);
+  } catch {
+    // Ignore storage error
+  }
+  if (inputPlayerName.value !== newName) inputPlayerName.value = newName;
+  if (inputLobbyName.value !== newName) inputLobbyName.value = newName;
+
+  const p = getLocalPlayer();
+  if (p) p.name = cleaned;
+
+  if (wsMgr.connected) {
+    wsMgr.sendSetProfile(cleaned, selectedPalette);
+  }
+}
+
+function syncSelectedSkin(skinIdx: number): void {
+  selectedPalette = Math.abs(Math.floor(skinIdx)) % PLAYER_PALETTES.length;
+  try {
+    localStorage.setItem(SKIN_STORAGE_KEY, String(selectedPalette));
+  } catch {
+    // Ignore storage error
+  }
+  const pal = PLAYER_PALETTES[selectedPalette];
+  btnPalette.textContent = pal.label;
+
+  document.querySelectorAll<HTMLButtonElement>('#lobby-skin-picker .skin-swatch').forEach((btn) => {
+    btn.classList.toggle('active', Number(btn.dataset.skin) === selectedPalette);
+  });
+
+  const p = getLocalPlayer();
+  if (p) {
+    p.paletteIndex = selectedPalette;
+  }
+
+  if (wsMgr.connected) {
+    wsMgr.sendSetProfile(playerName, selectedPalette);
+  }
+}
+
+inputPlayerName.addEventListener('input', () => syncPlayerName(inputPlayerName.value));
+inputLobbyName.addEventListener('input', () => syncPlayerName(inputLobbyName.value));
+
+document.querySelectorAll<HTMLButtonElement>('#lobby-skin-picker .skin-swatch').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    audio.unlock();
+    syncSelectedSkin(Number(btn.dataset.skin));
+  });
+});
+
+// ===== WEBSOCKET MANAGER (ONLINE WSS + LOCAL HOTSPOT / BLUETOOTH TETHERING) =====
 const wsMgr = new WsManager({
   onStatus(text, isError) {
     lobbyStatusEl.textContent = text;
@@ -87,10 +162,13 @@ const wsMgr = new WsManager({
     menuOpen = false;
     lobbyOpen = false;
     shopOpen = false;
+    buffModalOpen = false;
+    lastBuffSig = '';
     resultShown = false;
     menuOverlay.classList.add('hidden');
     lobbyOverlay.classList.add('hidden');
     shopOverlay.classList.add('hidden');
+    buffOverlay.classList.add('hidden');
     resultOverlay.classList.add('hidden');
   },
   onSnapshot(remoteState) {
@@ -102,8 +180,6 @@ const wsMgr = new WsManager({
       prevState.status === 'playing';
 
     if (isSameMatch) {
-      // Preserve smooth client-side interpolated positions on snapshot arrival
-      // so applyPredictionAndLerp smoothly converges them at 60 FPS!
       const prevPlayers = new Map(prevState.players.map((p) => [p.id, p]));
       const prevEnemies = new Map(prevState.enemies.map((e) => [e.id, e]));
 
@@ -141,6 +217,7 @@ const wsMgr = new WsManager({
     if (shopOpen) {
       refreshShopUI();
     }
+    checkPendingBuffModal();
     showResultIfNeeded();
   },
   onShopResult(ok, message) {
@@ -153,11 +230,53 @@ const wsMgr = new WsManager({
     state.shakeIntensity = 0;
     state.hitstopTimer = 0;
     shopOpen = false;
+    buffModalOpen = false;
     resultShown = false;
+    buffOverlay.classList.add('hidden');
     openLobby();
     lobbyStatusEl.textContent = reason;
     lobbyStatusEl.style.color = '#f87171';
   },
+});
+
+function setConnectionMode(mode: ConnectionMode): void {
+  if (wsMgr.connected) {
+    wsMgr.disconnect(true);
+    renderLobbyRoster('', [], 'p1', false);
+  }
+  wsMgr.connectionMode = mode;
+  tabConnOnline.classList.toggle('active', mode === 'online');
+  tabConnHotspot.classList.toggle('active', mode === 'hotspot');
+  hotspotGuideEl.classList.toggle('hidden', mode !== 'hotspot');
+
+  if (mode === 'hotspot') {
+    labelHostModeEl.textContent = 'HOST HOTSPOT / BLUETOOTH';
+    btnCreateRoom.textContent = 'BUAT ROOM HOTSPOT';
+    inputRoomCode.placeholder = 'H---';
+    lobbyStatusEl.textContent =
+      'Nyalakan Hotspot/Tethering di HP Host, pastikan teman konek ke Hotspot tsb, lalu Buat/Gabung Room!';
+  } else {
+    labelHostModeEl.textContent = 'JADI HOST ONLINE';
+    btnCreateRoom.textContent = 'BUAT ROOM BARU';
+    inputRoomCode.placeholder = 'KODE';
+    lobbyStatusEl.textContent =
+      'Buat Room baru atau masukkan Kode Room 4 karakter dari temanmu.';
+  }
+  lobbyStatusEl.style.color = '#94a3b8';
+}
+
+tabConnOnline.addEventListener('click', () => {
+  audio.unlock();
+  setConnectionMode('online');
+});
+
+tabConnHotspot.addEventListener('click', () => {
+  audio.unlock();
+  setConnectionMode('hotspot');
+});
+
+inputHotspotIp.addEventListener('input', () => {
+  wsMgr.customHotspotHost = inputHotspotIp.value.trim();
 });
 
 function getLocalPlayer() {
@@ -233,10 +352,102 @@ function refreshShopUI(): void {
       costEl.textContent = info.disabled ? 'MAX' : `${info.cost} Receh`;
     }
   }
+
+  // Center Pos Warkop 1-Wave Tower status
+  const towerBtn = document.getElementById('shop-tower-pos') as HTMLButtonElement | null;
+  const towerDesc = document.getElementById('shop-tower-pos-desc');
+  const towerCost = document.getElementById('shop-tower-pos-cost');
+  if (towerBtn) towerBtn.disabled = surv.core.towerActive;
+  if (towerDesc) {
+    towerDesc.textContent = surv.core.towerActive
+      ? 'Menara aktif menjaga Pos Warkop di wave ini!'
+      : 'Menara mercon otomatis (hanya 1 Wave, wave depan sewa lagi)';
+  }
+  if (towerCost) {
+    towerCost.textContent = surv.core.towerActive ? 'AKTIF ✓' : '85 Receh';
+  }
+}
+
+/**
+ * Checks if the local player has a pending every-2-wave Buff choice
+ * and displays the 3 random Buff cards modal (Player picks 1!).
+ */
+function checkPendingBuffModal(): void {
+  if (state.mode !== 'survival' || state.status !== 'playing' || menuOpen || lobbyOpen) {
+    if (buffModalOpen) {
+      buffModalOpen = false;
+      buffOverlay.classList.add('hidden');
+    }
+    return;
+  }
+
+  const player = getLocalPlayer();
+  const choices = player?.pendingBuffChoices ?? [];
+  if (!player || choices.length === 0) {
+    if (buffModalOpen) {
+      buffModalOpen = false;
+      lastBuffSig = '';
+      buffOverlay.classList.add('hidden');
+    }
+    return;
+  }
+
+  const sig = choices.join(',');
+  if (buffModalOpen && sig === lastBuffSig) return;
+
+  lastBuffSig = sig;
+  buffModalOpen = true;
+  buffChoicesGrid.innerHTML = '';
+
+  for (const buffId of choices) {
+    const def = BUFF_DEFS[buffId];
+    if (!def) continue;
+    const btn = document.createElement('button');
+    btn.className = 'buff-choice-btn';
+    btn.innerHTML = `
+      <span class="buff-icon">${def.icon}</span>
+      <strong>${def.title}</strong>
+      <small>${def.desc}</small>
+      <span class="buff-pick-tag">PILIH BUFF INI</span>
+    `;
+    btn.addEventListener('click', () => {
+      audio.unlock();
+      pickBuffChoice(buffId);
+    });
+    buffChoicesGrid.appendChild(btn);
+  }
+
+  buffOverlay.classList.remove('hidden');
+}
+
+function pickBuffChoice(buffId: BuffId): void {
+  const player = getLocalPlayer();
+  if (!player) return;
+
+  if (wsMgr.connected) {
+    wsMgr.sendPickBuff(buffId);
+    player.pendingBuffChoices = [];
+  } else {
+    applyPlayerBuff(state, player, buffId);
+    audio.playQueue(state.soundQueue);
+    state.soundQueue.length = 0;
+  }
+
+  buffModalOpen = false;
+  lastBuffSig = '';
+  buffOverlay.classList.add('hidden');
 }
 
 function toggleWarung(): void {
-  if (state.mode !== 'survival' || menuOpen || lobbyOpen || state.status !== 'playing') return;
+  if (
+    state.mode !== 'survival' ||
+    menuOpen ||
+    lobbyOpen ||
+    buffModalOpen ||
+    state.status !== 'playing'
+  ) {
+    return;
+  }
   const player = getLocalPlayer();
   if (!player) return;
 
@@ -281,11 +492,13 @@ function openMenu(): void {
   menuOpen = true;
   lobbyOpen = false;
   shopOpen = false;
+  buffModalOpen = false;
   resultShown = false;
   refreshMenuProgress();
   showMenuView('home');
   lobbyOverlay.classList.add('hidden');
   shopOverlay.classList.add('hidden');
+  buffOverlay.classList.add('hidden');
   resultOverlay.classList.add('hidden');
   menuOverlay.classList.remove('hidden');
 }
@@ -295,9 +508,11 @@ function openLobby(): void {
   menuOpen = false;
   lobbyOpen = true;
   shopOpen = false;
+  buffModalOpen = false;
   resultShown = false;
   menuOverlay.classList.add('hidden');
   shopOverlay.classList.add('hidden');
+  buffOverlay.classList.add('hidden');
   resultOverlay.classList.add('hidden');
   lobbyOverlay.classList.remove('hidden');
   renderLobbyRoster(wsMgr.roomCode, wsMgr.lobbyPlayers, wsMgr.localPlayerId, wsMgr.isHost);
@@ -306,42 +521,49 @@ function openLobby(): void {
 function startStoryStage(stage: 1 | 2 | 3): void {
   audio.unlock();
   wsMgr.disconnect(true);
-  state = createStoryState(stage, selectedPalette);
+  state = createStoryState(stage, selectedPalette, playerName);
   menuOpen = false;
   lobbyOpen = false;
   shopOpen = false;
+  buffModalOpen = false;
   resultShown = false;
   menuOverlay.classList.add('hidden');
   lobbyOverlay.classList.add('hidden');
   shopOverlay.classList.add('hidden');
+  buffOverlay.classList.add('hidden');
   resultOverlay.classList.add('hidden');
 }
 
 function startSoloSurvival(): void {
   audio.unlock();
   wsMgr.disconnect(true);
-  state = createSurvivalState(selectedPalette);
+  state = createSurvivalState(selectedPalette, undefined, playerName);
   menuOpen = false;
   lobbyOpen = false;
   shopOpen = false;
+  buffModalOpen = false;
+  lastBuffSig = '';
   resultShown = false;
   menuOverlay.classList.add('hidden');
   lobbyOverlay.classList.add('hidden');
   shopOverlay.classList.add('hidden');
+  buffOverlay.classList.add('hidden');
   resultOverlay.classList.add('hidden');
 }
 
 function startSandbox(): void {
   audio.unlock();
   wsMgr.disconnect(true);
-  state = createSandboxState(selectedPalette);
+  state = createSandboxState(selectedPalette, playerName);
   menuOpen = false;
   lobbyOpen = false;
   shopOpen = false;
+  buffModalOpen = false;
   resultShown = false;
   menuOverlay.classList.add('hidden');
   lobbyOverlay.classList.add('hidden');
   shopOverlay.classList.add('hidden');
+  buffOverlay.classList.add('hidden');
   resultOverlay.classList.add('hidden');
 }
 
@@ -383,15 +605,16 @@ document.getElementById('btn-unlock-all')!.addEventListener('click', () => {
   refreshMenuProgress();
 });
 
-// Lobby Buttons (Cloudflare Durable Objects WSS)
-document.getElementById('btn-create-room')!.addEventListener('click', () => {
+// Lobby Buttons
+btnCreateRoom.addEventListener('click', () => {
   audio.unlock();
-  wsMgr.createRoom(selectedPalette);
+  wsMgr.createRoom(selectedPalette, playerName);
 });
 
 document.getElementById('btn-copy-link')!.addEventListener('click', () => {
   if (!wsMgr.roomCode) return;
-  const url = `${window.location.origin}${window.location.pathname}?room=${wsMgr.roomCode}`;
+  const modeParam = wsMgr.connectionMode === 'hotspot' ? '&mode=hotspot' : '';
+  const url = `${window.location.origin}${window.location.pathname}?room=${wsMgr.roomCode}${modeParam}`;
   navigator.clipboard?.writeText(url).catch(() => {});
   lobbyStatusEl.textContent = `Link undangan disalin: ${url}`;
   lobbyStatusEl.style.color = '#4ade80';
@@ -399,7 +622,7 @@ document.getElementById('btn-copy-link')!.addEventListener('click', () => {
 
 document.getElementById('btn-join-room')!.addEventListener('click', () => {
   audio.unlock();
-  wsMgr.joinRoom(inputRoomCode.value, selectedPalette);
+  wsMgr.joinRoom(inputRoomCode.value, selectedPalette, playerName);
 });
 
 inputRoomCode.addEventListener('input', () => {
@@ -410,7 +633,7 @@ inputRoomCode.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') {
     e.preventDefault();
     audio.unlock();
-    wsMgr.joinRoom(inputRoomCode.value, selectedPalette);
+    wsMgr.joinRoom(inputRoomCode.value, selectedPalette, playerName);
   }
 });
 
@@ -517,6 +740,8 @@ const btnTouch = document.getElementById('btn-touch-toggle') as HTMLButtonElemen
 const btnSfx = document.getElementById('btn-sfx') as HTMLButtonElement;
 const btnBgm = document.getElementById('btn-bgm') as HTMLButtonElement;
 
+syncSelectedSkin(selectedPalette);
+
 btnWarungHud.addEventListener('click', () => {
   audio.unlock();
   toggleWarung();
@@ -529,12 +754,10 @@ btnMenu.addEventListener('click', () => {
 
 btnPalette.addEventListener('click', () => {
   audio.unlock();
-  selectedPalette = (selectedPalette + 1) % PLAYER_PALETTES.length;
+  syncSelectedSkin((selectedPalette + 1) % PLAYER_PALETTES.length);
   const pal = PLAYER_PALETTES[selectedPalette];
-  btnPalette.textContent = pal.label;
   const player = getLocalPlayer();
-  if (player && !wsMgr.connected) {
-    player.paletteIndex = selectedPalette;
+  if (player) {
     state.floatingTexts.push({
       x: player.x,
       y: player.y - player.z - 54,
@@ -573,7 +796,9 @@ function showResultIfNeeded(): void {
   state.shakeIntensity = 0;
   state.hitstopTimer = 0;
   shopOpen = false;
+  buffModalOpen = false;
   shopOverlay.classList.add('hidden');
+  buffOverlay.classList.add('hidden');
 
   if (wsMgr.connected) {
     btnRetryStage.textContent = wsMgr.isHost ? 'MAIN LAGI (HOST)' : 'KELUAR KE LOBI';
@@ -646,10 +871,15 @@ refreshMenuProgress();
 // Auto-open Mabar Lobby if user opened an invite link (?room=XXXX)
 const urlParams = new URLSearchParams(window.location.search);
 const inviteRoom = urlParams.get('room');
+const inviteMode = urlParams.get('mode');
 if (inviteRoom && inviteRoom.trim().length === 4) {
-  inputRoomCode.value = inviteRoom.trim().toUpperCase();
+  const code = inviteRoom.trim().toUpperCase();
+  if (inviteMode === 'hotspot' || code.startsWith('H')) {
+    setConnectionMode('hotspot');
+  }
+  inputRoomCode.value = code;
   openLobby();
-  lobbyStatusEl.textContent = `Kode undangan ${inputRoomCode.value} terdeteksi! Klik GABUNG untuk masuk.`;
+  lobbyStatusEl.textContent = `Kode undangan ${code} terdeteksi! Klik GABUNG untuk masuk.`;
   lobbyStatusEl.style.color = '#4ade80';
 }
 
@@ -669,6 +899,7 @@ function frame(now: number): void {
       state.mode === 'survival' &&
       !menuOpen &&
       !lobbyOpen &&
+      !buffModalOpen &&
       state.status === 'playing'
     ) {
       toggleWarung();
@@ -680,32 +911,29 @@ function frame(now: number): void {
 
     if (!menuOpen && !lobbyOpen && state.status === 'playing') {
       if (wsMgr.connected) {
-        // Cloudflare Durable Object authoritative match:
-        // 1. Send Delta Input only when controls change or an action is pressed
-        const netInput = shopOpen
-          ? {
-              up: false,
-              down: false,
-              left: false,
-              right: false,
-              jumpPressed: false,
-              dashPressed: false,
-              meleePressed: false,
-              projPressed: false,
-              ultPressed: false,
-              shopPressed: false,
-            }
-          : sampled;
+        const netInput =
+          shopOpen || buffModalOpen
+            ? {
+                up: false,
+                down: false,
+                left: false,
+                right: false,
+                jumpPressed: false,
+                dashPressed: false,
+                meleePressed: false,
+                projPressed: false,
+                ultPressed: false,
+                shopPressed: false,
+              }
+            : sampled;
         wsMgr.sendDeltaInput(netInput);
-
-        // 2. Smooth 60 FPS Entity Interpolation + Local Client-Side Prediction
         wsMgr.applyPredictionAndLerp(state, netInput, FIXED_DT);
-      } else if (!shopOpen) {
-        // Offline Solo Mode (Story / Survival Solo / Sandbox)
+      } else if (!shopOpen && !buffModalOpen) {
         if (state.mode === 'story') {
           stepStory(state, sampled, FIXED_DT);
         } else if (state.mode === 'survival') {
           stepSurvival(state, sampled, FIXED_DT);
+          checkPendingBuffModal();
         } else {
           stepSandbox(state, sampled, FIXED_DT);
         }

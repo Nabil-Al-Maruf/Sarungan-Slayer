@@ -54,20 +54,30 @@
               WARUNG
             </button>
             <button id="btn-menu" class="hud-btn" title="Pilih Mode / Stage">MENU</button>
-            <button id="btn-palette" class="hud-btn" title="Ganti Warna Arek (P1-P5)">P1</button>
+            <button id="btn-palette" class="hud-btn" title="Ganti Skin Arek (P1-P5)">P1</button>
             <button id="btn-touch-toggle" class="hud-btn" title="Tampilkan Kontrol Sentuh">PAD</button>
             <button id="btn-sfx" class="hud-btn" title="Suara SFX">SFX</button>
             <button id="btn-bgm" class="hud-btn" title="Musik Latar">BGM</button>
           </div>
         </header>
 
+        <!-- Landscape Hint Bar (Desktop only) -->
+        <div id="desktop-hints" class="desktop-hints">
+          <span><b>WASD/Panah</b> Gerak 8-Arah</span>
+          <span><b>Space</b> Lompat 2x</span>
+          <span><b>Shift/L</b> Dash</span>
+          <span><b>J/Z</b> Kibas</span>
+          <span><b>K/X</b> Pecut</span>
+          <span><b>U/C</b> Ultimate</span>
+        </div>
+
         <!-- Animated Title Screen / Main Menu Overlay -->
         <div id="menu-overlay" class="overlay-modal title-screen-bg">
           <div class="modal-card menu-card title-card-anim">
             <div class="title-top-meta">
-              <span class="version-badge">v1.1.0</span>
+              <span class="version-badge">v1.2.0</span>
               <span class="modal-eyebrow">SUROBOYO TOP-DOWN ACTION ARCADE</span>
-              <span class="version-badge p2p-badge">CLOUDFLARE WSS</span>
+              <span class="version-badge p2p-badge">ONLINE + HOTSPOT</span>
             </div>
 
             <div class="title-hero">
@@ -81,6 +91,19 @@
 
             <!-- View 1: Main Title Menu -->
             <div id="menu-home-view" class="menu-view">
+              <!-- Player Nickname Quick Input -->
+              <div class="profile-bar anim-stagger-1">
+                <label for="input-player-name" class="profile-label">NAMA AREK:</label>
+                <input
+                  id="input-player-name"
+                  class="profile-name-input"
+                  type="text"
+                  maxlength="14"
+                  placeholder="Cak Suroboyo"
+                  autocomplete="off"
+                />
+              </div>
+
               <div class="title-menu-stack">
                 <button id="btn-open-story" class="title-cta-btn cta-story anim-stagger-1">
                   <span class="cta-icon">⚔</span>
@@ -95,7 +118,7 @@
                   <span class="cta-icon">🛡</span>
                   <span class="cta-text">
                     <strong>SURVIVAL SOLO <span id="menu-best-wave"></span></strong>
-                    <small>Jaga Pos Warkop, 3 Barricade &amp; Wave Zombie</small>
+                    <small>Buff Acak Tiap 2 Wave + Tower Pos Warkop + 3 Barricade</small>
                   </span>
                   <span class="cta-arrow">➔</span>
                 </button>
@@ -103,8 +126,8 @@
                 <button id="btn-open-lobby" class="title-cta-btn cta-mabar anim-stagger-3">
                   <span class="cta-icon">🌐</span>
                   <span class="cta-text">
-                    <strong>MABAR ONLINE (2–5 PEMAIN)</strong>
-                    <small>Cloudflare Edge WebSocket • Anti-Lag &amp; Tembus Semua Jaringan 4G/WiFi</small>
+                    <strong>MABAR (ONLINE / LOCAL HOTSPOT)</strong>
+                    <small>2–5 Pemain • Ganti Skin di Lobi • Bisa Hotspot / Bluetooth Tethering</small>
                   </span>
                   <span class="cta-arrow">➔</span>
                 </button>
@@ -161,11 +184,11 @@
                 </div>
                 <div class="credit-row">
                   <span class="credit-role">TEKNOLOGI</span>
-                  <strong>TypeScript • HTML5 Canvas 2D • Web Audio API • Cloudflare Durable Objects (WSS)</strong>
+                  <strong>TypeScript • HTML5 Canvas 2D • PCM Audio • Cloudflare Durable Objects</strong>
                 </div>
                 <div class="credit-row">
                   <span class="credit-role">VERSI RILIS</span>
-                  <strong>v1.1.0 — Cloudflare Edge Multiplayer Edition</strong>
+                  <strong>v1.2.0 — Hotspot Mabar, Roguelike Buff &amp; Tower Edition</strong>
                 </div>
               </div>
               <div class="menu-footer-actions">
@@ -178,35 +201,24 @@
               <div class="changelog-box">
                 <div class="changelog-entry">
                   <div class="changelog-head">
+                    <span class="version-badge">v1.2.0</span>
+                    <strong>Hotspot Mabar, Buff Acak 2 Wave, Tower Pos &amp; Analog HP</strong>
+                  </div>
+                  <ul class="changelog-list">
+                    <li><b>Fitur Nama &amp; Ganti Skin di Lobi:</b> Bebas isi nickname &amp; pilih 5 Skin Arek Suroboyo langsung di Lobi.</li>
+                    <li><b>Mode Local Hotspot / Bluetooth Tethering:</b> Pilihan koneksi khusus Mabar satu jaringan Hotspot HP Host (Kode Room <code>H-XXX</code>).</li>
+                    <li><b>Buff Atribut Acak Tiap 2 Wave:</b> Selesai tiap 2 wave muncul 3 kartu upgrade acak (Max HP, Damage, Reload Cepat, Lari, Ult, Receh) — pilih 1!</li>
+                    <li><b>Tower Mercon Bangunan Tengah:</b> Sewa Tower otomatis di atap Pos Warkop selama 1 Wave (wave berikutnya sewa lagi).</li>
+                    <li><b>Kontroler HP Analog 360° &amp; SFX Baru:</b> Analog Thumbstick halus + tombol serang ergonomis &amp; audio sampel PCM baru yang lebih nendang.</li>
+                  </ul>
+                </div>
+                <div class="changelog-entry">
+                  <div class="changelog-head">
                     <span class="version-badge">v1.1.0</span>
                     <strong>Migrasi Mabar ke Cloudflare Workers + Durable Objects (WSS)</strong>
                   </div>
                   <ul class="changelog-list">
-                    <li>Migrasi penuh dari PeerJS P2P ke <b>Cloudflare Edge WebSocket (WSS)</b> — lancar &amp; tembus semua jaringan HP 4G/WiFi tanpa tergantung sinyal Host!</li>
-                    <li>Simulasi Survival otoritatif berjalan di server room <b>Durable Object</b> (maksimal 5 pemain P1–P5); jika 1 pemain lag/keluar, pemain lain tetap lancar.</li>
-                    <li>Optimasi anti-lag: <b>Slim Snapshot 20 Hz</b>, <b>Delta Input</b>, <b>Entity Interpolation (Lerp 60 FPS)</b>, dan <b>Client-Side Prediction</b> untuk gerak instan.</li>
-                    <li>Game Over &amp; keluar room berhenti rapi tanpa layar getar.</li>
-                  </ul>
-                </div>
-                <div class="changelog-entry">
-                  <div class="changelog-head">
-                    <span class="version-badge">v1.0.1</span>
-                    <strong>Perbaikan Kode Room &amp; Info Update</strong>
-                  </div>
-                  <ul class="changelog-list">
-                    <li>Perbaikan input Kode Room (semua huruf &amp; angka bisa diketik + Enter langsung Gabung).</li>
-                    <li>Layar tidak lagi geter-geter saat mati / Game Over, plus menu <b>Info Update</b>.</li>
-                  </ul>
-                </div>
-                <div class="changelog-entry">
-                  <div class="changelog-head">
-                    <span class="version-badge">v1.0.0</span>
-                    <strong>Rilis Perdana Arek Sarungan Slayer</strong>
-                  </div>
-                  <ul class="changelog-list">
-                    <li>Kamera Top-Down 3/4 ala RPG + gerak 8-arah, lompat 2x, Dash, Kibas Sarung, Pecut &amp; Badai Ultimate.</li>
-                    <li>Story Mode 3 Stage Surabaya (Tambak, Tunjungan, Suramadu) + 3 Boss.</li>
-                    <li>Mode Survival + Pos Warkop + 3 Barricade + Warung + 5 Varian Zombie + Rotasi Map tiap 10 Wave.</li>
+                    <li>Migrasi penuh ke Cloudflare Edge WebSocket (<code>wss://sarungan-slayer.pages.dev</code>) + Slim Snapshot 20 Hz, Delta Input &amp; Lerp 60 FPS.</li>
                   </ul>
                 </div>
               </div>
@@ -217,23 +229,84 @@
 
             <div class="title-bottom-credit">
               <span>© 2026 Nabil Al-Ma'ruf • Arek Sarungan Slayer</span>
-              <span>v1.1.0</span>
+              <span>v1.2.0</span>
             </div>
           </div>
         </div>
 
-        <!-- Cloudflare Durable Object Mabar Online Lobby Overlay -->
+        <!-- Mabar Lobby Overlay (Online WSS + Local Hotspot / Bluetooth Tethering + Skin Picker) -->
         <div id="lobby-overlay" class="overlay-modal hidden">
           <div class="modal-card lobby-card">
-            <div class="modal-eyebrow">CLOUDFLARE EDGE WSS • TANPA DATABASE (2–5 PEMAIN)</div>
-            <h2 class="modal-title">LOBI MABAR SURVIVAL</h2>
+            <div class="modal-eyebrow">MABAR SURVIVAL 2–5 PEMAIN</div>
+            <h2 class="modal-title">LOBI MABAR SUROBOYO</h2>
+
+            <!-- Connection Mode Switcher: Online vs Local Hotspot / Bluetooth -->
+            <div class="conn-mode-tabs">
+              <button id="tab-conn-online" class="conn-tab active" data-mode="online">
+                ☁️ ONLINE SERVER
+              </button>
+              <button id="tab-conn-hotspot" class="conn-tab" data-mode="hotspot">
+                📡 LOCAL HOTSPOT / BLUETOOTH
+              </button>
+            </div>
+
+            <div id="hotspot-guide" class="hotspot-guide hidden">
+              <strong>Cara Mabar Local Hotspot / Bluetooth Tethering:</strong>
+              <span>1. Host menyalakan <b>Hotspot Wi-Fi</b> atau <b>Bluetooth Tethering</b> di HP.</span>
+              <span>2. Teman <b>wajib terhubung</b> ke jaringan Hotspot/Tethering Host tersebut.</span>
+              <span>3. Host klik <b>Buat Room Hotspot</b> (Kode <code>H---</code>), lalu teman masukkan kode itu!</span>
+              <div class="lan-ip-row">
+                <span>IP Server LAN (Opsional jika tanpa sinyal seluler):</span>
+                <input
+                  id="input-hotspot-ip"
+                  class="lan-ip-input"
+                  type="text"
+                  placeholder="Otomatis / 192.168.43.1:8787"
+                />
+              </div>
+            </div>
+
+            <!-- Lobby Profile & Skin Picker -->
+            <div class="lobby-profile-bar">
+              <div class="lobby-name-col">
+                <span class="lobby-box-title">NAMA KAMU</span>
+                <input
+                  id="input-lobby-name"
+                  class="profile-name-input"
+                  type="text"
+                  maxlength="14"
+                  placeholder="Cak Suroboyo"
+                />
+              </div>
+              <div class="lobby-skin-col">
+                <span class="lobby-box-title">PILIH SKIN SARUNG (P1–P5)</span>
+                <div id="lobby-skin-picker" class="skin-picker-row">
+                  <button class="skin-swatch active" data-skin="0" style="--sw: #ef4444" title="Cak Bima (Merah Bonek)">
+                    BIMA
+                  </button>
+                  <button class="skin-swatch" data-skin="1" style="--sw: #2563eb" title="Cak Bagus (Biru Kenjeran)">
+                    BAGUS
+                  </button>
+                  <button class="skin-swatch" data-skin="2" style="--sw: #eab308" title="Cak Dimas (Kuning Tunjungan)">
+                    DIMAS
+                  </button>
+                  <button class="skin-swatch" data-skin="3" style="--sw: #10b981" title="Cak Raka (Hijau Persebaya)">
+                    RAKA
+                  </button>
+                  <button class="skin-swatch" data-skin="4" style="--sw: #9333ea" title="Cak Yudi (Ungu Suramadu)">
+                    YUDI
+                  </button>
+                </div>
+              </div>
+            </div>
+
             <p id="lobby-status" class="modal-sub">
               Buat Room baru atau masukkan Kode Room 4 karakter dari temanmu.
             </p>
 
             <div class="lobby-actions-row">
               <div class="lobby-box">
-                <span class="lobby-box-title">JADI HOST</span>
+                <span class="lobby-box-title" id="label-host-mode">JADI HOST</span>
                 <button id="btn-create-room" class="primary-btn">BUAT ROOM BARU</button>
                 <div id="host-code-wrap" class="host-code-wrap hidden">
                   <div class="room-code-display" id="lobby-room-code">----</div>
@@ -259,7 +332,7 @@
 
             <div class="roster-section">
               <div class="roster-header">
-                <span>DAFTAR PEMAIN</span>
+                <span>DAFTAR PEMAIN DI LOBI</span>
                 <span id="lobby-player-count">0/5</span>
               </div>
               <div id="lobby-roster" class="roster-list">
@@ -303,6 +376,11 @@
                 <small id="shop-bar-right-desc">Perbaiki / Upgrade</small>
                 <span class="price-pill" id="shop-bar-right-cost">40 Receh</span>
               </button>
+              <button class="shop-item-btn tower-shop-btn" data-item="tower_pos" id="shop-tower-pos">
+                <strong>🗼 Tower Pos Tengah (1 Wave)</strong>
+                <small id="shop-tower-pos-desc">Menara mercon otomatis 1 Wave</small>
+                <span class="price-pill" id="shop-tower-pos-cost">85 Receh</span>
+              </button>
               <button class="shop-item-btn" data-item="tiket_revive">
                 <strong>Tiket Revive</strong>
                 <small>Hidupkan teman / Auto-bangkit</small>
@@ -329,6 +407,16 @@
           </div>
         </div>
 
+        <!-- Every-2-Wave Random Attribute Buff Picker Modal (Player picks 1!) -->
+        <div id="buff-overlay" class="overlay-modal hidden">
+          <div class="modal-card buff-card">
+            <div class="modal-eyebrow">BONUS TIAP 2 WAVE • PILIH SALAH SATU!</div>
+            <h2 class="modal-title">PILIH 1 BUFF ATRIBUT</h2>
+            <p class="modal-sub">Tingkatkan kekuatan Arek Suroboyo untuk menghadapi wave berikutnya!</p>
+            <div id="buff-choices-grid" class="buff-grid"></div>
+          </div>
+        </div>
+
         <!-- Victory / Game Over Overlay -->
         <div id="result-overlay" class="overlay-modal hidden">
           <div class="modal-card result-card">
@@ -342,44 +430,29 @@
             </div>
           </div>
         </div>
-
-        <!-- Landscape Hint Bar (Desktop only) -->
-        <div id="desktop-hints" class="desktop-hints">
-          <span><b>WASD/Panah</b> Gerak 8-Arah</span>
-          <span><b>Space</b> Lompat 2x</span>
-          <span><b>Shift/L</b> Dash</span>
-          <span><b>J/Z</b> Kibas</span>
-          <span><b>K/X</b> Pecut</span>
-          <span><b>U/C</b> Ultimate</span>
-        </div>
       </div>
 
-      <!-- Virtual Controls (Solid Handheld Deck in Portrait, Transparent Overlay in Landscape) -->
+      <!-- Virtual Controls (Ergonomic 360° Analog Thumbstick + Arc Action Pad) -->
       <section id="controls-deck" class="controls-deck" aria-label="Kontrol Virtual">
         <div class="deck-header">
           <span class="deck-brand">AREK SARUNGAN SLAYER</span>
-          <span class="deck-sub">SUROBOYO ARCADE DECK</span>
+          <button class="vbtn util-btn" data-action="shop" id="vbtn-shop" title="Buka Warung">
+            🏪 WARUNG
+          </button>
+          <span class="deck-sub">ANALOG ARCADE DECK</span>
         </div>
 
         <div class="deck-body">
-          <!-- Left: D-Pad -->
-          <div class="dpad-zone">
-            <button class="vbtn dpad-btn dpad-up" data-action="up" aria-label="Atas">▲</button>
-            <button class="vbtn dpad-btn dpad-left" data-action="left" aria-label="Kiri">◀</button>
-            <div class="dpad-center"></div>
-            <button class="vbtn dpad-btn dpad-right" data-action="right" aria-label="Kanan">▶</button>
-            <button class="vbtn dpad-btn dpad-down" data-action="down" aria-label="Bawah">▼</button>
+          <!-- Left: 360° Smooth Analog Thumbstick -->
+          <div id="joystick-zone" class="joystick-zone" aria-label="Analog Gerak 360 Derajat">
+            <div id="joystick-base" class="joystick-base">
+              <div class="joystick-ring"></div>
+              <div id="joystick-knob" class="joystick-knob"></div>
+            </div>
           </div>
 
-          <!-- Center utility (Portrait only) -->
-          <div class="deck-mid">
-            <button class="vbtn util-btn" data-action="shop" id="vbtn-shop" title="Warung / Toko (Fase 3)">
-              WARUNG
-            </button>
-          </div>
-
-          <!-- Right: Action Buttons -->
-          <div class="action-zone">
+          <!-- Right: Ergonomic Thumb Arc Action Cluster -->
+          <div class="action-arc-zone">
             <button class="vbtn act-btn act-ult" data-action="ult" id="vbtn-ult">
               <span class="act-title">BADAI</span>
               <span class="act-sub">ULT</span>

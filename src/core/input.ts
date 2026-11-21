@@ -39,6 +39,8 @@ export class InputManager {
   private keyHeld = new Set<string>();
   private touchHeld = new Set<VirtualAction>();
   private pendingPresses = new Set<VirtualAction>();
+  private analogX = 0;
+  private analogY = 0;
   private prevState: Record<VirtualAction, boolean> = {
     up: false,
     down: false,
@@ -100,6 +102,8 @@ export class InputManager {
     this.keyHeld.clear();
     this.touchHeld.clear();
     this.pendingPresses.clear();
+    this.analogX = 0;
+    this.analogY = 0;
   };
 
   public setVirtualAction(action: VirtualAction, active: boolean): void {
@@ -114,6 +118,16 @@ export class InputManager {
     }
   }
 
+  /**
+   * 360° Mobile Analog Thumbstick vector (-1..1).
+   * Also sets digital up/down/left/right flags for network delta compatibility!
+   */
+  public setAnalogMove(nx: number, ny: number): void {
+    this.triggerGesture();
+    this.analogX = nx;
+    this.analogY = ny;
+  }
+
   private isActionHeld(action: VirtualAction): boolean {
     if (this.touchHeld.has(action)) return true;
     for (const code of this.keyHeld) {
@@ -123,10 +137,12 @@ export class InputManager {
   }
 
   public sample(): PlayerInput {
-    const up = this.isActionHeld('up');
-    const down = this.isActionHeld('down');
-    const left = this.isActionHeld('left');
-    const right = this.isActionHeld('right');
+    const stickActive = Math.hypot(this.analogX, this.analogY) > 0.14;
+    const up = this.isActionHeld('up') || (stickActive && this.analogY < -0.28);
+    const down = this.isActionHeld('down') || (stickActive && this.analogY > 0.28);
+    const left = this.isActionHeld('left') || (stickActive && this.analogX < -0.28);
+    const right = this.isActionHeld('right') || (stickActive && this.analogX > 0.28);
+
     const jump = this.isActionHeld('jump');
     const dash = this.isActionHeld('dash');
     const melee = this.isActionHeld('melee');
@@ -138,15 +154,21 @@ export class InputManager {
       return (held && !this.prevState[action]) || this.pendingPresses.has(action);
     };
 
+    // Holding KIBAS or PECUT on mobile touch auto-fires when cooldown is ready!
+    const touchAutoMelee = this.touchHeld.has('melee');
+    const touchAutoProj = this.touchHeld.has('proj');
+
     const input: PlayerInput = {
       up,
       down,
       left,
       right,
+      moveX: stickActive ? Math.round(this.analogX * 100) / 100 : undefined,
+      moveY: stickActive ? Math.round(this.analogY * 100) / 100 : undefined,
       jumpPressed: consumeEdge('jump', jump),
       dashPressed: consumeEdge('dash', dash),
-      meleePressed: consumeEdge('melee', melee),
-      projPressed: consumeEdge('proj', proj),
+      meleePressed: consumeEdge('melee', melee) || touchAutoMelee,
+      projPressed: consumeEdge('proj', proj) || touchAutoProj,
       ultPressed: consumeEdge('ult', ult),
       shopPressed: consumeEdge('shop', shop),
     };

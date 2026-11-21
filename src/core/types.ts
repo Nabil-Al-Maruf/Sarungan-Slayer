@@ -3,6 +3,9 @@ export interface PlayerInput {
   down: boolean;
   left: boolean;
   right: boolean;
+  // Optional analog vector (-1..1) from mobile virtual joystick for silky 360° movement
+  moveX?: number;
+  moveY?: number;
   jumpPressed: boolean;
   dashPressed: boolean;
   meleePressed: boolean;
@@ -12,6 +15,14 @@ export interface PlayerInput {
 }
 
 export type MapTheme = 'tambak' | 'tunjungan' | 'suramadu';
+
+export type BuffId =
+  | 'max_hp'
+  | 'dmg_up'
+  | 'cd_fast'
+  | 'move_speed'
+  | 'ult_charge'
+  | 'coin_boost';
 
 export type EnemyKind =
   | 'dummy'
@@ -48,6 +59,7 @@ export interface Afterimage {
 
 export interface PlayerState {
   id: string;
+  name: string;
   paletteIndex: number;
   x: number;
   y: number;
@@ -70,22 +82,36 @@ export interface PlayerState {
   invulnTimer: number;
   hitFlashTimer: number;
 
+  // Survival Roguelike Buff Multipliers (chosen every 2 waves)
+  dmgMult: number;
+  cdMult: number;
+  speedMult: number;
+  ultGainMult: number;
+  coinMult: number;
+  pendingBuffChoices: BuffId[];
+  buffCount: number;
+
+  // Dash
   dashTimer: number;
   dashCooldown: number;
   dashDirX: number;
   dashDirY: number;
 
+  // Melee (Kibas Sarung)
   meleeTimer: number;
   meleeCooldown: number;
   meleeSwingId: number;
   meleeComboStep: number;
   meleeAngle: number;
 
+  // Secondary (Sabetan Angin Pecut)
   projCooldown: number;
 
+  // Ultimate (Badai Sarung Suroboyo)
   ultActiveTimer: number;
   ultTickTimer: number;
 
+  // Visual squash & stretch + walk cycle
   scaleX: number;
   scaleY: number;
   animTime: number;
@@ -251,7 +277,9 @@ export type SoundEvent =
   | 'pickup_heal'
   | 'pickup_kopi'
   | 'player_hurt'
-  | 'ko';
+  | 'ko'
+  | 'tower_shoot'
+  | 'buff_pick';
 
 export interface StoryZone {
   triggerX: number;
@@ -286,6 +314,10 @@ export interface SurvivalCore {
   hp: number;
   maxHp: number;
   hitFlashTimer: number;
+  // Center Building Defense Tower (lasts 1 wave, must be re-rented next wave)
+  towerActive: boolean;
+  towerCooldown: number;
+  towerAimAngle: number;
 }
 
 export interface SurvivalState {
