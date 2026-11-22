@@ -24,6 +24,7 @@ interface ClientSession {
   name: string;
   isHost: boolean;
   role: LobbyRole;
+  disconnectedAt?: number;
 }
 
 type ClientMsg =
@@ -55,7 +56,10 @@ function formatLobbyDisplayName(
 export class GameRoom extends DurableObject<Env> {
   private roomCode = '';
   private sessions = new Map<WebSocket, ClientSession>();
+  private sessionsById = new Map<string, ClientSession>();
   private inMatch = false;
+  private monitorGraceTimer: ReturnType<typeof setTimeout> | null = null;
+  private disconnectGraceTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -67,12 +71,13 @@ export class GameRoom extends DurableObject<Env> {
     const preferredPalette = Math.abs(Number(url.searchParams.get('palette') || '0') || 0) % PLAYER_PALETTES.length;
     const rawName = (url.searchParams.get('name') || '').trim().slice(0, 14);
     const reqRole = url.searchParams.get('role') === 'monitor' ? 'monitor' : 'player';
+    const reqSlot = (url.searchParams.get('slot') || '').trim();
     this.roomCode = code;
 
     if (request.headers.get('Upgrade') !== 'websocket') {
       return Response.json({
         roomCode: this.roomCode,
-        players: this.sessions.size,
+        players: this.sessionsById.size,
         inGame: this.inMatch,
       });
     }
@@ -81,15 +86,78 @@ export class GameRoom extends DurableObject<Env> {
     const [clientWs, serverWs] = Object.values(pair);
     serverWs.accept();
 
-    const fighterCount = [...this.sessions.values()].filter((s) => s.role !== 'monitor').length;
-    if (fighterCount >= 5) {
+    // 1. RECLAIM MONITOR SESSION (Grace period or temporary disconnect)
+    if (reqRole === 'monitor') {
+      const existingMonitor = this.sessionsById.get('monitor');
+      if (existingMonitor) {
+        if (this.monitorGraceTimer !== null) {
+          clearTimeout(this.monitorGraceTimer);
+          this.monitorGraceTimer = null;
+        }
+        this.sessions.delete(existingMonitor.ws);
+        try {
+          existingMonitor.ws.close(1000, 'Replaced by reconnect');
+        } catch {}
+        existingMonitor.ws = serverWs;
+        existingMonitor.disconnectedAt = undefined;
+        this.sessions.set(serverWs, existingMonitor);
+        this.bindSocket(serverWs, existingMonitor);
+
+        // Notify all stick controllers that Monitor is back!
+        const resumeMsg = JSON.stringify({
+          type: 'monitor_resumed',
+          reason: 'Monitor tersambung kembali!',
+        });
+        for (const s of this.sessions.values()) {
+          if (s.id !== 'monitor') {
+            try {
+              s.ws.send(resumeMsg);
+            } catch {}
+          }
+        }
+
+        this.broadcastLobby();
+        if (this.inMatch) {
+          this.safeSend(serverWs, { type: 'start_game' });
+        }
+        return new Response(null, { status: 101, webSocket: clientWs });
+      }
+    }
+
+    // 2. RECLAIM STICK / PLAYER SLOT (Mobile screen lock/unlock or signal flicker)
+    if (reqSlot && this.sessionsById.has(reqSlot)) {
+      const existing = this.sessionsById.get(reqSlot)!;
+      const graceTimer = this.disconnectGraceTimers.get(reqSlot);
+      if (graceTimer) {
+        clearTimeout(graceTimer);
+        this.disconnectGraceTimers.delete(reqSlot);
+      }
+      this.sessions.delete(existing.ws);
+      try {
+        existing.ws.close(1000, 'Replaced by reconnect');
+      } catch {}
+      existing.ws = serverWs;
+      existing.disconnectedAt = undefined;
+      this.sessions.set(serverWs, existing);
+      this.bindSocket(serverWs, existing);
+
+      this.broadcastLobby();
+      if (this.inMatch) {
+        this.safeSend(serverWs, { type: 'start_game' });
+      }
+      return new Response(null, { status: 101, webSocket: clientWs });
+    }
+
+    // 3. NEW PLAYER / MONITOR REGISTRATION
+    const activeFighters = [...this.sessionsById.values()].filter((s) => s.role !== 'monitor');
+    if (activeFighters.length >= 5) {
       this.safeSend(serverWs, { type: 'room_full' });
       serverWs.close(1008, 'Room full');
       return new Response(null, { status: 101, webSocket: clientWs });
     }
 
-    const hasMonitor = [...this.sessions.values()].some((s) => s.role === 'monitor');
-    const isHost = this.sessions.size === 0;
+    const hasMonitor = [...this.sessionsById.values()].some((s) => s.role === 'monitor');
+    const isHost = this.sessionsById.size === 0;
     const role: LobbyRole = isHost && reqRole === 'monitor' ? 'monitor' : hasMonitor ? 'stick' : 'player';
 
     let playerId = 'monitor';
@@ -97,7 +165,7 @@ export class GameRoom extends DurableObject<Env> {
     let customName = rawName || 'Monitor';
 
     if (role !== 'monitor') {
-      const usedIds = new Set([...this.sessions.values()].map((s) => s.id));
+      const usedIds = new Set([...this.sessionsById.values()].map((s) => s.id));
       let slotNum = 1;
       while (usedIds.has(`p${slotNum}`) && slotNum <= 5) slotNum++;
       playerId = `p${slotNum}`;
@@ -116,7 +184,17 @@ export class GameRoom extends DurableObject<Env> {
       role,
     };
     this.sessions.set(serverWs, session);
+    this.sessionsById.set(playerId, session);
+    this.bindSocket(serverWs, session);
 
+    this.broadcastLobby();
+    if (this.inMatch) {
+      this.safeSend(serverWs, { type: 'start_game' });
+    }
+    return new Response(null, { status: 101, webSocket: clientWs });
+  }
+
+  private bindSocket(serverWs: WebSocket, session: ClientSession): void {
     serverWs.addEventListener('message', (evt) => {
       this.handleMessage(session, evt.data);
     });
@@ -128,9 +206,6 @@ export class GameRoom extends DurableObject<Env> {
     serverWs.addEventListener('error', () => {
       this.handleDisconnect(session);
     });
-
-    this.broadcastLobby();
-    return new Response(null, { status: 101, webSocket: clientWs });
   }
 
   private handleMessage(session: ClientSession, raw: unknown): void {
@@ -231,60 +306,69 @@ export class GameRoom extends DurableObject<Env> {
   private handleDisconnect(session: ClientSession): void {
     if (!this.sessions.has(session.ws)) return;
     this.sessions.delete(session.ws);
+    session.disconnectedAt = Date.now();
 
-    if (this.sessions.size === 0) {
-      this.inMatch = false;
-      return;
-    }
-
-    // If Monitor quits, automatically terminate all connected Stick HP controllers!
+    // 1. MONITOR TEMPORARY DISCONNECT (Network jitter / Wi-Fi sleep)
+    // Never kick all sticks immediately! Provide a 25s grace period for monitor to reconnect.
     if (session.role === 'monitor') {
-      const closeMsg = JSON.stringify({
-        type: 'monitor_closed',
-        reason: 'Monitor keluar! Semua Stick HP otomatis terputus.',
+      const lostMsg = JSON.stringify({
+        type: 'monitor_lost',
+        reason: 'Sinyal Monitor goyang, menunggu tersambung kembali...',
       });
       for (const s of this.sessions.values()) {
         try {
-          s.ws.send(closeMsg);
-          s.ws.close(1000, 'Monitor closed');
-        } catch {
-          // Ignore
-        }
+          s.ws.send(lostMsg);
+        } catch {}
       }
-      this.sessions.clear();
-      this.inMatch = false;
+
+      if (this.monitorGraceTimer !== null) {
+        clearTimeout(this.monitorGraceTimer);
+      }
+      this.monitorGraceTimer = setTimeout(() => {
+        this.monitorGraceTimer = null;
+        const mon = this.sessionsById.get('monitor');
+        if (mon && mon.disconnectedAt) {
+          // Monitor did not return within 25 seconds: officially close room
+          const closeMsg = JSON.stringify({
+            type: 'monitor_closed',
+            reason: 'Monitor tidak tersambung kembali setelah 25 detik. Permainan berakhir.',
+          });
+          for (const s of this.sessions.values()) {
+            try {
+              s.ws.send(closeMsg);
+              s.ws.close(1000, 'Monitor timeout');
+            } catch {}
+          }
+          this.sessions.clear();
+          this.sessionsById.clear();
+          this.inMatch = false;
+        }
+      }, 25000);
       return;
     }
 
-    if (session.isHost) {
-      const nextHost = this.sessions.values().next().value;
-      if (nextHost) {
-        nextHost.isHost = true;
-        nextHost.name = formatLobbyDisplayName(
-          nextHost.id,
-          nextHost.customName,
-          nextHost.paletteIndex,
-          true,
-          nextHost.role
-        );
+    // 2. STICK HP / PLAYER TEMPORARY DISCONNECT (Screen lock/unlock or Wi-Fi glitch)
+    // Keep their slot reserved for 25s so they can reclaim it smoothly
+    const stickTimer = setTimeout(() => {
+      this.disconnectGraceTimers.delete(session.id);
+      const s = this.sessionsById.get(session.id);
+      if (s && s.disconnectedAt) {
+        // Player did not return within 25s: officially remove them
+        this.sessionsById.delete(session.id);
+        const leftMsg = JSON.stringify({ type: 'peer_left', id: session.id });
+        for (const rem of this.sessions.values()) {
+          try {
+            rem.ws.send(leftMsg);
+          } catch {}
+        }
+        this.broadcastLobby();
       }
-    }
-
-    // Notify remaining peers that this player left
-    const leftMsg = JSON.stringify({ type: 'peer_left', id: session.id });
-    for (const s of this.sessions.values()) {
-      try {
-        s.ws.send(leftMsg);
-      } catch {
-        // Ignore
-      }
-    }
-
-    this.broadcastLobby();
+    }, 25000);
+    this.disconnectGraceTimers.set(session.id, stickTimer);
   }
 
   private isPaletteTaken(paletteIndex: number, exclude?: ClientSession): boolean {
-    for (const s of this.sessions.values()) {
+    for (const s of this.sessionsById.values()) {
       if (s !== exclude && s.role !== 'monitor' && s.paletteIndex === paletteIndex) {
         return true;
       }
@@ -301,7 +385,7 @@ export class GameRoom extends DurableObject<Env> {
   }
 
   private broadcastLobby(): void {
-    const players: LobbyPlayer[] = [...this.sessions.values()].map((s) => ({
+    const players: LobbyPlayer[] = [...this.sessionsById.values()].map((s) => ({
       id: s.id,
       paletteIndex: s.paletteIndex,
       name: s.name,

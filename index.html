@@ -334,7 +334,7 @@
                 </div>
                 <div class="credit-row">
                   <span class="credit-role">VERSI RILIS</span>
-                  <strong>v1.6.0 — Controller Warung Fix, Auto-Disconnect Monitor, Jeda 20 Detik &amp; Optimasi 1 Mbps</strong>
+                  <strong>v1.6.1 — Controller Warung Fix, Auto-Disconnect Monitor, Jeda 20 Detik &amp; Optimasi 1 Mbps</strong>
                 </div>
               </div>
               <div class="menu-footer-actions">
@@ -347,8 +347,21 @@
               <div class="changelog-box">
                 <div class="changelog-entry">
                   <div class="changelog-head">
-                    <span class="version-badge">v1.6.0</span>
-                    <strong>Fix Warung Controller, Auto-Tutup Monitor, Jeda 20 Detik &amp; Lancar 1 Mbps</strong>
+                    <span class="version-badge">v1.6.1</span>
+                    <strong>Anti-Disconnect Local Monitor: Grace Period 25 Detik, Slot Reclaim &amp; Keepalive 8s</strong>
+                  </div>
+                  <ul class="changelog-list">
+                    <li><b>Grace Period Monitor 25 Detik:</b> Sinyal Monitor goyang/kedip tidak lagi langsung memutus semua Stick HP; server memberi toleransi 25 detik untuk menyambung ulang otomatis tanpa reset game.</li>
+                    <li><b>Slot Reclaim Otomatis:</b> Stick HP yang layarnya sempat terkunci atau sinyalnya tersendat bisa langsung masuk kembali ke slot karakter aslinya (P1–P5) tanpa tertendang ke lobi atau berubah karakter.</li>
+                    <li><b>Keepalive Agresif 8 Detik:</b> Ping aktif berkala tiap 8 detik memastikan koneksi WebSocket tidak diputus oleh router Wi-Fi/Hotspot atau mode hemat daya HP.</li>
+                    <li><b>Screen Wake Lock Tanggap Sentuhan:</b> Setiap sentuhan pada analog atau tombol gamepad memperbarui kunci layar agar layar HP Controller tidak pernah mati saat mabar.</li>
+                    <li><b>15x Toleransi Reconnect:</b> Otomatis mencoba menyambung ulang hingga 15 kali (~35 detik) sebelum menyerah.</li>
+                  </ul>
+                </div>
+                <div class="changelog-entry">
+                  <div class="changelog-head">
+                    <span class="version-badge">v1.6.1</span>
+                    <strong>Story Mode RPG Cutscene &amp; Fix Warung Controller</strong>
                   </div>
                   <ul class="changelog-list">
                     <li><b>Fix Buka Warung di Stick HP:</b> Posisi karakter Stick HP kini tersinkron langsung agar Warung bisa dibuka dari HP Controller, dilengkapi indikator siap &amp; notifikasi toast jika terlalu jauh dari Pos Warkop.</li>
@@ -422,13 +435,13 @@
 
             <div class="title-bottom-credit scenic-footer-credit">
               <span>© 2026 Nabil Al-Ma'ruf • Arek Sarungan Slayer</span>
-              <span>v1.6.0</span>
+              <span>v1.6.1</span>
             </div>
           </div>
 
           <!-- Right-Side Translucent Cartoon Icon Dock (matches reference) -->
           <div class="menu-side-dock" aria-label="Menu Cepat">
-            <button id="btn-open-changelog" class="dock-icon-btn dock-red" title="Info Update v1.6.0">
+            <button id="btn-open-changelog" class="dock-icon-btn dock-red" title="Info Update v1.6.1">
               <span class="dock-emoji">📰</span>
             </button>
             <button id="btn-quick-survival" class="dock-icon-btn dock-gold" title="Survival Solo & Rekor Wave">
@@ -763,4 +776,5 @@
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
+
 

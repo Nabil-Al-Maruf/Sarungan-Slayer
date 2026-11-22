@@ -223,15 +223,26 @@ document.querySelectorAll<HTMLButtonElement>('#lobby-skin-picker .skin-swatch').
   });
 });
 
-let wakeLockSentinel: { release: () => Promise<void> } | null = null;
+let wakeLockSentinel: {
+  release: () => Promise<void>;
+  addEventListener?: (type: string, listener: () => void) => void;
+} | null = null;
 
 async function requestScreenWakeLock(): Promise<void> {
   try {
     const nav = navigator as Navigator & {
-      wakeLock?: { request: (type: 'screen') => Promise<{ release: () => Promise<void> }> };
+      wakeLock?: {
+        request: (type: 'screen') => Promise<{
+          release: () => Promise<void>;
+          addEventListener?: (type: string, listener: () => void) => void;
+        }>;
+      };
     };
     if (nav.wakeLock && !wakeLockSentinel) {
       wakeLockSentinel = await nav.wakeLock.request('screen');
+      wakeLockSentinel.addEventListener?.('release', () => {
+        wakeLockSentinel = null;
+      });
     }
   } catch {
     // Ignore unsupported or denied wake lock
@@ -251,9 +262,19 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
+// Periodic background check to guarantee screen never turns off on mobile
+window.setInterval(() => {
+  if (document.visibilityState === 'visible' && (wsMgr.connected || wsMgr.isStickClient)) {
+    void requestScreenWakeLock();
+  }
+}, 20000);
+
 function setStickMode(active: boolean): void {
   appShellEl.classList.toggle('stick-controller-mode', active);
   stickHudBar.classList.toggle('hidden', !active);
+  if (active) {
+    void requestScreenWakeLock();
+  }
 }
 
 function updateStickHud(): void {
@@ -1201,25 +1222,31 @@ btnRetryStage.addEventListener('click', () => {
 
 btnBackMenu.addEventListener('click', () => openMenu());
 
-const { toggleTouchOverlay } = bindTouchControls(input, () => {
-  if (state.mode === 'survival') {
-    toggleWarung();
-  } else {
-    const player = getLocalPlayer();
-    if (player) {
-      state.floatingTexts.push({
-        x: player.x,
-        y: player.y - player.z - 54,
-        vy: -40,
-        text: 'WARUNG AKTIF DI MODE SURVIVAL!',
-        color: '#fde047',
-        scale: 0.92,
-        life: 1.1,
-        maxLife: 1.1,
-      });
+const { toggleTouchOverlay } = bindTouchControls(
+  input,
+  () => {
+    if (state.mode === 'survival') {
+      toggleWarung();
+    } else {
+      const player = getLocalPlayer();
+      if (player) {
+        state.floatingTexts.push({
+          x: player.x,
+          y: player.y - player.z - 54,
+          vy: -40,
+          text: 'WARUNG AKTIF DI MODE SURVIVAL!',
+          color: '#fde047',
+          scale: 0.92,
+          life: 1.1,
+          maxLife: 1.1,
+        });
+      }
     }
+  },
+  () => {
+    void requestScreenWakeLock();
   }
-});
+);
 
 // HUD Quick Buttons
 const btnWarungHud = document.getElementById('btn-warung-hud') as HTMLButtonElement;

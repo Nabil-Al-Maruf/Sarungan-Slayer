@@ -7,7 +7,8 @@ import type { InputManager, VirtualAction } from '../core/input';
  */
 export function bindTouchControls(
   input: InputManager,
-  onShopClick?: () => void
+  onShopClick?: () => void,
+  onTouchActive?: () => void
 ): { toggleTouchOverlay: () => boolean } {
   const appEl = document.getElementById('app')!;
   const isTouchDevice =
@@ -57,6 +58,7 @@ export function bindTouchControls(
 
     joyZone.addEventListener('pointerdown', (e: PointerEvent) => {
       e.preventDefault();
+      onTouchActive?.();
       if (activePointerId !== null) return;
       activePointerId = e.pointerId;
       joyZone.setPointerCapture(e.pointerId);
@@ -95,6 +97,7 @@ export function bindTouchControls(
 
     const press = (e: PointerEvent) => {
       e.preventDefault();
+      onTouchActive?.();
       btnPointerId = e.pointerId;
       btn.setPointerCapture(e.pointerId);
       btn.classList.add('pressed');

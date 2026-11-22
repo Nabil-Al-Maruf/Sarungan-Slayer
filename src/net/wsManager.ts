@@ -53,6 +53,8 @@ type ServerToClientMsg =
   | { type: 'relay'; from: string; payload: GameNetPayload }
   | { type: 'peer_left'; id: string }
   | { type: 'monitor_closed'; reason?: string }
+  | { type: 'monitor_lost'; reason?: string }
+  | { type: 'monitor_resumed'; reason?: string }
   | { type: 'pong'; ts: number }
   | { type: 'room_full' };
 
@@ -141,6 +143,7 @@ export class WsManager {
   } | null = null;
   private lastSentHeld = '';
   private lastMoveSendTs = 0;
+  private lastWsPingTs = 0;
   private callbacks: WsCallbacks;
 
   // WebRTC UDP DataChannels (Host maintains 1 per client; Client maintains 1 to Host)
@@ -331,7 +334,7 @@ export class WsManager {
           this.scheduleReconnect();
           return;
         }
-        if (isReconnect && this.reconnectAttempts < 3) {
+        if (isReconnect && this.reconnectAttempts < 15) {
           this.scheduleReconnect();
           return;
         }
@@ -361,7 +364,7 @@ export class WsManager {
       if (this.pingTimer === null) {
         this.pingTimer = window.setInterval(() => this.measurePing(), 2000);
       }
-      // Dedicated WS keepalive every 15s so Cloudflare (100s idle limit) & 4G NAT never drop WS!
+      // Aggressive WS keepalive every 8s so Cloudflare & 4G/WiFi NAT routers never drop idle WS!
       if (this.wsKeepaliveTimer !== null) {
         window.clearInterval(this.wsKeepaliveTimer);
       }
@@ -369,7 +372,7 @@ export class WsManager {
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
           this.sendWs({ type: 'ping', ts: performance.now() });
         }
-      }, 15000);
+      }, 8000);
       this.measurePing();
     };
 
@@ -410,6 +413,13 @@ export class WsManager {
         this.handleGamePayload(msg.from, msg.payload);
       } else if (msg.type === 'peer_left') {
         this.cleanupPeer(msg.id);
+      } else if (msg.type === 'monitor_lost') {
+        const reason = msg.reason || 'Sinyal Monitor goyang, menunggu tersambung kembali...';
+        this.callbacks.onStatus(`⚠️ ${reason}`, false);
+      } else if (msg.type === 'monitor_resumed') {
+        this.callbacks.onStatus('✅ Monitor tersambung kembali!', false);
+        this.refreshTransportMode();
+        this.measurePing();
       } else if (msg.type === 'monitor_closed') {
         const reason = msg.reason || 'Monitor keluar! Semua Stick HP otomatis terputus.';
         this.disconnect(true);
@@ -436,15 +446,18 @@ export class WsManager {
         return;
       }
 
-      // On WSS, try 3 quick silent reconnects before disconnecting (handles 4G signal flicker)
-      if (this.reconnectAttempts < 3 && this.lastConnectParams) {
-        this.callbacks.onStatus('Sinyal goyang, menyambung ulang...', false);
+      // Up to 15 automatic reconnect attempts (covers ~35s of temporary Wi-Fi / Hotspot drop)
+      if (this.reconnectAttempts < 15 && this.lastConnectParams) {
+        this.callbacks.onStatus(
+          `Sinyal goyang, menyambung ulang (${this.reconnectAttempts + 1}/15)...`,
+          false
+        );
         this.scheduleReconnect();
         return;
       }
 
       this.disconnect(true);
-      this.callbacks.onDisconnect('Koneksi ke room terputus.');
+      this.callbacks.onDisconnect('Koneksi ke room terputus setelah 15x percobaan.');
     };
 
     ws.onerror = () => {
@@ -463,7 +476,7 @@ export class WsManager {
     if (this.intentionalDisconnect || !this.lastConnectParams) return;
     if (this.reconnectTimer !== null) return;
     this.reconnectAttempts++;
-    const delayMs = Math.min(5000, 1200 * this.reconnectAttempts);
+    const delayMs = Math.min(3000, 800 + 200 * this.reconnectAttempts);
     const params = this.lastConnectParams;
     this.reconnectTimer = window.setTimeout(() => {
       this.reconnectTimer = null;
@@ -531,6 +544,17 @@ export class WsManager {
         }
       };
 
+      pc.oniceconnectionstatechange = () => {
+        this.refreshTransportMode();
+        if (pc.iceConnectionState === 'failed') {
+          try {
+            if ('restartIce' in pc && typeof pc.restartIce === 'function') {
+              pc.restartIce();
+            }
+          } catch {}
+        }
+      };
+
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
       this.sendWs({
@@ -562,6 +586,17 @@ export class WsManager {
               to: fromId,
               data: { kind: 'ice', candidate: e.candidate.toJSON() },
             });
+          }
+        };
+
+        pc.oniceconnectionstatechange = () => {
+          this.refreshTransportMode();
+          if (pc.iceConnectionState === 'failed') {
+            try {
+              if ('restartIce' in pc && typeof pc.restartIce === 'function') {
+                pc.restartIce();
+              }
+            } catch {}
           }
         };
 
@@ -802,6 +837,13 @@ export class WsManager {
   public sendDeltaInput(input: PlayerInput): void {
     if (!this.connected || this.isHost) return;
 
+    const now = performance.now();
+    // Guarantee active WS keepalive even if browser throttles background setInterval
+    if (now - this.lastWsPingTs > 8000) {
+      this.lastWsPingTs = now;
+      this.sendWs({ type: 'ping', ts: now });
+    }
+
     // Quantize analog to 0.2 steps & throttle pure movement to 20Hz for 1 Mbps smoothness;
     // action buttons (kibas/pecut/dash/lompat/ult) ALWAYS send immediately (0ms)!
     const qx = typeof input.moveX === 'number' ? Math.round(input.moveX * 5) / 5 : 0;
@@ -818,7 +860,6 @@ export class WsManager {
       return;
     }
 
-    const now = performance.now();
     const isStopping = qx === 0 && qy === 0 && !input.up && !input.down && !input.left && !input.right;
     if (!hasAction && !isStopping && now - this.lastMoveSendTs < 50) {
       return;
