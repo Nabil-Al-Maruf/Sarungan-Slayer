@@ -778,11 +778,19 @@ export function stepSurvival(
         for (const p of state.players) {
           p.pendingBuffChoices = rollRandomBuffChoices(3);
         }
+      }
+
+      if ((surv.wave + 1) % 5 === 0) {
+        surv.mapBannerText = `⚠️ SIAP-SIAP! WAVE ${surv.wave + 1} BOSS INVASION! ⚠️`;
+        surv.mapBannerTimer = 4.5;
+        state.soundQueue.push('ult_start');
+      } else if (surv.wave % 2 === 0) {
         surv.mapBannerText = `WAVE ${surv.wave} BERES! PILIH 1 BUFF ATRIBUT!`;
+        surv.mapBannerTimer = 3.0;
       } else {
         surv.mapBannerText = `WAVE ${surv.wave} BERES! JEDA WARUNG 20 DETIK`;
+        surv.mapBannerTimer = 3.0;
       }
-      surv.mapBannerTimer = 3.0;
     }
   } else {
     surv.intermissionTimer -= dt;
@@ -796,22 +804,48 @@ export function stepSurvival(
 
       surv.wave++;
       surv.phase = 'wave';
-      surv.zombiesRemainingToSpawn = 5 + surv.wave * 2 + (state.players.length - 1) * 2;
-      surv.spawnTimer = 0.8;
+      const isBossWave = surv.wave % 5 === 0;
 
       const { theme, locationName } = getThemeForWave(surv.wave);
       const changedMap = theme !== state.theme;
       state.theme = theme;
-      state.stageTitle = `WAVE ${surv.wave} • ${locationName}`;
 
-      if (changedMap) {
+      if (isBossWave) {
+        let bossKind: EnemyKind = 'boss_koordinator';
+        if (surv.wave % 15 === 0) {
+          bossKind = 'boss_suramadu';
+        } else if (surv.wave % 10 === 0) {
+          bossKind = 'boss_tunjungan';
+        }
+
+        const boss = spawnEnemy(state, bossKind, 480, 155);
+        const hpMult = 1 + (surv.wave - 1) * 0.14;
+        boss.maxHp = Math.round(boss.hp * hpMult);
+        boss.hp = boss.maxHp;
+
+        surv.zombiesRemainingToSpawn = 6 + Math.min(10, Math.floor(surv.wave * 0.35)) + (state.players.length - 1) * 2;
+        surv.spawnTimer = 1.2;
+
         state.soundQueue.push('ult_start');
-        surv.mapBannerText = `PINDAH LOKASI: ${locationName}!`;
-        surv.mapBannerTimer = 3.5;
-        surv.core.hp = Math.min(surv.core.maxHp, surv.core.hp + 100);
+        state.shakeTimer = 0.9;
+        state.shakeIntensity = 10;
+        surv.mapBannerText = `🚨 WAVE ${surv.wave} • BOSS INVASION: ${boss.name}! 🚨`;
+        surv.mapBannerTimer = 4.0;
+        state.stageTitle = `WAVE ${surv.wave} • 🚨 BOSS INVASION 🚨`;
       } else {
-        surv.mapBannerText = `WAVE ${surv.wave} DIMULAI!`;
-        surv.mapBannerTimer = 2.0;
+        surv.zombiesRemainingToSpawn = 5 + surv.wave * 2 + (state.players.length - 1) * 2;
+        surv.spawnTimer = 0.8;
+        state.stageTitle = `WAVE ${surv.wave} • ${locationName}`;
+
+        if (changedMap) {
+          state.soundQueue.push('ult_start');
+          surv.mapBannerText = `PINDAH LOKASI: ${locationName}!`;
+          surv.mapBannerTimer = 3.5;
+          surv.core.hp = Math.min(surv.core.maxHp, surv.core.hp + 100);
+        } else {
+          surv.mapBannerText = `WAVE ${surv.wave} DIMULAI!`;
+          surv.mapBannerTimer = 2.0;
+        }
       }
     }
   }

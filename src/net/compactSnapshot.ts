@@ -86,6 +86,9 @@ const ENEMY_COLORS: Partial<Record<EnemyKind, { shirt: string; sarung: string; r
   zombie_petasan: { shirt: '#dc2626', sarung: '#991b1b', r: 13, name: 'Bocil Petasan' },
   zombie_buto_ijo: { shirt: '#15803d', sarung: '#4c1d95', r: 23, name: 'Buto Ijo' },
   zombie_dukun: { shirt: '#1e1b4b', sarung: '#78350f', r: 16, name: 'Dukun Santet' },
+  boss_koordinator: { shirt: '#16a34a', sarung: '#facc15', r: 26, name: 'CAK KOORDINATOR' },
+  boss_tunjungan: { shirt: '#f59e0b', sarung: '#dc2626', r: 26, name: 'JAGOAN TUNJUNGAN' },
+  boss_suramadu: { shirt: '#334155', sarung: '#38bdf8', r: 28, name: 'RAJA SURAMADU' },
 };
 
 export function packCompactSnapshot(state: GameState, sounds: SoundEvent[]): CompactSnapshot {
@@ -396,6 +399,7 @@ export function mergeCompactSnapshot(
   state.enemies = snap.en.map((row) => {
     const [id, kind, ex, ey, ez, dx, dy, hp, maxHp, flash] = row;
     enemyTargets.set(id, { x: ex, y: ey, z: ez });
+    const isBoss = kind.startsWith('boss_');
     const old = prevEnemies.get(id);
     if (old) {
       old.dirX = dx;
@@ -403,6 +407,8 @@ export function mergeCompactSnapshot(
       old.hp = hp;
       old.maxHp = maxHp;
       old.hitFlashTimer = flash ? 0.1 : 0;
+      old.isBoss = isBoss;
+      if (isBoss && old.phase === 1 && hp <= maxHp * 0.5) old.phase = 2;
       return old;
     }
     const spec = ENEMY_COLORS[kind] ?? { shirt: '#65a30d', sarung: '#3f6212', r: 15, name: kind };
@@ -410,7 +416,7 @@ export function mergeCompactSnapshot(
       id,
       kind,
       name: spec.name,
-      isBoss: false,
+      isBoss,
       x: ex,
       y: ey,
       z: ez,

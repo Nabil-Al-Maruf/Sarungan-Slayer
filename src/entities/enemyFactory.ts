@@ -203,7 +203,8 @@ export function spawnEnemy(
 }
 
 export function updateEnemies(state: GameState, dt: number): void {
-  const player = state.players[0];
+  // Find closest alive player for AI targeting
+  const alivePlayers = state.players.filter((p) => !p.knockedDown);
 
   for (let i = state.enemies.length - 1; i >= 0; i--) {
     const enemy = state.enemies[i];
@@ -217,15 +218,24 @@ export function updateEnemies(state: GameState, dt: number): void {
     if (enemy.attackCooldown > 0) enemy.attackCooldown = Math.max(0, enemy.attackCooldown - dt);
     if (enemy.specialTimer > 0) enemy.specialTimer = Math.max(0, enemy.specialTimer - dt);
 
-    if (enemy.stunTimer > 0 || enemy.kind === 'dummy' || !player) {
+    const targetPlayer =
+      alivePlayers.length > 0
+        ? alivePlayers.reduce((closest, p) => {
+            const d1 = Math.hypot(p.x - enemy.x, p.y - enemy.y);
+            const d2 = Math.hypot(closest.x - enemy.x, closest.y - enemy.y);
+            return d1 < d2 ? p : closest;
+          }, alivePlayers[0])
+        : state.players[0];
+
+    if (enemy.stunTimer > 0 || enemy.kind === 'dummy' || !targetPlayer) {
       enemy.vx *= Math.pow(0.03, dt);
       enemy.vy *= Math.pow(0.03, dt);
     } else if (enemy.kind.startsWith('zombie_') && state.survival) {
       updateZombieSurvivalAI(state, enemy, dt);
     } else if (enemy.isBoss) {
-      updateBossAI(state, enemy, player.x, player.y, dt);
+      updateBossAI(state, enemy, targetPlayer.x, targetPlayer.y, dt);
     } else {
-      updateRegularEnemyAI(state, enemy, player.x, player.y, dt);
+      updateRegularEnemyAI(state, enemy, targetPlayer.x, targetPlayer.y, dt);
     }
 
     // Contact bump damage against all alive players
@@ -386,8 +396,103 @@ function updateBossAI(
 
     if (!boss.summonedReinforcements) {
       boss.summonedReinforcements = true;
-      spawnEnemy(state, 'elite', Math.max(state.activeMinX + 40, boss.x - 120), 210);
-      spawnEnemy(state, 'elite', Math.min(state.activeMaxX - 40, boss.x + 80), 420);
+      if (state.survival) {
+        spawnEnemy(state, 'zombie_gendruwo', Math.max(120, boss.x - 90), 220);
+        spawnEnemy(state, 'zombie_gendruwo', Math.min(840, boss.x + 90), 220);
+      } else {
+        spawnEnemy(state, 'elite', Math.max(state.activeMinX + 40, boss.x - 120), 210);
+        spawnEnemy(state, 'elite', Math.min(state.activeMaxX - 40, boss.x + 80), 420);
+      }
+    }
+  }
+
+  // Boss Barricade & Core destruction in Survival Mode
+  if (state.survival) {
+    const surv = state.survival;
+    for (const bar of surv.barricades) {
+      if (bar.hp <= 0) continue;
+      const bx = bar.x + bar.w * 0.5;
+      const by = bar.y + bar.h * 0.5;
+      const dist = Math.hypot(boss.x - bx, boss.y - by);
+      if (dist < Math.max(bar.w, bar.h) * 0.6 + boss.radius) {
+        if (boss.aiState === 'dash') {
+          // Dash smashes through barricade!
+          bar.hp = Math.max(0, bar.hp - 55);
+          bar.hitFlashTimer = 0.2;
+          state.soundQueue.push('crate_break');
+          state.shakeTimer = Math.max(state.shakeTimer, 0.2);
+          state.shakeIntensity = Math.max(state.shakeIntensity, 6);
+        } else if (boss.attackCooldown <= 0) {
+          boss.attackCooldown = 1.0;
+          bar.hp = Math.max(0, bar.hp - 35);
+          bar.hitFlashTimer = 0.15;
+          state.soundQueue.push('crate_hit');
+        }
+        if (bar.hp <= 0) {
+          bar.hp = 0;
+          bar.level = 1;
+          bar.maxHp = BARRICADE_MAX_HP[1];
+          state.soundQueue.push('crate_break');
+          state.floatingTexts.push({
+            x: bx,
+            y: bar.y - 12,
+            vy: -40,
+            text: `${bar.label} DIHANCURKAN BOSS!`,
+            color: '#ef4444',
+            scale: 1.1,
+            life: 1.4,
+            maxLife: 1.4,
+          });
+        }
+      }
+    }
+
+    const coreCx = surv.core.x + surv.core.w * 0.5;
+    const coreCy = surv.core.y + surv.core.h * 0.5;
+    if (Math.hypot(boss.x - coreCx, boss.y - coreCy) < 64 + boss.radius) {
+      if (boss.attackCooldown <= 0) {
+        boss.attackCooldown = 1.1;
+        const bDmg = 38;
+        if (surv.core.shieldActive && surv.core.shieldHp > 0) {
+          surv.core.shieldHp = Math.max(0, surv.core.shieldHp - bDmg);
+          surv.core.hitFlashTimer = 0.18;
+          state.soundQueue.push('hit');
+          state.floatingTexts.push({
+            x: coreCx,
+            y: surv.core.y - 30,
+            vy: -40,
+            text: `-${bDmg} TAMENG (HANTAMAN BOSS!)`,
+            color: '#38bdf8',
+            scale: 1.05,
+            life: 0.9,
+            maxLife: 0.9,
+          });
+          if (surv.core.shieldHp <= 0) {
+            surv.core.shieldActive = false;
+            state.soundQueue.push('crate_break');
+          }
+        } else {
+          surv.core.hp = Math.max(0, surv.core.hp - bDmg);
+          surv.core.hitFlashTimer = 0.18;
+          state.soundQueue.push('player_hurt');
+          state.shakeTimer = Math.max(state.shakeTimer, 0.2);
+          state.shakeIntensity = Math.max(state.shakeIntensity, 6);
+          state.floatingTexts.push({
+            x: coreCx,
+            y: surv.core.y - 25,
+            vy: -45,
+            text: `-${bDmg} POS RONDA (HANTAMAN BOSS!)`,
+            color: '#ef4444',
+            scale: 1.1,
+            life: 0.9,
+            maxLife: 0.9,
+          });
+          if (surv.core.hp <= 0) {
+            state.status = 'gameover';
+            state.soundQueue.push('ko');
+          }
+        }
+      }
     }
   }
 

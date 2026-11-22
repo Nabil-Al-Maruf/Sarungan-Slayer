@@ -373,6 +373,19 @@ export function resolveCombat(state: GameState, dt: number): void {
             damagePlayer(state, player, hz.damage, nx, ny);
           }
         }
+
+        // Damage barricades inside hazard blast radius
+        if (state.survival) {
+          for (const bar of state.survival.barricades) {
+            if (bar.hp <= 0) continue;
+            const bx = bar.x + bar.w * 0.5;
+            const by = bar.y + bar.h * 0.5;
+            if (Math.hypot(hz.x - bx, hz.y - by) <= hz.radius + Math.max(bar.w, bar.h) * 0.5) {
+              bar.hp = Math.max(0, bar.hp - hz.damage);
+              bar.hitFlashTimer = 0.15;
+            }
+          }
+        }
       }
     } else {
       hz.flashTimer -= dt;
@@ -424,7 +437,9 @@ export function handleDefenseKill(
   }
 
   if (state.mode === 'survival') {
-    const baseReward = getZombieCoinReward(enemy.kind);
+    const isBoss = enemy.isBoss;
+    const wave = state.survival?.wave ?? 10;
+    const baseReward = isBoss ? Math.round(250 + wave * 15) : getZombieCoinReward(enemy.kind);
     const label =
       source === 'tower'
         ? 'TOWER'
@@ -456,12 +471,44 @@ export function handleDefenseKill(
       x: enemy.x,
       y: enemy.y - enemy.z - 72,
       vy: -55,
-      text: `+${baseReward} (${label} DIBAGI RATA 🤝)`,
-      color: '#38bdf8',
-      scale: 1.05,
-      life: 0.95,
-      maxLife: 0.95,
+      text: isBoss
+        ? `👑 BOSS TUMBANG! +${baseReward} DIBAGI RATA! 👑`
+        : `+${baseReward} (${label} DIBAGI RATA 🤝)`,
+      color: isBoss ? '#4ade80' : '#38bdf8',
+      scale: isBoss ? 1.35 : 1.05,
+      life: isBoss ? 1.6 : 0.95,
+      maxLife: isBoss ? 1.6 : 0.95,
     });
+
+    if (isBoss) {
+      // Drop refreshments
+      state.pickups.push({
+        id: state.nextEntityId++,
+        kind: 'es_teh',
+        x: enemy.x - 24,
+        y: enemy.y,
+        z: 20,
+        vx: -40,
+        vy: 0,
+        vz: 80,
+        radius: 12,
+        life: 25.0,
+        bobPhase: 0,
+      });
+      state.pickups.push({
+        id: state.nextEntityId++,
+        kind: 'kopi_giras',
+        x: enemy.x + 24,
+        y: enemy.y,
+        z: 20,
+        vx: 40,
+        vy: 0,
+        vz: 80,
+        radius: 12,
+        life: 25.0,
+        bobPhase: Math.PI,
+      });
+    }
   }
 
   // KO death particles
@@ -561,21 +608,85 @@ export function hitEnemy(
 
     // Award Uang Receh in Survival Mode for individual player kills
     if (state.mode === 'survival') {
-      const baseReward = getZombieCoinReward(enemy.kind);
-      const recipient = attacker ?? state.players[0];
-      if (recipient) {
-        const reward = Math.round(baseReward * (recipient.coinMult ?? 1));
-        recipient.coins += reward;
+      if (enemy.isBoss) {
+        // Massive Boss Victory Jackpot shared equally across all players!
+        const wave = state.survival?.wave ?? 10;
+        const bossJackpot = Math.round(250 + wave * 15);
+        const eligible = state.players.filter((p) => !p.knockedDown);
+        const recipients = eligible.length > 0 ? eligible : state.players;
+        const count = Math.max(1, recipients.length);
+        const splitJackpot = Math.ceil(bossJackpot / count);
+
+        for (const p of recipients) {
+          const reward = Math.round(splitJackpot * (p.coinMult ?? 1));
+          p.coins += reward;
+          state.floatingTexts.push({
+            x: p.x,
+            y: p.y - p.z - 75,
+            vy: -48,
+            text: `+${reward} JACKPOT BOSS 👑`,
+            color: '#facc15',
+            scale: 1.15,
+            life: 1.4,
+            maxLife: 1.4,
+          });
+        }
+
+        // Drop 2 refreshments (Es Teh + Kopi Giras)
+        state.pickups.push({
+          id: state.nextEntityId++,
+          kind: 'es_teh',
+          x: enemy.x - 24,
+          y: enemy.y,
+          z: 20,
+          vx: -40,
+          vy: 0,
+          vz: 80,
+          radius: 12,
+          life: 25.0,
+          bobPhase: 0,
+        });
+        state.pickups.push({
+          id: state.nextEntityId++,
+          kind: 'kopi_giras',
+          x: enemy.x + 24,
+          y: enemy.y,
+          z: 20,
+          vx: 40,
+          vy: 0,
+          vz: 80,
+          radius: 12,
+          life: 25.0,
+          bobPhase: Math.PI,
+        });
+
         state.floatingTexts.push({
           x: enemy.x,
-          y: enemy.y - enemy.z - 72,
-          vy: -55,
-          text: `+${reward} RECEH`,
-          color: '#fde047',
-          scale: 1.0,
-          life: 0.95,
-          maxLife: 0.95,
+          y: enemy.y - enemy.z - 90,
+          vy: -45,
+          text: `👑 BOSS TUMBANG! +${bossJackpot} RECEH! 👑`,
+          color: '#4ade80',
+          scale: 1.4,
+          life: 1.8,
+          maxLife: 1.8,
         });
+      } else {
+        const baseReward = getZombieCoinReward(enemy.kind);
+        const recipient = attacker ?? state.players[0];
+        if (recipient) {
+          const reward = Math.round(baseReward * (recipient.coinMult ?? 1));
+          recipient.coins += reward;
+          state.floatingTexts.push({
+            x: enemy.x,
+            y: enemy.y - enemy.z - 72,
+            vy: -55,
+            text: `+${reward} RECEH`,
+            color: '#fde047',
+            scale: 1.0,
+            life: 0.95,
+            maxLife: 0.95,
+          });
+        }
       }
     }
 
