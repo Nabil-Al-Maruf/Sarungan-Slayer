@@ -22,6 +22,8 @@ import {
   saveBestWave,
   skipIntermission,
   stepSurvival,
+  TOWER_TIER_NAME,
+  TOWER_UPGRADE_COST,
   type ShopItemId,
 } from './modes/survival';
 import {
@@ -219,7 +221,7 @@ function syncSelectedSkin(skinIdx: number, sendProfile = true): void {
     // Ignore storage error
   }
   const pal = PLAYER_PALETTES[selectedPalette];
-  btnPalette.textContent = pal.label;
+  if (btnPalette) btnPalette.textContent = pal.label;
 
   document.querySelectorAll<HTMLButtonElement>('#lobby-skin-picker .skin-swatch, #settings-skin-picker .skin-swatch').forEach((btn) => {
     btn.classList.toggle('active', Number(btn.dataset.skin) === selectedPalette);
@@ -433,6 +435,27 @@ const wsMgr = new WsManager({
     shopFeedbackEl.textContent = message;
     shopFeedbackEl.style.color = ok ? '#4ade80' : '#f87171';
     refreshShopUI();
+  },
+  onPeerLeft(peerId) {
+    const idx = state.players.findIndex((p) => p.id === peerId);
+    if (idx !== -1) {
+      const leftPlayer = state.players[idx];
+      state.players.splice(idx, 1);
+      state.soundQueue.push('player_hurt');
+      state.floatingTexts.push({
+        x: leftPlayer.x,
+        y: leftPlayer.y - 45,
+        vy: -40,
+        text: `${leftPlayer.name} KELUAR!`,
+        color: '#ef4444',
+        scale: 1.05,
+        life: 1.5,
+        maxLife: 1.5,
+      });
+      if (wsMgr.isHost) {
+        wsMgr.broadcastCompactSnapshot(state, ['player_hurt']);
+      }
+    }
   },
   onDisconnect(reason) {
     setStickMode(false);
@@ -653,18 +676,51 @@ function refreshShopUI(): void {
     }
   }
 
-  // Center Pos Warkop 1-Wave Tower status
+  // Center Pos Warkop Permanent Upgradable Tower weapon
   const towerBtn = document.getElementById('shop-tower-pos') as HTMLButtonElement | null;
   const towerDesc = document.getElementById('shop-tower-pos-desc');
   const towerCost = document.getElementById('shop-tower-pos-cost');
-  if (towerBtn) towerBtn.disabled = surv.core.towerActive;
-  if (towerDesc) {
-    towerDesc.textContent = surv.core.towerActive
-      ? 'Menara aktif menjaga Pos Warkop di wave ini!'
-      : 'Menara mercon otomatis (hanya 1 Wave, wave depan sewa lagi)';
+  const curTowerLv = surv.core.towerLevel || 0;
+  if (curTowerLv >= 4) {
+    if (towerBtn) towerBtn.disabled = true;
+    if (towerDesc) towerDesc.textContent = `TOWER MAKSIMAL (Lv.4 ${TOWER_TIER_NAME[4]})`;
+    if (towerCost) towerCost.textContent = 'MAX ✓';
+  } else {
+    const nextLv = (curTowerLv + 1) as 1 | 2 | 3 | 4;
+    const cost = TOWER_UPGRADE_COST[nextLv];
+    if (towerBtn) towerBtn.disabled = false;
+    if (towerDesc) {
+      towerDesc.textContent =
+        curTowerLv === 0
+          ? `Beli Senjata Lv.1 (${TOWER_TIER_NAME[1]})`
+          : `Upgrade Lv.${curTowerLv} ➔ Lv.${nextLv} (${TOWER_TIER_NAME[nextLv]})`;
+    }
+    if (towerCost) towerCost.textContent = `${cost} Receh`;
   }
-  if (towerCost) {
-    towerCost.textContent = surv.core.towerActive ? 'AKTIF ✓' : '85 Receh';
+
+  // Pos Warkop Building HP Upgrade
+  const coreHpBtn = document.getElementById('shop-upgrade-core') as HTMLButtonElement | null;
+  const coreHpDesc = document.getElementById('shop-upgrade-core-desc');
+  const coreHpCost = document.getElementById('shop-upgrade-core-cost');
+  if (coreHpBtn) coreHpBtn.disabled = false;
+  if (coreHpDesc) {
+    coreHpDesc.textContent = `HP Sekarang: ${Math.ceil(surv.core.hp)}/${surv.core.maxHp} • Tambah +200 Max HP`;
+  }
+  if (coreHpCost) coreHpCost.textContent = '75 Receh';
+
+  // Pos Warkop 1-Wave Energy Shield (Tameng Gaib)
+  const shieldBtn = document.getElementById('shop-shield-core') as HTMLButtonElement | null;
+  const shieldDesc = document.getElementById('shop-shield-core-desc');
+  const shieldCost = document.getElementById('shop-shield-core-cost');
+  const shieldActive = surv.core.shieldActive && surv.core.shieldHp > 0;
+  if (shieldBtn) shieldBtn.disabled = shieldActive;
+  if (shieldDesc) {
+    shieldDesc.textContent = shieldActive
+      ? `Tameng Aktif (${Math.ceil(surv.core.shieldHp)}/${surv.core.shieldMaxHp}) • Sengat Zombie`
+      : 'Perisai pelindung Pos Ronda (1 Wave) + Sengat Zombie';
+  }
+  if (shieldCost) {
+    shieldCost.textContent = shieldActive ? 'AKTIF ✓' : '65 Receh';
   }
 }
 
@@ -809,10 +865,10 @@ wsMgr.lowBandwidthMode = localStorage.getItem('arek_slayer_lowbw_v1') === '1';
 
 function refreshSettingsUI(): void {
   inputSettingsName.value = playerName;
-  const sfxMuted = btnSfx.classList.contains('muted');
+  const sfxMuted = btnSfx ? btnSfx.classList.contains('muted') : audio.isSfxMuted();
   setSfxBtn.textContent = sfxMuted ? 'MATI' : 'NYALA';
   setSfxBtn.classList.toggle('active', !sfxMuted);
-  const bgmOff = btnBgm.classList.contains('muted');
+  const bgmOff = btnBgm ? btnBgm.classList.contains('muted') : !audio.isBgmEnabled();
   setBgmBtn.textContent = bgmOff ? 'MATI' : 'NYALA';
   setBgmBtn.classList.toggle('active', !bgmOff);
   setHapticBtn.textContent = hapticEnabled ? 'NYALA' : 'MATI';
@@ -868,13 +924,13 @@ document.querySelectorAll<HTMLButtonElement>('#settings-skin-picker .skin-swatch
 setSfxBtn.addEventListener('click', () => {
   audio.unlock();
   const muted = audio.toggleSfx();
-  btnSfx.classList.toggle('muted', muted);
+  btnSfx?.classList.toggle('muted', muted);
   refreshSettingsUI();
 });
 
 setBgmBtn.addEventListener('click', () => {
   const enabled = audio.toggleBgm();
-  btnBgm.classList.toggle('muted', !enabled);
+  btnBgm?.classList.toggle('muted', !enabled);
   refreshSettingsUI();
 });
 
@@ -1372,10 +1428,11 @@ const { toggleTouchOverlay } = bindTouchControls(
 // HUD Quick Buttons
 const btnWarungHud = document.getElementById('btn-warung-hud') as HTMLButtonElement;
 const btnMenu = document.getElementById('btn-menu') as HTMLButtonElement;
-const btnPalette = document.getElementById('btn-palette') as HTMLButtonElement;
-const btnTouch = document.getElementById('btn-touch-toggle') as HTMLButtonElement;
-const btnSfx = document.getElementById('btn-sfx') as HTMLButtonElement;
-const btnBgm = document.getElementById('btn-bgm') as HTMLButtonElement;
+const btnPalette = document.getElementById('btn-palette') as HTMLButtonElement | null;
+const btnTouch = document.getElementById('btn-touch-toggle') as HTMLButtonElement | null;
+const btnSfx = document.getElementById('btn-sfx') as HTMLButtonElement | null;
+const btnBgm = document.getElementById('btn-bgm') as HTMLButtonElement | null;
+const btnForceLandscape = document.getElementById('btn-force-landscape') as HTMLButtonElement | null;
 
 syncSelectedSkin(selectedPalette);
 
@@ -1389,7 +1446,7 @@ btnMenu.addEventListener('click', () => {
   openPauseMenu();
 });
 
-btnPalette.addEventListener('click', () => {
+btnPalette?.addEventListener('click', () => {
   audio.unlock();
   syncSelectedSkin((selectedPalette + 1) % PLAYER_PALETTES.length);
   const pal = PLAYER_PALETTES[selectedPalette];
@@ -1408,22 +1465,40 @@ btnPalette.addEventListener('click', () => {
   }
 });
 
-btnTouch.addEventListener('click', () => {
+btnTouch?.addEventListener('click', () => {
   audio.unlock();
   const active = toggleTouchOverlay();
-  btnTouch.classList.toggle('muted', !active);
+  btnTouch?.classList.toggle('muted', !active);
 });
 
-btnSfx.addEventListener('click', () => {
+btnSfx?.addEventListener('click', () => {
   audio.unlock();
   const muted = audio.toggleSfx();
-  btnSfx.classList.toggle('muted', muted);
+  btnSfx?.classList.toggle('muted', muted);
 });
 
-btnBgm.classList.add('muted');
-btnBgm.addEventListener('click', () => {
-  const enabled = audio.toggleBgm();
-  btnBgm.classList.toggle('muted', !enabled);
+if (btnBgm) {
+  btnBgm.classList.add('muted');
+  btnBgm.addEventListener('click', () => {
+    const enabled = audio.toggleBgm();
+    btnBgm?.classList.toggle('muted', !enabled);
+  });
+}
+
+async function lockLandscapeOrientation(): Promise<void> {
+  try {
+    if (document.documentElement.requestFullscreen && !document.fullscreenElement) {
+      await document.documentElement.requestFullscreen().catch(() => {});
+    }
+    if (screen.orientation && 'lock' in screen.orientation) {
+      await (screen.orientation as any).lock('landscape').catch(() => {});
+    }
+  } catch {}
+}
+
+btnForceLandscape?.addEventListener('click', () => {
+  audio.unlock();
+  void lockLandscapeOrientation();
 });
 
 function showResultIfNeeded(): void {

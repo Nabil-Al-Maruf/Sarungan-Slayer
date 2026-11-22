@@ -27,6 +27,8 @@ export type ShopItemId =
   | 'barricade_top'
   | 'barricade_right'
   | 'tower_pos'
+  | 'upgrade_core'
+  | 'shield_core'
   | 'tiket_revive'
   | 'es_teh_jumbo'
   | 'kopi_pekat';
@@ -151,16 +153,32 @@ export function applyPlayerBuff(
   return { ok: true, message: `${def.title} aktif!` };
 }
 
-export const BARRICADE_MAX_HP: Record<1 | 2 | 3, number> = {
-  1: 120,
-  2: 240,
-  3: 400,
+export const BARRICADE_MAX_HP: Record<1 | 2 | 3 | 4, number> = {
+  1: 150,
+  2: 280,
+  3: 450,
+  4: 700,
 };
 
-export const BARRICADE_TIER_NAME: Record<1 | 2 | 3, string> = {
-  1: 'Tumpukan Kardus',
-  2: 'Pagar Bambu',
-  3: 'Gerobak Besi',
+export const BARRICADE_TIER_NAME: Record<1 | 2 | 3 | 4, string> = {
+  1: 'Tumpukan Kardus & Kayu',
+  2: 'Pagar Bambu Runcing',
+  3: 'Gerobak Besi Karatan',
+  4: 'Tembok Kawat Duri Baja',
+};
+
+export const TOWER_TIER_NAME: Record<1 | 2 | 3 | 4, string> = {
+  1: 'Ketapel Krikil Otomatis',
+  2: 'Pecut Mercon Bumbung',
+  3: 'Meriam Bambu Karbit',
+  4: 'Gatling Kembang Api Suramadu',
+};
+
+export const TOWER_UPGRADE_COST: Record<1 | 2 | 3 | 4, number> = {
+  1: 70,  // Beli Senjata Lv.1
+  2: 110, // Upgrade ke Lv.2
+  3: 160, // Upgrade ke Lv.3
+  4: 230, // Upgrade ke Lv.4
 };
 
 export function loadBestWave(): number {
@@ -205,9 +223,13 @@ export function createSurvivalState(
     hp: 500,
     maxHp: 500,
     hitFlashTimer: 0,
+    towerLevel: 0,
     towerActive: false,
     towerCooldown: 0,
     towerAimAngle: 0,
+    shieldActive: false,
+    shieldHp: 0,
+    shieldMaxHp: 250,
   };
 
   const barricades: BarricadeState[] = [
@@ -331,24 +353,25 @@ export function getBarricadeActionInfo(bar: BarricadeState): {
 } {
   if (bar.hp <= 0) {
     return {
-      actionLabel: `Bangun Ulang (${BARRICADE_TIER_NAME[bar.level]})`,
-      cost: 60,
+      actionLabel: `Bangun Ulang (Lv.1 ${BARRICADE_TIER_NAME[1]})`,
+      cost: 45,
       disabled: false,
     };
   }
   if (bar.hp < bar.maxHp) {
-    return { actionLabel: `Perbaiki Penuh (Lv.${bar.level})`, cost: 40, disabled: false };
+    const repairCost = Math.max(25, Math.round(35 * (bar.level * 0.75)));
+    return { actionLabel: `Perbaiki Penuh (Lv.${bar.level})`, cost: repairCost, disabled: false };
   }
-  if (bar.level < 3) {
-    const nextLv = (bar.level + 1) as 2 | 3;
-    const cost = nextLv === 2 ? 90 : 150;
+  if (bar.level < 4) {
+    const nextLv = (bar.level + 1) as 2 | 3 | 4;
+    const cost = nextLv === 2 ? 80 : nextLv === 3 ? 140 : 210;
     return {
       actionLabel: `Upgrade → Lv.${nextLv} ${BARRICADE_TIER_NAME[nextLv]}`,
       cost,
       disabled: false,
     };
   }
-  return { actionLabel: 'MAKSIMAL (Lv.3 Penuh)', cost: 0, disabled: true };
+  return { actionLabel: 'MAKSIMAL (Lv.4 Berduri)', cost: 0, disabled: true };
 }
 
 export function buyShopItem(
@@ -369,10 +392,14 @@ export function buyShopItem(
     if (player.coins < info.cost) return { ok: false, message: 'Uang Receh kurang rek!' };
 
     player.coins -= info.cost;
-    if (bar.hp <= 0 || bar.hp < bar.maxHp) {
+    if (bar.hp <= 0) {
+      bar.level = 1;
+      bar.maxHp = BARRICADE_MAX_HP[1];
       bar.hp = bar.maxHp;
-    } else if (bar.level < 3) {
-      bar.level = (bar.level + 1) as 2 | 3;
+    } else if (bar.hp < bar.maxHp) {
+      bar.hp = bar.maxHp;
+    } else if (bar.level < 4) {
+      bar.level = (bar.level + 1) as 2 | 3 | 4;
       bar.maxHp = BARRICADE_MAX_HP[bar.level];
       bar.hp = bar.maxHp;
     }
@@ -391,12 +418,16 @@ export function buyShopItem(
   }
 
   if (itemId === 'tower_pos') {
-    const cost = 85;
-    if (surv.core.towerActive) {
-      return { ok: false, message: 'Tower Pos Warkop sudah aktif untuk wave ini!' };
+    const curLv = surv.core.towerLevel || 0;
+    if (curLv >= 4) {
+      return { ok: false, message: 'Senjata Tower sudah Level Maksimal (Gatling Suramadu)!' };
     }
+    const nextLv = (curLv + 1) as 1 | 2 | 3 | 4;
+    const cost = TOWER_UPGRADE_COST[nextLv];
     if (player.coins < cost) return { ok: false, message: 'Uang Receh kurang rek!' };
+
     player.coins -= cost;
+    surv.core.towerLevel = nextLv;
     surv.core.towerActive = true;
     surv.core.towerCooldown = 0.2;
     state.soundQueue.push('pickup_kopi');
@@ -404,13 +435,57 @@ export function buyShopItem(
       x: surv.core.x + surv.core.w * 0.5,
       y: surv.core.y - 72,
       vy: -45,
-      text: 'TOWER MERCON POS AKTIF (1 WAVE)!',
+      text: `TOWER UPGRADE LV.${nextLv} (${TOWER_TIER_NAME[nextLv].toUpperCase()})!`,
       color: '#fb923c',
-      scale: 1.12,
-      life: 1.3,
-      maxLife: 1.3,
+      scale: 1.15,
+      life: 1.4,
+      maxLife: 1.4,
     });
-    return { ok: true, message: 'Tower Pos Warkop aktif selama 1 Wave!' };
+    return { ok: true, message: `Tower diupgrade ke Lv.${nextLv} (${TOWER_TIER_NAME[nextLv]})!` };
+  }
+
+  if (itemId === 'upgrade_core') {
+    const cost = 75;
+    if (player.coins < cost) return { ok: false, message: 'Uang Receh kurang rek!' };
+    player.coins -= cost;
+    surv.core.maxHp += 200;
+    surv.core.hp = Math.min(surv.core.maxHp, surv.core.hp + 200);
+    state.soundQueue.push('pickup_heal');
+    state.floatingTexts.push({
+      x: surv.core.x + surv.core.w * 0.5,
+      y: surv.core.y - 72,
+      vy: -45,
+      text: `POS WARKOP +200 MAX HP! (${Math.ceil(surv.core.hp)}/${surv.core.maxHp})`,
+      color: '#38bdf8',
+      scale: 1.15,
+      life: 1.4,
+      maxLife: 1.4,
+    });
+    return { ok: true, message: `Nyawa Pos Warkop bertambah! Max HP: ${surv.core.maxHp}` };
+  }
+
+  if (itemId === 'shield_core') {
+    const cost = 65;
+    if (surv.core.shieldActive && surv.core.shieldHp > 0) {
+      return { ok: false, message: 'Tameng Gaib sudah aktif untuk wave ini!' };
+    }
+    if (player.coins < cost) return { ok: false, message: 'Uang Receh kurang rek!' };
+    player.coins -= cost;
+    surv.core.shieldActive = true;
+    surv.core.shieldMaxHp = 250;
+    surv.core.shieldHp = 250;
+    state.soundQueue.push('pickup_kopi');
+    state.floatingTexts.push({
+      x: surv.core.x + surv.core.w * 0.5,
+      y: surv.core.y - 72,
+      vy: -45,
+      text: 'TAMENG GAIB WARKOP AKTIF (1 WAVE)!',
+      color: '#38bdf8',
+      scale: 1.15,
+      life: 1.4,
+      maxLife: 1.4,
+    });
+    return { ok: true, message: 'Tameng Gaib aktif menjaga Pos Ronda selama 1 Wave!' };
   }
 
   if (itemId === 'tiket_revive') {
@@ -556,8 +631,9 @@ export function stepSurvival(
     updatePlayer(state, player, pInput, dt);
   }
 
-  // 2. Central Pos Warkop Defense Tower Auto-Turret (Active for 1 Wave!)
-  if (surv.core.towerActive && surv.phase === 'wave') {
+  // 2. Central Pos Warkop Defense Tower Weapon (Permanent across waves, Upgradable Lv 1-4)
+  const towerLv = surv.core.towerLevel || (surv.core.towerActive ? 1 : 0);
+  if (towerLv > 0 && surv.phase === 'wave') {
     surv.core.towerCooldown = Math.max(0, surv.core.towerCooldown - dt);
     if (surv.core.towerCooldown <= 0 && state.enemies.length > 0) {
       const cx = surv.core.x + surv.core.w * 0.5;
@@ -572,11 +648,41 @@ export function stepSurvival(
           nearest = e;
         }
       }
-      if (nearest && bestDist <= 330) {
-        surv.core.towerCooldown = 0.95;
+      const maxRange = 330 + towerLv * 25;
+      if (nearest && bestDist <= maxRange) {
+        // Stats based on Tower Level
+        let cd = 0.90;
+        let dmg = 20;
+        let pierce = 1;
+        let spd = PROJ_SPEED * 0.95;
+        let col = '#fb923c';
+        let rad = 11;
+
+        if (towerLv === 2) {
+          cd = 0.70;
+          dmg = 32;
+          pierce = 2;
+          spd = PROJ_SPEED * 1.05;
+          col = '#f97316';
+        } else if (towerLv === 3) {
+          cd = 0.50;
+          dmg = 46;
+          pierce = 3;
+          spd = PROJ_SPEED * 1.15;
+          col = '#ef4444';
+          rad = 13;
+        } else if (towerLv >= 4) {
+          cd = 0.28;
+          dmg = 58;
+          pierce = 5;
+          spd = PROJ_SPEED * 1.30;
+          col = '#facc15';
+          rad = 14;
+        }
+
+        surv.core.towerCooldown = cd;
         const angle = Math.atan2(nearest.y - cy, nearest.x - cx);
         surv.core.towerAimAngle = angle;
-        const spd = PROJ_SPEED * 0.92;
         state.soundQueue.push('tower_shoot');
         state.projectiles.push({
           id: state.nextEntityId++,
@@ -586,14 +692,35 @@ export function stepSurvival(
           vx: Math.cos(angle) * spd,
           vy: Math.sin(angle) * spd,
           angle,
-          radius: 11,
-          damage: 18,
-          pierceLeft: 1,
+          radius: rad,
+          damage: dmg,
+          pierceLeft: pierce,
           hitIds: [],
-          life: 0.85,
-          maxLife: 0.85,
-          color: '#fb923c',
+          life: 0.95,
+          maxLife: 0.95,
+          color: col,
         });
+
+        // Twin Gatling stream for Lv 4!
+        if (towerLv >= 4) {
+          const spreadAngle = angle + (Math.random() - 0.5) * 0.16;
+          state.projectiles.push({
+            id: state.nextEntityId++,
+            ownerId: state.players[0]?.id ?? 'p1',
+            x: cx + Math.cos(spreadAngle) * 18,
+            y: cy + Math.sin(spreadAngle) * 14,
+            vx: Math.cos(spreadAngle) * spd,
+            vy: Math.sin(spreadAngle) * spd,
+            angle: spreadAngle,
+            radius: 11,
+            damage: Math.round(dmg * 0.75),
+            pierceLeft: 3,
+            hitIds: [],
+            life: 0.9,
+            maxLife: 0.9,
+            color: '#fbbf24',
+          });
+        }
       }
     }
   }
@@ -615,15 +742,20 @@ export function stepSurvival(
       surv.intermissionTimer = 20.0;
       state.soundQueue.push('pickup_kopi');
 
-      // Expire 1-Wave Center Tower when the wave finishes!
-      if (surv.core.towerActive) {
-        surv.core.towerActive = false;
+      // Keep Tower permanent!
+      if (surv.core.towerLevel > 0) {
+        surv.core.towerActive = true;
+      }
+
+      // Expire 1-Wave Energy Shield when wave finishes (must be rebought next wave)
+      if (surv.core.shieldActive) {
+        surv.core.shieldActive = false;
         state.floatingTexts.push({
           x: surv.core.x + surv.core.w * 0.5,
           y: surv.core.y - 72,
           vy: -35,
-          text: 'MASA SEWA TOWER HABIS!',
-          color: '#fde047',
+          text: 'TAMENG GAIB SELESAI UNTUK WAVE INI',
+          color: '#38bdf8',
           scale: 0.95,
           life: 1.4,
           maxLife: 1.4,

@@ -1,5 +1,6 @@
 import { circlesOverlap, stepTopDownPhysics } from '../core/physics';
 import type { EnemyKind, EnemyState, GameState } from '../core/types';
+import { BARRICADE_MAX_HP } from '../modes/survival';
 import { damagePlayer } from './player';
 
 interface EnemySpec {
@@ -597,17 +598,55 @@ function updateZombieSurvivalAI(state: GameState, zombie: EnemyState, dt: number
         zombie.scaleX = 1.2;
         zombie.scaleY = 0.82;
         state.soundQueue.push('crate_hit');
+
+        // Level 4 Barricade Thorns contact recoil damage to attacking zombie!
+        if (bar.level === 4) {
+          const thornDmg = 20;
+          zombie.hp = Math.max(0, zombie.hp - thornDmg);
+          zombie.hitFlashTimer = 0.16;
+          state.soundQueue.push('hit');
+          state.floatingTexts.push({
+            x: zombie.x,
+            y: zombie.y - 30,
+            vy: -35,
+            text: `-${thornDmg} DURI!`,
+            color: '#facc15',
+            scale: 0.95,
+            life: 0.8,
+            maxLife: 0.8,
+          });
+          for (let k = 0; k < 4; k++) {
+            state.particles.push({
+              x: bx,
+              y: by,
+              z: 10,
+              vx: (Math.random() - 0.5) * 80,
+              vy: (Math.random() - 0.5) * 80,
+              vz: Math.random() * 60 + 20,
+              size: 3,
+              color: '#facc15',
+              gravity: 300,
+              life: 0.35,
+              maxLife: 0.35,
+              alpha: 1,
+            });
+          }
+        }
+
         if (bar.hp <= 0) {
+          bar.hp = 0;
+          bar.level = 1;
+          bar.maxHp = BARRICADE_MAX_HP[1];
           state.soundQueue.push('crate_break');
           state.floatingTexts.push({
             x: bx,
             y: bar.y - 12,
             vy: -40,
-            text: `${bar.label} JEBOL!`,
+            text: `${bar.label} JEBOL! (RESET KE LV.1)`,
             color: '#ef4444',
             scale: 1.05,
-            life: 1.2,
-            maxLife: 1.2,
+            life: 1.3,
+            maxLife: 1.3,
           });
         }
       }
@@ -631,28 +670,77 @@ function updateZombieSurvivalAI(state: GameState, zombie: EnemyState, dt: number
           : zombie.kind === 'zombie_tuyul'
             ? 18
             : 12;
-      surv.core.hp = Math.max(0, surv.core.hp - coreDmg);
-      surv.core.hitFlashTimer = 0.15;
-      state.soundQueue.push('player_hurt');
-      state.shakeTimer = Math.max(state.shakeTimer, 0.1);
-      state.shakeIntensity = Math.max(state.shakeIntensity, 3);
-      state.floatingTexts.push({
-        x: coreCx + (Math.random() - 0.5) * 20,
-        y: surv.core.y - 24,
-        vy: -45,
-        text: `-${coreDmg} POS RONDA!`,
-        color: '#f87171',
-        scale: 0.95,
-        life: 0.75,
-        maxLife: 0.75,
-      });
 
-      if (surv.core.hp <= 0) {
-        state.status = 'gameover';
-        state.shakeTimer = 0;
-        state.shakeIntensity = 0;
-        state.hitstopTimer = 0;
-        state.soundQueue.push('ko');
+      // 1-Wave Energy Shield (Tameng Gaib) absorbs damage & deals contact damage to zombies
+      if (surv.core.shieldActive && surv.core.shieldHp > 0) {
+        surv.core.shieldHp = Math.max(0, surv.core.shieldHp - coreDmg);
+        surv.core.hitFlashTimer = 0.15;
+        state.soundQueue.push('hit');
+
+        // Contact damage to zombie from energy shield
+        const shieldZombDmg = 14;
+        zombie.hp = Math.max(0, zombie.hp - shieldZombDmg);
+        zombie.hitFlashTimer = 0.16;
+
+        state.floatingTexts.push({
+          x: coreCx + (Math.random() - 0.5) * 20,
+          y: surv.core.y - 28,
+          vy: -40,
+          text: `-${coreDmg} TAMENG (${Math.ceil(surv.core.shieldHp)}/${surv.core.shieldMaxHp})`,
+          color: '#38bdf8',
+          scale: 0.95,
+          life: 0.8,
+          maxLife: 0.8,
+        });
+        state.floatingTexts.push({
+          x: zombie.x,
+          y: zombie.y - 28,
+          vy: -35,
+          text: `-${shieldZombDmg} SENGATAN!`,
+          color: '#06b6d4',
+          scale: 0.9,
+          life: 0.75,
+          maxLife: 0.75,
+        });
+
+        if (surv.core.shieldHp <= 0) {
+          surv.core.shieldActive = false;
+          state.soundQueue.push('crate_break');
+          state.floatingTexts.push({
+            x: coreCx,
+            y: surv.core.y - 45,
+            vy: -40,
+            text: 'TAMENG GAIB PECAH!',
+            color: '#ef4444',
+            scale: 1.1,
+            life: 1.3,
+            maxLife: 1.3,
+          });
+        }
+      } else {
+        surv.core.hp = Math.max(0, surv.core.hp - coreDmg);
+        surv.core.hitFlashTimer = 0.15;
+        state.soundQueue.push('player_hurt');
+        state.shakeTimer = Math.max(state.shakeTimer, 0.1);
+        state.shakeIntensity = Math.max(state.shakeIntensity, 3);
+        state.floatingTexts.push({
+          x: coreCx + (Math.random() - 0.5) * 20,
+          y: surv.core.y - 24,
+          vy: -45,
+          text: `-${coreDmg} POS RONDA!`,
+          color: '#f87171',
+          scale: 0.95,
+          life: 0.75,
+          maxLife: 0.75,
+        });
+
+        if (surv.core.hp <= 0) {
+          state.status = 'gameover';
+          state.shakeTimer = 0;
+          state.shakeIntensity = 0;
+          state.hitstopTimer = 0;
+          state.soundQueue.push('ko');
+        }
       }
     }
     return;

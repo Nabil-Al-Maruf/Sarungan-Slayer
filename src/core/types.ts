@@ -300,7 +300,7 @@ export interface BarricadeState {
   y: number;
   w: number;
   h: number;
-  level: 1 | 2 | 3;
+  level: 1 | 2 | 3 | 4;
   hp: number;
   maxHp: number;
   hitFlashTimer: number;
@@ -314,10 +314,15 @@ export interface SurvivalCore {
   hp: number;
   maxHp: number;
   hitFlashTimer: number;
-  // Center Building Defense Tower (lasts 1 wave, must be re-rented next wave)
+  // Center Building Defense Tower (Permanent weapon system, upgradable Lv 1-4)
+  towerLevel: number;
   towerActive: boolean;
   towerCooldown: number;
   towerAimAngle: number;
+  // Energy Shield (Tameng Gaib 1 Wave, contact damage to zombies)
+  shieldActive: boolean;
+  shieldHp: number;
+  shieldMaxHp: number;
 }
 
 export interface SurvivalState {

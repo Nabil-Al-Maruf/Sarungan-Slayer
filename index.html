@@ -57,10 +57,6 @@
             </button>
             <button id="btn-fullscreen-toggle" class="hud-btn" title="Layar Penuh / Fullscreen">⛶</button>
             <button id="btn-menu" class="hud-btn hud-pause-btn" title="Jeda / Pause [Esc]">⏸</button>
-            <button id="btn-palette" class="hud-btn" title="Ganti Skin Arek (P1-P5)">P1</button>
-            <button id="btn-touch-toggle" class="hud-btn" title="Tampilkan Kontrol Sentuh">PAD</button>
-            <button id="btn-sfx" class="hud-btn" title="Suara SFX">SFX</button>
-            <button id="btn-bgm" class="hud-btn" title="Musik Latar">BGM</button>
           </div>
         </header>
 
@@ -661,9 +657,19 @@
                 <span class="price-pill" id="shop-bar-right-cost">40 Receh</span>
               </button>
               <button class="shop-item-btn tower-shop-btn" data-item="tower_pos" id="shop-tower-pos">
-                <strong>🗼 Tower Pos Tengah (1 Wave)</strong>
-                <small id="shop-tower-pos-desc">Menara mercon otomatis 1 Wave</small>
-                <span class="price-pill" id="shop-tower-pos-cost">85 Receh</span>
+                <strong>🗼 Senjata Tower Pos</strong>
+                <small id="shop-tower-pos-desc">Upgrade Senjata Menara Otomatis</small>
+                <span class="price-pill" id="shop-tower-pos-cost">70 Receh</span>
+              </button>
+              <button class="shop-item-btn" data-item="upgrade_core" id="shop-upgrade-core">
+                <strong>🏠 Perkuat Pos Ronda</strong>
+                <small id="shop-upgrade-core-desc">+200 Max HP & Pulihkan Bangunan</small>
+                <span class="price-pill" id="shop-upgrade-core-cost">75 Receh</span>
+              </button>
+              <button class="shop-item-btn" data-item="shield_core" id="shop-shield-core">
+                <strong>🛡️ Tameng Gaib Warkop</strong>
+                <small id="shop-shield-core-desc">Perisai 1 Wave + Sengat Zombie</small>
+                <span class="price-pill" id="shop-shield-core-cost">65 Receh</span>
               </button>
               <button class="shop-item-btn" data-item="tiket_revive">
                 <strong>Tiket Revive</strong>
@@ -748,6 +754,18 @@
               <button id="btn-retry-stage" class="secondary-btn">MAIN LAGI</button>
               <button id="btn-back-menu" class="ghost-btn">MENU UTAMA</button>
             </div>
+          </div>
+        </div>
+
+        <!-- Mobile Landscape Enforcer Overlay -->
+        <div id="rotate-device-overlay" class="rotate-device-overlay">
+          <div class="rotate-device-card">
+            <div class="rotate-icon">📱🔄</div>
+            <h2 class="rotate-title">PUTAR KE LANDSCAPE</h2>
+            <p class="rotate-desc">
+              Biar arena luas & kontrol mantap dipencet, silakan miringkan layar HP ke posisi mendatar (Landscape)!
+            </p>
+            <button id="btn-force-landscape" class="primary-btn">LAYAR PENUH & MIRINGKAN ➔</button>
           </div>
         </div>
       </div>

@@ -32,6 +32,10 @@ export interface CompactSnapshot {
     number, // mapBannerTimer
     string, // mapBannerText
     Array<[BarricadeSlot, number, number, number]>, // [id, level, hp, maxHp]
+    number?, // towerLevel (0-4)
+    (0 | 1)?, // shieldActive
+    number?, // shieldHp
+    number?, // shieldMaxHp
   ];
   // Players: [id, name, pal, x, y, z, dx, dy, hp, maxHp, ult, coins, rev, kd, dmgM, cdM, spdM, buffs, pCd, ultT]
   pl: Array<
@@ -107,6 +111,10 @@ export function packCompactSnapshot(state: GameState, sounds: SoundEvent[]): Com
           Math.round(surv.mapBannerTimer * 10) / 10,
           surv.mapBannerText,
           surv.barricades.map((b) => [b.id, b.level, Math.ceil(b.hp), b.maxHp]),
+          surv.core.towerLevel || 0,
+          surv.core.shieldActive ? 1 : 0,
+          Math.ceil(surv.core.shieldHp || 0),
+          surv.core.shieldMaxHp || 250,
         ]
       : undefined,
     pl: state.players.map((p) => [
@@ -203,6 +211,10 @@ export function packStickSnapshot(state: GameState, targetPlayerId: string): Com
           0,
           '',
           surv.barricades.map((b) => [b.id, b.level, Math.ceil(b.hp), b.maxHp]),
+          surv.core.towerLevel || 0,
+          surv.core.shieldActive ? 1 : 0,
+          Math.ceil(surv.core.shieldHp || 0),
+          surv.core.shieldMaxHp || 250,
         ]
       : undefined,
     pl: p
@@ -281,11 +293,16 @@ export function mergeCompactSnapshot(
     for (const [id, lv, hp, maxHp] of sv[9]) {
       const bar = state.survival.barricades.find((b) => b.id === id);
       if (bar) {
-        bar.level = lv as 1 | 2 | 3;
+        bar.level = lv as 1 | 2 | 3 | 4;
         bar.hp = hp;
         bar.maxHp = maxHp;
       }
     }
+
+    if (sv[10] !== undefined) state.survival.core.towerLevel = sv[10];
+    if (sv[11] !== undefined) state.survival.core.shieldActive = sv[11] === 1;
+    if (sv[12] !== undefined) state.survival.core.shieldHp = sv[12];
+    if (sv[13] !== undefined) state.survival.core.shieldMaxHp = sv[13];
   }
 
   if (snap.pb) {

@@ -6,8 +6,8 @@ export class HudController {
   private personalBarsEl = document.getElementById('hud-personal-bars')!;
   private monitorTeamStripEl = document.getElementById('monitor-team-strip')!;
   private pecutPillEl = document.getElementById('hud-pecut-pill')!;
-  private paletteBtnEl = document.getElementById('btn-palette')!;
-  private touchToggleBtnEl = document.getElementById('btn-touch-toggle')!;
+  private paletteBtnEl = document.getElementById('btn-palette');
+  private touchToggleBtnEl = document.getElementById('btn-touch-toggle');
   private hpFillEl = document.getElementById('hud-hp-fill')!;
   private hpTextEl = document.getElementById('hud-hp-text')!;
   private ultFillEl = document.getElementById('hud-ult-fill')!;
@@ -67,8 +67,8 @@ export class HudController {
       this.personalBarsEl.classList.toggle('hidden', isMonitor);
       this.monitorTeamStripEl.classList.toggle('hidden', !isMonitor);
       this.pecutPillEl.classList.toggle('hidden', isMonitor);
-      this.paletteBtnEl.classList.toggle('hidden', isMonitor);
-      this.touchToggleBtnEl.classList.toggle('hidden', isMonitor);
+      this.paletteBtnEl?.classList.toggle('hidden', isMonitor);
+      this.touchToggleBtnEl?.classList.toggle('hidden', isMonitor);
       if (isMonitor) {
         this.coinsEl.classList.add('hidden');
         this.warungHudBtn.classList.add('hidden');
@@ -83,8 +83,10 @@ export class HudController {
         .map((pl) => {
           const pal = PLAYER_PALETTES[pl.paletteIndex % PLAYER_PALETTES.length];
           const hpPct = Math.max(0, Math.min(100, (pl.hp / Math.max(1, pl.maxHp)) * 100));
+          const ultPct = Math.max(0, Math.min(100, (pl.ult / Math.max(1, pl.maxUlt)) * 100));
           const dead = pl.hp <= 0 || pl.knockedDown;
-          return `<div class="mon-chip${dead ? ' dead' : ''}"><span class="mon-dot" style="background:${pal.accent}">${pl.id.toUpperCase()}</span><div class="mon-info"><div class="mon-top"><b>${pl.name}</b><span>🪙${pl.coins}</span></div><div class="mon-bar"><div class="mon-bar-fill" style="width:${hpPct.toFixed(0)}%;background:${pal.accent}"></div></div></div></div>`;
+          const ultReady = ultPct >= 100;
+          return `<div class="mon-card${dead ? ' dead' : ''}"><div class="mon-card-header"><span class="mon-avatar" style="background:${pal.accent}">${pal.label}</span><span class="mon-name">${pl.name}</span><span class="mon-coin">🪙 ${pl.coins}</span></div><div class="mon-meter-row"><span class="mon-meter-label">HP</span><div class="mon-meter-track"><div class="mon-hp-fill" style="width:${hpPct.toFixed(0)}%;background:${hpPct > 40 ? pal.accent : '#ef4444'}"></div></div><span class="mon-meter-val">${Math.ceil(pl.hp)}/${pl.maxHp}</span></div><div class="mon-meter-row"><span class="mon-meter-label">ULT</span><div class="mon-meter-track"><div class="mon-ult-fill${ultReady ? ' ready' : ''}" style="width:${ultPct.toFixed(0)}%"></div></div><span class="mon-meter-val${ultReady ? ' ready' : ''}">${ultReady ? 'SIAP! 🔥' : `${ultPct.toFixed(0)}%`}</span></div>${dead ? '<div class="mon-down-badge">⚠️ PINGSAN!</div>' : ''}</div>`;
         })
         .join('');
       if (this.lastMonitorHtml !== stripHtml) {

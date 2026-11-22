@@ -8,6 +8,7 @@ import type {
   SlashEffect,
   SurvivalCore,
 } from '../core/types';
+import { TOWER_TIER_NAME } from '../modes/survival';
 import { drawTopDownMapGround, drawTopDownObstacle } from './backgrounds';
 import { drawCrate, drawEnemy, drawPickup, drawPlayer } from './characterRig';
 
@@ -236,6 +237,34 @@ function drawSurvivalCore(
   const cx = core.x + core.w * 0.5;
   const cy = core.y + core.h * 0.5;
 
+  // 1-Wave Energy Shield (Tameng Gaib Warkop)
+  if (core.shieldActive && core.shieldHp > 0) {
+    ctx.save();
+    ctx.translate(cx, cy + 4);
+    // Glowing translucent shield field
+    const shieldGrad = ctx.createRadialGradient(0, 0, 30, 0, 0, 84);
+    shieldGrad.addColorStop(0, 'rgba(56, 189, 248, 0.05)');
+    shieldGrad.addColorStop(0.85, 'rgba(56, 189, 248, 0.22)');
+    shieldGrad.addColorStop(1, 'rgba(14, 165, 233, 0.45)');
+    ctx.fillStyle = shieldGrad;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 84, 52, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Pulsing energetic outer edge
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 2.5;
+    ctx.setLineDash([7, 4]);
+    ctx.stroke();
+
+    // Shield label & mini HP
+    ctx.fillStyle = '#38bdf8';
+    ctx.font = '900 8.5px "Segoe UI", system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(`🛡️ TAMENG GAIB ${Math.ceil(core.shieldHp)}/${core.shieldMaxHp || 250}`, 0, 64);
+    ctx.restore();
+  }
+
   if (nearShop) {
     ctx.save();
     ctx.strokeStyle = 'rgba(250, 204, 21, 0.72)';
@@ -256,41 +285,72 @@ function drawSurvivalCore(
     label: core.hitFlashTimer > 0 ? 'DISERANG!' : 'POS WARKOP',
   });
 
-  // Draw 1-Wave Auto-Turret Tower on top of Pos Warkop Roof if active!
-  if (core.towerActive) {
+  // Upgradable Defense Tower on roof (Permanent across waves!)
+  const towerLv = core.towerLevel || (core.towerActive ? 1 : 0);
+  if (towerLv > 0) {
     ctx.save();
     ctx.translate(cx, core.y - 38);
     ctx.strokeStyle = '#090c14';
     ctx.lineWidth = 2.5;
 
-    // Turret bamboo tripod & base
-    ctx.fillStyle = '#f97316';
+    // Turret tripod & base
+    const baseCol =
+      towerLv === 1
+        ? '#a16207'
+        : towerLv === 2
+          ? '#15803d'
+          : towerLv === 3
+            ? '#334155'
+            : '#ca8a04';
+    ctx.fillStyle = baseCol;
     ctx.beginPath();
-    ctx.arc(0, 0, 11, 0, Math.PI * 2);
+    ctx.arc(0, 0, 11 + (towerLv - 1) * 1.5, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
 
     // Rotating cannon barrel
     ctx.save();
     ctx.rotate(core.towerAimAngle || 0);
-    ctx.fillStyle = '#334155';
-    ctx.fillRect(2, -4, 18, 8);
-    ctx.strokeRect(2, -4, 18, 8);
-    ctx.fillStyle = '#fde047';
-    ctx.fillRect(16, -3, 4, 6);
+    const barrelCol =
+      towerLv === 1
+        ? '#78350f'
+        : towerLv === 2
+          ? '#166534'
+          : towerLv === 3
+            ? '#1e293b'
+            : '#713f12';
+    const barrelLen = 16 + towerLv * 3;
+    const barrelThick = 6 + towerLv * 1.5;
+    ctx.fillStyle = barrelCol;
+    ctx.fillRect(2, -barrelThick * 0.5, barrelLen, barrelThick);
+    ctx.strokeRect(2, -barrelThick * 0.5, barrelLen, barrelThick);
+
+    // Tip glow
+    ctx.fillStyle = towerLv >= 4 ? '#facc15' : towerLv === 3 ? '#ef4444' : '#f97316';
+    ctx.fillRect(barrelLen - 2, -barrelThick * 0.5 + 1, 4, barrelThick - 2);
+
+    // Twin barrel for Lv 4 Gatling
+    if (towerLv >= 4) {
+      ctx.fillStyle = '#eab308';
+      ctx.fillRect(2, -barrelThick * 0.5 - 4, barrelLen, 3);
+      ctx.strokeRect(2, -barrelThick * 0.5 - 4, barrelLen, 3);
+      ctx.fillRect(2, barrelThick * 0.5 + 1, barrelLen, 3);
+      ctx.strokeRect(2, barrelThick * 0.5 + 1, barrelLen, 3);
+    }
     ctx.restore();
 
     ctx.restore();
 
     // Tower Active badge
     ctx.save();
-    ctx.fillStyle = '#fb923c';
+    ctx.fillStyle = towerLv >= 4 ? '#facc15' : '#fb923c';
     ctx.font = '900 9px "Segoe UI", system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.strokeStyle = '#090c14';
     ctx.lineWidth = 3;
-    ctx.strokeText('🗼 TOWER AKTIF (1 WAVE)', cx, core.y - 82);
-    ctx.fillText('🗼 TOWER AKTIF (1 WAVE)', cx, core.y - 82);
+    const towerTitle = `🗼 TOWER LV.${towerLv} (${TOWER_TIER_NAME[towerLv as 1 | 2 | 3 | 4] ?? 'MERCON'})`;
+    ctx.strokeText(towerTitle, cx, core.y - 82);
+    ctx.fillText(towerTitle, cx, core.y - 82);
     ctx.restore();
   }
 
@@ -343,9 +403,11 @@ function drawBarricade(ctx: CanvasRenderingContext2D, bar: BarricadeState): void
         ? '#c28f5c'
         : bar.level === 2
           ? '#a16207'
-          : '#64748b';
+          : bar.level === 3
+            ? '#64748b'
+            : '#1e293b'; // Lv 4 dark steel
   const accentColor =
-    bar.level === 1 ? '#fde68a' : bar.level === 2 ? '#eab308' : '#38bdf8';
+    bar.level === 1 ? '#fde68a' : bar.level === 2 ? '#eab308' : bar.level === 3 ? '#38bdf8' : '#facc15';
 
   ctx.fillStyle = fillColor;
   ctx.beginPath();
@@ -360,6 +422,58 @@ function drawBarricade(ctx: CanvasRenderingContext2D, bar: BarricadeState): void
     ctx.fillRect(bar.x + 6, bar.y - 4, bar.w - 12, bar.h);
   }
 
+  // Level 4 Barricade Thorns (Spikes along the outer edge)
+  if (bar.level === 4) {
+    ctx.save();
+    ctx.fillStyle = '#facc15';
+    ctx.strokeStyle = '#090c14';
+    ctx.lineWidth = 1.5;
+    if (bar.w > bar.h) {
+      const step = bar.w / 5;
+      for (let i = 0; i < 5; i++) {
+        const sx = bar.x + i * step + step * 0.5;
+        // Top spike
+        ctx.beginPath();
+        ctx.moveTo(sx - 4, bar.y - 8);
+        ctx.lineTo(sx, bar.y - 15);
+        ctx.lineTo(sx + 4, bar.y - 8);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        // Bottom spike
+        ctx.beginPath();
+        ctx.moveTo(sx - 4, bar.y + bar.h);
+        ctx.lineTo(sx, bar.y + bar.h + 7);
+        ctx.lineTo(sx + 4, bar.y + bar.h);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      }
+    } else {
+      const step = bar.h / 5;
+      for (let i = 0; i < 5; i++) {
+        const sy = bar.y + i * step + step * 0.5;
+        // Left spike
+        ctx.beginPath();
+        ctx.moveTo(bar.x, sy - 4);
+        ctx.lineTo(bar.x - 7, sy);
+        ctx.lineTo(bar.x, sy + 4);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        // Right spike
+        ctx.beginPath();
+        ctx.moveTo(bar.x + bar.w, sy - 4);
+        ctx.lineTo(bar.x + bar.w + 7, sy);
+        ctx.lineTo(bar.x + bar.w, sy + 4);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+
   const cx = bar.x + bar.w * 0.5;
   const barW = 54;
   const ratio = Math.max(0, bar.hp / bar.maxHp);
@@ -371,7 +485,7 @@ function drawBarricade(ctx: CanvasRenderingContext2D, bar: BarricadeState): void
   ctx.fillStyle = '#fef08a';
   ctx.font = '900 9px "Segoe UI", system-ui, sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText(`LV.${bar.level}`, cx, bar.y - 23);
+  ctx.fillText(bar.level === 4 ? 'LV.4 DURI ⚡' : `LV.${bar.level}`, cx, bar.y - 23);
   ctx.restore();
 }
 

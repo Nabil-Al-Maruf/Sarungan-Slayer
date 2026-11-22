@@ -100,6 +100,7 @@ export interface WsCallbacks {
   onRemoteBuff: (playerId: string, buffId: BuffId) => void;
   onRemoteSkip: () => void;
   onShopResult: (ok: boolean, message: string) => void;
+  onPeerLeft?: (id: string) => void;
   onDisconnect: (reason: string) => void;
 }
 
@@ -227,6 +228,13 @@ export class WsManager {
 
   public disconnect(silent = true): void {
     this.intentionalDisconnect = true;
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      try {
+        this.ws.send(JSON.stringify({ type: 'leave' }));
+      } catch {
+        // Ignore
+      }
+    }
     this.reconnectAttempts = 0;
     this.lastConnectParams = null;
     this.clearTimers();
@@ -415,6 +423,7 @@ export class WsManager {
         this.handleGamePayload(msg.from, msg.payload);
       } else if (msg.type === 'peer_left') {
         this.cleanupPeer(msg.id);
+        this.callbacks.onPeerLeft?.(msg.id);
       } else if (msg.type === 'monitor_lost') {
         const reason = msg.reason || 'Sinyal Monitor goyang, menunggu tersambung kembali...';
         this.callbacks.onStatus(`⚠️ ${reason}`, false);

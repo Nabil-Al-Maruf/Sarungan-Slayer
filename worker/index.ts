@@ -228,6 +228,27 @@ export class GameRoom extends DurableObject<Env> {
       return;
     }
 
+    if (msg.type === 'leave') {
+      const timer = this.disconnectGraceTimers.get(session.id);
+      if (timer) {
+        clearTimeout(timer);
+        this.disconnectGraceTimers.delete(session.id);
+      }
+      this.sessionsById.delete(session.id);
+      this.sessions.delete(session.ws);
+      const leftMsg = JSON.stringify({ type: 'peer_left', id: session.id });
+      for (const rem of this.sessions.values()) {
+        try {
+          rem.ws.send(leftMsg);
+        } catch {}
+      }
+      this.broadcastLobby();
+      try {
+        session.ws.close(1000, 'User left');
+      } catch {}
+      return;
+    }
+
     if (msg.type === 'set_profile') {
       const cleanName =
         (typeof msg.name === 'string' ? msg.name.trim().slice(0, 14) : '') || session.customName;
@@ -355,20 +376,21 @@ export class GameRoom extends DurableObject<Env> {
       return;
     }
 
-    // 2. STICK HP / PLAYER TEMPORARY DISCONNECT (Screen lock/unlock or Wi-Fi glitch)
-    // Keep their slot reserved for 25s so they can reclaim it smoothly
+    // 2. STICK HP / PLAYER DISCONNECT
+    // Immediately notify match peers so character disappears from the screen without lingering!
+    const leftMsg = JSON.stringify({ type: 'peer_left', id: session.id });
+    for (const rem of this.sessions.values()) {
+      try {
+        rem.ws.send(leftMsg);
+      } catch {}
+    }
+
+    // Keep their session reservation for 25s so if it was just a Wi-Fi glitch they can reconnect to the lobby/room
     const stickTimer = setTimeout(() => {
       this.disconnectGraceTimers.delete(session.id);
       const s = this.sessionsById.get(session.id);
       if (s && s.disconnectedAt) {
-        // Player did not return within 25s: officially remove them
         this.sessionsById.delete(session.id);
-        const leftMsg = JSON.stringify({ type: 'peer_left', id: session.id });
-        for (const rem of this.sessions.values()) {
-          try {
-            rem.ws.send(leftMsg);
-          } catch {}
-        }
         this.broadcastLobby();
       }
     }, 25000);

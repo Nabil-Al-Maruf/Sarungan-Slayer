@@ -39,24 +39,36 @@ export async function requestFullscreen(target?: Element): Promise<boolean> {
   try {
     if (elem.requestFullscreen) {
       await elem.requestFullscreen();
+      tryLockLandscape();
       return true;
     }
     if (elem.webkitRequestFullscreen) {
       await elem.webkitRequestFullscreen();
+      tryLockLandscape();
       return true;
     }
     if (elem.mozRequestFullScreen) {
       await elem.mozRequestFullScreen();
+      tryLockLandscape();
       return true;
     }
     if (elem.msRequestFullscreen) {
       await elem.msRequestFullscreen();
+      tryLockLandscape();
       return true;
     }
   } catch {
     // User denied or browser disallowed programmatic fullscreen
   }
   return false;
+}
+
+function tryLockLandscape(): void {
+  try {
+    if (screen.orientation && 'lock' in screen.orientation) {
+      void (screen.orientation as any).lock('landscape').catch(() => {});
+    }
+  } catch {}
 }
 
 export async function exitFullscreen(): Promise<boolean> {
