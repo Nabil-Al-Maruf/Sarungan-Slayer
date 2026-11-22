@@ -321,7 +321,7 @@ export function canOpenWarung(state: GameState, player: PlayerState): boolean {
   if (surv.phase === 'intermission') return true;
   const cx = surv.core.x + surv.core.w * 0.5;
   const cy = surv.core.y + surv.core.h * 0.5;
-  return Math.hypot(player.x - cx, player.y - cy) <= 130;
+  return Math.hypot(player.x - cx, player.y - cy) <= 155;
 }
 
 export function getBarricadeActionInfo(bar: BarricadeState): {
@@ -612,7 +612,7 @@ export function stepSurvival(
       // Wave cleared!
       saveBestWave(surv.wave);
       surv.phase = 'intermission';
-      surv.intermissionTimer = 12.0;
+      surv.intermissionTimer = 20.0;
       state.soundQueue.push('pickup_kopi');
 
       // Expire 1-Wave Center Tower when the wave finishes!
@@ -637,7 +637,7 @@ export function stepSurvival(
         }
         surv.mapBannerText = `WAVE ${surv.wave} BERES! PILIH 1 BUFF ATRIBUT!`;
       } else {
-        surv.mapBannerText = `WAVE ${surv.wave} BERES! JEDA WARUNG 12 DETIK`;
+        surv.mapBannerText = `WAVE ${surv.wave} BERES! JEDA WARUNG 20 DETIK`;
       }
       surv.mapBannerTimer = 3.0;
     }

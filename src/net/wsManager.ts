@@ -22,6 +22,7 @@ import type { ShopItemId } from '../modes/survival';
 import {
   mergeCompactSnapshot,
   packCompactSnapshot,
+  packStickSnapshot,
   type CompactSnapshot,
 } from './compactSnapshot';
 
@@ -51,6 +52,7 @@ type ServerToClientMsg =
   | { type: 'rtc_signal'; from: string; data: RtcSignalData }
   | { type: 'relay'; from: string; payload: GameNetPayload }
   | { type: 'peer_left'; id: string }
+  | { type: 'monitor_closed'; reason?: string }
   | { type: 'pong'; ts: number }
   | { type: 'room_full' };
 
@@ -127,6 +129,7 @@ export class WsManager {
   private connectTimeout: number | null = null;
   private pingTimer: number | null = null;
   private lastSentHeld = '';
+  private lastMoveSendTs = 0;
   private callbacks: WsCallbacks;
 
   // WebRTC UDP DataChannels (Host maintains 1 per client; Client maintains 1 to Host)
@@ -327,6 +330,10 @@ export class WsManager {
         this.handleGamePayload(msg.from, msg.payload);
       } else if (msg.type === 'peer_left') {
         this.cleanupPeer(msg.id);
+      } else if (msg.type === 'monitor_closed') {
+        const reason = msg.reason || 'Monitor keluar! Semua Stick HP otomatis terputus.';
+        this.disconnect(true);
+        this.callbacks.onDisconnect(reason);
       } else if (msg.type === 'start_game') {
         this.lastSentHeld = '';
         this.serverPlayerTargets.clear();
@@ -601,28 +608,36 @@ export class WsManager {
 
   public broadcastCompactSnapshot(state: GameState, sounds: SoundEvent[]): void {
     if (!this.isHost || !this.connected) return;
-    const snap = packCompactSnapshot(state, sounds);
-    const json = JSON.stringify({ t: 'snap', s: snap } satisfies GameNetPayload);
+    let fullSnap: CompactSnapshot | null = null;
+    let fullJson = '';
 
-    let needWssRelay = false;
     for (const p of this.lobbyPlayers) {
       if (p.id === this.localPlayerId) continue;
+
+      if (p.role === 'stick') {
+        // Ultra-mini (~120B) snapshot for Stick HP controllers (< 1 KB/s, smooth on 1 Mbps!)
+        const stickSnap = packStickSnapshot(state, p.id);
+        this.sendPayloadToPeer(p.id, { t: 'snap', s: stickSnap });
+        continue;
+      }
+
+      if (!fullSnap) {
+        fullSnap = packCompactSnapshot(state, sounds);
+        fullJson = JSON.stringify({ t: 'snap', s: fullSnap } satisfies GameNetPayload);
+      }
       const dc = this.dcs.get(p.id);
       if (dc && dc.readyState === 'open') {
         try {
-          dc.send(json);
+          dc.send(fullJson);
+          continue;
         } catch {
-          needWssRelay = true;
+          // Fallback to WSS below
         }
-      } else {
-        needWssRelay = true;
       }
-    }
-
-    if (needWssRelay) {
       this.sendWs({
         type: 'relay',
-        payload: { t: 'snap', s: snap } satisfies GameNetPayload,
+        to: p.id,
+        payload: { t: 'snap', s: fullSnap } satisfies GameNetPayload,
       });
     }
   }
@@ -643,9 +658,11 @@ export class WsManager {
   public sendDeltaInput(input: PlayerInput): void {
     if (!this.connected || this.isHost) return;
 
-    const mx = typeof input.moveX === 'number' ? Math.round(input.moveX * 10) : 0;
-    const my = typeof input.moveY === 'number' ? Math.round(input.moveY * 10) : 0;
-    const heldSig = `${input.up ? 1 : 0}${input.down ? 1 : 0}${input.left ? 1 : 0}${input.right ? 1 : 0}:${mx},${my}`;
+    // Quantize analog to 0.2 steps & throttle pure movement to 20Hz for 1 Mbps smoothness;
+    // action buttons (kibas/pecut/dash/lompat/ult) ALWAYS send immediately (0ms)!
+    const qx = typeof input.moveX === 'number' ? Math.round(input.moveX * 5) / 5 : 0;
+    const qy = typeof input.moveY === 'number' ? Math.round(input.moveY * 5) / 5 : 0;
+    const heldSig = `${input.up ? 1 : 0}${input.down ? 1 : 0}${input.left ? 1 : 0}${input.right ? 1 : 0}:${qx},${qy}`;
     const hasAction =
       input.jumpPressed ||
       input.dashPressed ||
@@ -657,8 +674,22 @@ export class WsManager {
       return;
     }
 
+    const now = performance.now();
+    const isStopping = qx === 0 && qy === 0 && !input.up && !input.down && !input.left && !input.right;
+    if (!hasAction && !isStopping && now - this.lastMoveSendTs < 50) {
+      return;
+    }
+
     this.lastSentHeld = heldSig;
-    this.sendPayloadToHost({ t: 'in', i: input });
+    this.lastMoveSendTs = now;
+    this.sendPayloadToHost({
+      t: 'in',
+      i: {
+        ...input,
+        moveX: qx,
+        moveY: qy,
+      },
+    });
   }
 
   public sendBuy(itemId: ShopItemId): void {
@@ -675,7 +706,8 @@ export class WsManager {
       snap,
       this.localPlayerId,
       this.serverPlayerTargets,
-      this.serverEnemyTargets
+      this.serverEnemyTargets,
+      this.isStickClient
     );
   }
 

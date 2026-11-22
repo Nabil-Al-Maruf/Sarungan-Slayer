@@ -77,7 +77,7 @@
         <div id="menu-overlay" class="overlay-modal title-screen-bg">
           <div class="modal-card menu-card title-card-anim">
             <div class="title-top-meta">
-              <span class="version-badge">v1.4.0</span>
+              <span class="version-badge">v1.5.0</span>
               <span class="modal-eyebrow">SUROBOYO TOP-DOWN ACTION ARCADE</span>
               <span class="version-badge p2p-badge">UDP P2P + WSS</span>
             </div>
@@ -190,7 +190,7 @@
                 </div>
                 <div class="credit-row">
                   <span class="credit-role">VERSI RILIS</span>
-                  <strong>v1.4.0 — Monitor + Stick HP, Anti-Duplikat Skin &amp; Android Stick Fix</strong>
+                  <strong>v1.5.0 — Controller Warung Fix, Auto-Disconnect Monitor, Jeda 20 Detik &amp; Optimasi 1 Mbps</strong>
                 </div>
               </div>
               <div class="menu-footer-actions">
@@ -201,6 +201,19 @@
             <!-- View 4: Info Update / Changelog -->
             <div id="menu-changelog-view" class="menu-view hidden">
               <div class="changelog-box">
+                <div class="changelog-entry">
+                  <div class="changelog-head">
+                    <span class="version-badge">v1.5.0</span>
+                    <strong>Fix Warung Controller, Auto-Tutup Monitor, Jeda 20 Detik &amp; Lancar 1 Mbps</strong>
+                  </div>
+                  <ul class="changelog-list">
+                    <li><b>Fix Buka Warung di Stick HP:</b> Posisi karakter Stick HP kini tersinkron langsung agar Warung bisa dibuka dari HP Controller, dilengkapi indikator siap &amp; notifikasi toast jika terlalu jauh dari Pos Warkop.</li>
+                    <li><b>Monitor Keluar = Controller Otomatis Putus:</b> Jika Monitor keluar dari game, seluruh HP Controller otomatis terputus &amp; kembali rapi ke lobi.</li>
+                    <li><b>Menu Pause (⏸ / Esc):</b> Tombol keluar tidak lagi langsung menutup game saat kepencet; kini membuka menu Pause dengan opsi Lanjutkan, Ulangi, atau Keluar.</li>
+                    <li><b>Jeda Perpindahan Wave 20 Detik:</b> Waktu persiapan antar wave ditambah dari 12 detik menjadi 20 detik.</li>
+                    <li><b>Optimasi Hemat Kuota 1 Mbps:</b> Snapshot mini khusus Stick HP (&lt; 1 KB/s), rate adaptif 12–15 Hz + input 20 Hz (aksi tetap 0ms) agar mabar lancar jaya di koneksi HP 1 Mbps.</li>
+                  </ul>
+                </div>
                 <div class="changelog-entry">
                   <div class="changelog-head">
                     <span class="version-badge">v1.4.0</span>
@@ -265,7 +278,7 @@
 
             <div class="title-bottom-credit">
               <span>© 2026 Nabil Al-Ma'ruf • Arek Sarungan Slayer</span>
-              <span>v1.3.0</span>
+              <span>v1.5.0</span>
             </div>
           </div>
         </div>
@@ -521,6 +534,7 @@
             <button id="btn-stick-exit" class="stick-pause-btn" title="Menu Jeda / Keluar">⏸</button>
           </div>
         </div>
+        <div id="stick-toast" class="stick-toast hidden"></div>
 
         <div class="deck-header">
           <span class="deck-brand">AREK SARUNGAN SLAYER</span>

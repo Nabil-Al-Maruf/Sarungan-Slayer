@@ -174,6 +174,73 @@ export function packCompactSnapshot(state: GameState, sounds: SoundEvent[]): Com
 }
 
 /**
+ * Ultra-tiny (~120 bytes) snapshot for Stick HP Controllers (Monitor mode):
+ * Sends only Wave/Core/Barricade + that player's own stats/position/buffs (< 1 KB/s!).
+ */
+export function packStickSnapshot(state: GameState, targetPlayerId: string): CompactSnapshot {
+  const surv = state.survival;
+  const p = state.players.find((pl) => pl.id === targetPlayerId);
+  const pb =
+    p && p.pendingBuffChoices && p.pendingBuffChoices.length > 0
+      ? { [p.id]: p.pendingBuffChoices }
+      : undefined;
+
+  return {
+    t: Math.round(state.time * 10) / 10,
+    st: state.status === 'victory' ? 'v' : state.status === 'gameover' ? 'g' : 'p',
+    th: state.theme,
+    ttl: state.stageTitle,
+    ko: state.koCount,
+    sv: surv
+      ? [
+          surv.wave,
+          surv.phase === 'intermission' ? 'i' : 'w',
+          Math.round(surv.intermissionTimer * 10) / 10,
+          Math.ceil(surv.core.hp),
+          surv.core.maxHp,
+          surv.core.towerActive ? 1 : 0,
+          0,
+          0,
+          '',
+          surv.barricades.map((b) => [b.id, b.level, Math.ceil(b.hp), b.maxHp]),
+        ]
+      : undefined,
+    pl: p
+      ? [
+          [
+            p.id,
+            p.name,
+            p.paletteIndex,
+            Math.round(p.x),
+            Math.round(p.y),
+            Math.round(p.z),
+            Math.round(p.dirX * 10) / 10,
+            Math.round(p.dirY * 10) / 10,
+            Math.ceil(p.hp),
+            p.maxHp,
+            Math.floor(p.ult),
+            p.coins,
+            p.reviveTickets,
+            p.knockedDown ? 1 : 0,
+            p.dmgMult,
+            p.cdMult,
+            p.speedMult,
+            p.pendingBuffChoices,
+            Math.round(p.projCooldown * 10) / 10,
+            Math.round(p.ultActiveTimer * 10) / 10,
+          ],
+        ]
+      : [],
+    en: [],
+    pr: [],
+    cr: [],
+    pk: [],
+    snd: [],
+    ...(pb ? { pb } : {}),
+  };
+}
+
+/**
  * Non-destructive merge into Client's live GameState:
  * Preserves local particles, slashes, afterimages, floatingTexts, and local player's
  * predicted movement/attack state so gameplay feels 100% responsive at 60 FPS!
@@ -183,7 +250,8 @@ export function mergeCompactSnapshot(
   snap: CompactSnapshot,
   localPlayerId: string,
   playerTargets: Map<string, { x: number; y: number; z: number }>,
-  enemyTargets: Map<number, { x: number; y: number; z: number }>
+  enemyTargets: Map<number, { x: number; y: number; z: number }>,
+  syncLocalPosDirectly = false
 ): void {
   state.time = snap.t;
   state.status = snap.st === 'v' ? 'victory' : snap.st === 'g' ? 'gameover' : 'playing';
@@ -284,8 +352,15 @@ export function mergeCompactSnapshot(
       existing.dirY = dy;
       existing.projCooldown = pCd;
     } else {
-      // Sync authoritative projectile cooldown only if not mid-local-prediction
-      if (pCd > existing.projCooldown) {
+      if (syncLocalPosDirectly) {
+        existing.x = sx;
+        existing.y = sy;
+        existing.z = sz;
+        existing.dirX = dx;
+        existing.dirY = dy;
+        existing.projCooldown = pCd;
+      } else if (pCd > existing.projCooldown) {
+        // Sync authoritative projectile cooldown only if not mid-local-prediction
         existing.projCooldown = pCd;
       }
     }

@@ -116,7 +116,20 @@ const stickHpText = document.getElementById('stick-hp-text') as HTMLSpanElement;
 const stickUltText = document.getElementById('stick-ult-text') as HTMLSpanElement;
 const stickCoinsText = document.getElementById('stick-coins-text') as HTMLSpanElement;
 const stickPingPill = document.getElementById('stick-ping-pill') as HTMLSpanElement;
+const vbtnStickShop = document.getElementById('vbtn-stick-shop') as HTMLButtonElement;
+const stickToastEl = document.getElementById('stick-toast') as HTMLDivElement;
 const btnStickExit = document.getElementById('btn-stick-exit') as HTMLButtonElement;
+let stickToastTimer: number | null = null;
+
+function showStickToast(msg: string): void {
+  stickToastEl.textContent = msg;
+  stickToastEl.classList.remove('hidden');
+  if (stickToastTimer !== null) window.clearTimeout(stickToastTimer);
+  stickToastTimer = window.setTimeout(() => {
+    stickToastEl.classList.add('hidden');
+    stickToastTimer = null;
+  }, 2200);
+}
 
 // Shop DOM references
 const shopCoinsEl = document.getElementById('shop-coins') as HTMLElement;
@@ -211,6 +224,7 @@ function updateStickHud(): void {
     stickHpText.textContent = `${Math.ceil(p.hp)}/${p.maxHp}`;
     stickUltText.textContent = `ULT ${Math.floor(p.ult)}%`;
     stickCoinsText.textContent = `🪙 ${p.coins}`;
+    vbtnStickShop.classList.toggle('shop-ready', canOpenWarung(state, p));
   }
   if (surv) {
     stickWavePill.textContent = surv.phase === 'intermission' ? `W${surv.wave} ⏱${Math.ceil(surv.intermissionTimer)}s` : `W${surv.wave}`;
@@ -628,6 +642,10 @@ function toggleWarung(): void {
   }
 
   if (!canOpenWarung(state, player)) {
+    if (wsMgr.isStickClient) {
+      showStickToast('DEKATI POS WARKOP / TUNGGU JEDA 20 DETIK!');
+      return;
+    }
     state.floatingTexts.push({
       x: player.x,
       y: player.y - player.z - 54,
@@ -1217,7 +1235,13 @@ function frame(now: number): void {
           showResultIfNeeded();
         } else {
           snapshotAccum += FIXED_DT;
-          if (snapshotAccum >= 0.05) {
+          // Adaptive rate for 1 Mbps mobile smoothness: 10Hz for Monitor->Stick, 12-15Hz for full-screen clients
+          const snapInterval = wsMgr.isMonitor
+            ? 0.1
+            : wsMgr.pingMs > 120
+              ? 0.08
+              : 0.066;
+          if (snapshotAccum >= snapInterval) {
             snapshotAccum = 0;
             wsMgr.broadcastCompactSnapshot(state, state.soundQueue);
           }

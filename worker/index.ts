@@ -237,6 +237,25 @@ export class GameRoom extends DurableObject<Env> {
       return;
     }
 
+    // If Monitor quits, automatically terminate all connected Stick HP controllers!
+    if (session.role === 'monitor') {
+      const closeMsg = JSON.stringify({
+        type: 'monitor_closed',
+        reason: 'Monitor keluar! Semua Stick HP otomatis terputus.',
+      });
+      for (const s of this.sessions.values()) {
+        try {
+          s.ws.send(closeMsg);
+          s.ws.close(1000, 'Monitor closed');
+        } catch {
+          // Ignore
+        }
+      }
+      this.sessions.clear();
+      this.inMatch = false;
+      return;
+    }
+
     if (session.isHost) {
       const nextHost = this.sessions.values().next().value;
       if (nextHost) {
@@ -330,7 +349,7 @@ export default {
         {
           ok: true,
           service: 'arek-sarungan-slayer-mp',
-          version: '1.3.0',
+          version: '1.5.0',
           transport: 'webrtc-udp+wss-fallback',
         },
         { headers: CORS_HEADERS }
