@@ -1,3 +1,5 @@
+import type { UltType } from './types';
+
 export const VIRTUAL_WIDTH = 960;
 export const VIRTUAL_HEIGHT = 540;
 export const FIXED_DT = 1 / 60;
@@ -47,6 +49,40 @@ export const ULT_RADIUS = 118;
 export const ULT_DAMAGE_PER_TICK = 18;
 export const ULT_KNOCKBACK = 260;
 
+export interface UltDef {
+  id: UltType;
+  title: string;
+  icon: string;
+  desc: string;
+}
+
+export const ULT_DEFS: Record<UltType, UltDef> = {
+  gasing: {
+    id: 'gasing',
+    title: 'Badai Gasing Suroboyo',
+    icon: '🌀',
+    desc: 'Berputar badai sarung tornado (immune 3 detik), tebas & sedot kerumunan musuh',
+  },
+  petir: {
+    id: 'petir',
+    title: 'Petir Halilintar Kenjeran',
+    icon: '⚡',
+    desc: 'Hantam tanah panggil 14 petir dahsyat ke seluruh layar, ledakkan musuh seketika',
+  },
+  mercon: {
+    id: 'mercon',
+    title: 'Meriam Bazooka Karbit',
+    icon: '💥',
+    desc: 'Tembakkan 3 roket mercon bumbung berdaya ledak raksasa membantai gerombolan',
+  },
+  naga: {
+    id: 'naga',
+    title: 'Naga Api Sarung Sutra',
+    icon: '🐉',
+    desc: 'Semburkan gelombang naga api membara menembus musuh & membakar tanah',
+  },
+};
+
 // Crate & Items
 export const CRATE_SIZE = 40;
 export const CRATE_HP = 45;
@@ -63,6 +99,8 @@ export interface PlayerPalette {
   sarungStripe: string;
   peci: string;
   accent: string;
+  headgear: 'peci_garuda' | 'udeng_kenjeran' | 'blangkon_batik' | 'baret_bonek' | 'sorban_putih';
+  accessoryDesc: string;
 }
 
 export const PLAYER_PALETTES: PlayerPalette[] = [
@@ -76,6 +114,8 @@ export const PLAYER_PALETTES: PlayerPalette[] = [
     sarungStripe: '#fde047',
     peci: '#1e293b',
     accent: '#ef4444',
+    headgear: 'peci_garuda',
+    accessoryDesc: 'Peci Garuda Emas & Selempang Merah',
   },
   {
     id: 1,
@@ -87,6 +127,8 @@ export const PLAYER_PALETTES: PlayerPalette[] = [
     sarungStripe: '#fef08a',
     peci: '#0f172a',
     accent: '#3b82f6',
+    headgear: 'udeng_kenjeran',
+    accessoryDesc: 'Udeng Segitiga Batik & Kacamata Hitam',
   },
   {
     id: 2,
@@ -98,6 +140,8 @@ export const PLAYER_PALETTES: PlayerPalette[] = [
     sarungStripe: '#f472b6',
     peci: '#1e293b',
     accent: '#eab308',
+    headgear: 'blangkon_batik',
+    accessoryDesc: 'Blangkon Jawa Timuran & Rompi Emas',
   },
   {
     id: 3,
@@ -109,6 +153,8 @@ export const PLAYER_PALETTES: PlayerPalette[] = [
     sarungStripe: '#f8fafc',
     peci: '#0f172a',
     accent: '#10b981',
+    headgear: 'baret_bonek',
+    accessoryDesc: 'Topi Baret Hijau Bonek & Syal Loreng',
   },
   {
     id: 4,
@@ -120,5 +166,7 @@ export const PLAYER_PALETTES: PlayerPalette[] = [
     sarungStripe: '#fef08a',
     peci: '#1e293b',
     accent: '#a855f7',
+    headgear: 'sorban_putih',
+    accessoryDesc: 'Sorban Putih Melingkar & Kalung Tasbih',
   },
 ];

@@ -50,6 +50,7 @@ export function createPlayer(
     maxHp: 100,
     ult: 0,
     maxUlt: ULT_MAX,
+    ultType: 'gasing',
     coins: 60,
     reviveTickets: 0,
     knockedDown: false,
@@ -127,27 +128,194 @@ export function updatePlayer(
     }
   }
 
-  // Ultimate Activation (Badai Sarung Suroboyo)
+  // Ultimate Activation (Gasing, Petir, Mercon, or Naga)
   if (input.ultPressed && player.ult >= player.maxUlt && player.ultActiveTimer <= 0) {
     player.ult = 0;
-    player.ultActiveTimer = ULT_DURATION;
-    player.ultTickTimer = 0;
-    player.invulnTimer = Math.max(player.invulnTimer, ULT_DURATION + 0.15);
-    player.scaleX = 1.28;
-    player.scaleY = 0.78;
-    state.soundQueue.push('ult_start');
-    state.shakeTimer = Math.max(state.shakeTimer, 0.28);
-    state.shakeIntensity = Math.max(state.shakeIntensity, 7);
-    state.floatingTexts.push({
-      x: player.x,
-      y: player.y - player.z - 56,
-      vy: -45,
-      text: 'BADAI SARUNG SUROBOYO!',
-      color: '#fde047',
-      scale: 1.25,
-      life: 1.2,
-      maxLife: 1.2,
-    });
+    const uType = player.ultType ?? 'gasing';
+
+    if (uType === 'petir') {
+      player.ultActiveTimer = 0.8;
+      player.invulnTimer = Math.max(player.invulnTimer, 1.0);
+      player.scaleX = 1.35;
+      player.scaleY = 0.72;
+      player.vz = 90;
+      state.soundQueue.push('ult_start');
+      state.shakeTimer = Math.max(state.shakeTimer, 0.6);
+      state.shakeIntensity = Math.max(state.shakeIntensity, 12);
+      state.floatingTexts.push({
+        x: player.x,
+        y: player.y - player.z - 65,
+        vy: -55,
+        text: 'PETIR HALILINTAR KENJERAN! ⚡',
+        color: '#38bdf8',
+        scale: 1.35,
+        life: 1.4,
+        maxLife: 1.4,
+      });
+
+      // Strike all visible enemies with lightning
+      for (const e of state.enemies) {
+        if (e.hp <= 0) continue;
+        const dmg = Math.round((e.isBoss ? 230 : 180) * player.dmgMult);
+        e.hp = Math.max(0, e.hp - dmg);
+        e.hitFlashTimer = 0.22;
+        e.vz = 140; // electrical launch
+        state.floatingTexts.push({
+          x: e.x,
+          y: e.y - e.z - 45,
+          vy: -60,
+          text: `⚡ -${dmg}`,
+          color: '#38bdf8',
+          scale: 1.15,
+          life: 0.9,
+          maxLife: 0.9,
+        });
+        // Lightning bolt vertical particles
+        for (let k = 0; k < 6; k++) {
+          state.particles.push({
+            x: e.x + (Math.random() - 0.5) * 20,
+            y: e.y + (Math.random() - 0.5) * 16,
+            z: k * 30,
+            vx: (Math.random() - 0.5) * 40,
+            vy: (Math.random() - 0.5) * 40,
+            vz: 20,
+            size: 5,
+            color: k % 2 === 0 ? '#38bdf8' : '#fde047',
+            alpha: 1,
+            life: 0.35,
+            maxLife: 0.35,
+            gravity: 0,
+          });
+        }
+        if (e.hp <= 0) {
+          state.soundQueue.push('ko');
+          if (state.mode === 'survival') {
+            const reward = Math.round(35 * (player.coinMult ?? 1));
+            player.coins += reward;
+            state.floatingTexts.push({
+              x: player.x,
+              y: player.y - 70,
+              vy: -40,
+              text: `+${reward} Receh ⚡`,
+              color: '#facc15',
+              scale: 1,
+              life: 0.9,
+              maxLife: 0.9,
+            });
+          }
+        }
+      }
+    } else if (uType === 'mercon') {
+      player.ultActiveTimer = 0.45;
+      player.invulnTimer = Math.max(player.invulnTimer, 0.7);
+      player.scaleX = 1.35;
+      player.scaleY = 0.72;
+      state.soundQueue.push('tower_shoot');
+      state.shakeTimer = Math.max(state.shakeTimer, 0.45);
+      state.shakeIntensity = Math.max(state.shakeIntensity, 9);
+      state.floatingTexts.push({
+        x: player.x,
+        y: player.y - player.z - 65,
+        vy: -55,
+        text: 'MERIAM BAZOOKA KARBIT! 💥',
+        color: '#f97316',
+        scale: 1.35,
+        life: 1.4,
+        maxLife: 1.4,
+      });
+
+      const baseAngle = Math.atan2(player.dirY, player.dirX);
+      const angles = [baseAngle - 0.22, baseAngle, baseAngle + 0.22];
+      for (const ang of angles) {
+        state.projectiles.push({
+          id: state.nextEntityId++,
+          ownerId: player.id,
+          x: player.x + Math.cos(ang) * 24,
+          y: player.y + Math.sin(ang) * 20,
+          vx: Math.cos(ang) * (PROJ_SPEED * 1.35),
+          vy: Math.sin(ang) * (PROJ_SPEED * 1.35),
+          angle: ang,
+          radius: 20,
+          damage: Math.round(160 * player.dmgMult),
+          pierceLeft: 2,
+          hitIds: [],
+          life: 0.7,
+          maxLife: 0.7,
+          color: '#fb923c',
+        });
+      }
+    } else if (uType === 'naga') {
+      player.ultActiveTimer = 1.6;
+      player.invulnTimer = Math.max(player.invulnTimer, 1.8);
+      player.scaleX = 1.32;
+      player.scaleY = 0.76;
+      state.soundQueue.push('ult_start');
+      state.shakeTimer = Math.max(state.shakeTimer, 0.4);
+      state.shakeIntensity = Math.max(state.shakeIntensity, 8);
+      state.floatingTexts.push({
+        x: player.x,
+        y: player.y - player.z - 65,
+        vy: -55,
+        text: 'NAGA API SARUNG SUTRA! 🐉',
+        color: '#ef4444',
+        scale: 1.35,
+        life: 1.4,
+        maxLife: 1.4,
+      });
+
+      const nagaAngle = Math.atan2(player.dirY, player.dirX);
+      state.projectiles.push({
+        id: state.nextEntityId++,
+        ownerId: player.id,
+        x: player.x + Math.cos(nagaAngle) * 30,
+        y: player.y + Math.sin(nagaAngle) * 22,
+        vx: Math.cos(nagaAngle) * (PROJ_SPEED * 0.9),
+        vy: Math.sin(nagaAngle) * (PROJ_SPEED * 0.9),
+        angle: nagaAngle,
+        radius: 34,
+        damage: Math.round(210 * player.dmgMult),
+        pierceLeft: 99,
+        hitIds: [],
+        life: 0.9,
+        maxLife: 0.9,
+        color: '#ef4444',
+      });
+
+      for (let s = 1; s <= 3; s++) {
+        state.hazards.push({
+          id: state.nextEntityId++,
+          kind: 'mercon',
+          x: player.x + Math.cos(nagaAngle) * (s * 75),
+          y: player.y + Math.sin(nagaAngle) * (s * 55),
+          radius: 46,
+          delay: 0,
+          maxDelay: 0,
+          damage: Math.round(45 * player.dmgMult),
+          detonated: true,
+          flashTimer: 2.5,
+        });
+      }
+    } else {
+      // Default / Gasing: Badai Gasing Sarung
+      player.ultActiveTimer = ULT_DURATION;
+      player.ultTickTimer = 0;
+      player.invulnTimer = Math.max(player.invulnTimer, ULT_DURATION + 0.15);
+      player.scaleX = 1.28;
+      player.scaleY = 0.78;
+      state.soundQueue.push('ult_start');
+      state.shakeTimer = Math.max(state.shakeTimer, 0.28);
+      state.shakeIntensity = Math.max(state.shakeIntensity, 7);
+      state.floatingTexts.push({
+        x: player.x,
+        y: player.y - player.z - 56,
+        vy: -45,
+        text: 'BADAI SARUNG GASING! 🌀',
+        color: '#fde047',
+        scale: 1.25,
+        life: 1.2,
+        maxLife: 1.2,
+      });
+    }
   }
 
   // 8-Way / 360° Dash Activation

@@ -14,7 +14,9 @@ export interface PlayerInput {
   shopPressed: boolean;
 }
 
-export type MapTheme = 'tambak' | 'tunjungan' | 'suramadu';
+export type MapTheme = 'tambak' | 'tunjungan' | 'suramadu' | 'perempatan';
+
+export type UltType = 'gasing' | 'petir' | 'mercon' | 'naga';
 
 export type BuffId =
   | 'max_hp'
@@ -111,7 +113,8 @@ export interface PlayerState {
   // Secondary (Sabetan Angin Pecut)
   projCooldown: number;
 
-  // Ultimate (Badai Sarung Suroboyo)
+  // Ultimate
+  ultType?: UltType;
   ultActiveTimer: number;
   ultTickTimer: number;
 
@@ -295,7 +298,7 @@ export interface StoryZone {
   spawns: Array<{ kind: EnemyKind; x: number; y: number }>;
 }
 
-export type BarricadeSlot = 'left' | 'top' | 'right';
+export type BarricadeSlot = 'left' | 'top' | 'right' | 'bottom';
 
 export interface BarricadeState {
   id: BarricadeSlot;

@@ -1,8 +1,46 @@
 import { CRATE_SIZE, PLAYER_PALETTES, ULT_RADIUS } from '../core/constants';
 import type { CrateState, EnemyState, PickupState, PlayerState } from '../core/types';
 
-export function drawPlayer(ctx: CanvasRenderingContext2D, player: PlayerState, time: number): void {
+export function drawPlayer(
+  ctx: CanvasRenderingContext2D,
+  player: PlayerState,
+  time: number,
+  isLocalPlayer = false,
+  isMonitor = false
+): void {
   const palette = PLAYER_PALETTES[player.paletteIndex % PLAYER_PALETTES.length];
+
+  // 1. High-Visibility Pulsing Foot Ring (Aura Kaki) — Never lose track of your character!
+  if (isLocalPlayer && !isMonitor) {
+    const pulse = Math.sin(time * 6) * 2.5;
+    ctx.save();
+    // Glowing cyan spotlight under local player
+    ctx.fillStyle = 'rgba(56, 189, 248, 0.22)';
+    ctx.beginPath();
+    ctx.ellipse(player.x, player.y + 2, 24 + pulse, 11 + pulse * 0.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 2.8;
+    ctx.setLineDash([5, 3]);
+    ctx.beginPath();
+    ctx.ellipse(player.x, player.y + 2, 23 + pulse, 10.5 + pulse * 0.5, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  } else if (isMonitor) {
+    // In Monitor mode, color-code every player's foot ring so everyone sees their color clearly
+    ctx.save();
+    ctx.fillStyle = `${palette.accent}33`;
+    ctx.beginPath();
+    ctx.ellipse(player.x, player.y + 2, 20, 9, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = palette.accent;
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.ellipse(player.x, player.y + 2, 19, 8.5, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
 
   for (const ghost of player.afterimages) {
     ctx.save();
@@ -14,32 +52,91 @@ export function drawPlayer(ctx: CanvasRenderingContext2D, player: PlayerState, t
     ctx.restore();
   }
 
+  // 2. Active Ultimate Visual Effects
   if (player.ultActiveTimer > 0) {
+    const ultType = player.ultType ?? 'gasing';
     ctx.save();
     ctx.translate(player.x, player.y - 6);
-    ctx.scale(1, 0.72);
 
-    ctx.fillStyle = 'rgba(56, 189, 248, 0.18)';
-    ctx.beginPath();
-    ctx.arc(0, 0, ULT_RADIUS, 0, Math.PI * 2);
-    ctx.fill();
-
-    for (let i = 0; i < 3; i++) {
-      ctx.save();
-      ctx.rotate(time * 16 + (i * Math.PI * 2) / 3);
-      ctx.strokeStyle = i % 2 === 0 ? palette.sarung : palette.sarungStripe;
-      ctx.lineWidth = 11;
-      ctx.lineCap = 'round';
+    if (ultType === 'petir') {
+      // Petir Halilintar Aura: Electric shockwaves & lightning arcs
+      ctx.scale(1, 0.75);
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.25)';
       ctx.beginPath();
-      ctx.arc(0, 0, 52 + i * 20, 0, Math.PI * 0.85);
-      ctx.stroke();
+      ctx.arc(0, 0, 140, 0, Math.PI * 2);
+      ctx.fill();
 
-      ctx.strokeStyle = '#090c14';
-      ctx.lineWidth = 2.5;
+      for (let i = 0; i < 4; i++) {
+        const a1 = time * 24 + (i * Math.PI) / 2;
+        const r1 = 35 + ((time * 180 + i * 40) % 95);
+        ctx.strokeStyle = i % 2 === 0 ? '#38bdf8' : '#fde047';
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(a1) * 20, Math.sin(a1) * 20);
+        ctx.lineTo(Math.cos(a1 + 0.3) * (r1 * 0.6), Math.sin(a1 + 0.3) * (r1 * 0.6));
+        ctx.lineTo(Math.cos(a1 - 0.2) * r1, Math.sin(a1 - 0.2) * r1);
+        ctx.stroke();
+      }
+    } else if (ultType === 'naga') {
+      // Naga Api Aura: Fiery flame rings and embers
+      ctx.scale(1, 0.72);
+      ctx.fillStyle = 'rgba(239, 68, 68, 0.24)';
       ctx.beginPath();
-      ctx.arc(0, 0, 58 + i * 20, 0, Math.PI * 0.85);
-      ctx.stroke();
-      ctx.restore();
+      ctx.arc(0, 0, 125, 0, Math.PI * 2);
+      ctx.fill();
+
+      for (let i = 0; i < 3; i++) {
+        ctx.save();
+        ctx.rotate(-time * 14 + (i * Math.PI * 2) / 3);
+        ctx.strokeStyle = i % 2 === 0 ? '#ef4444' : '#f97316';
+        ctx.lineWidth = 9;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.arc(0, 0, 48 + i * 22, 0, Math.PI * 0.75);
+        ctx.stroke();
+        ctx.restore();
+      }
+    } else if (ultType === 'mercon') {
+      // Mercon Bazooka Aura: Sparks & explosion flash
+      ctx.scale(1, 0.72);
+      ctx.fillStyle = 'rgba(251, 146, 60, 0.25)';
+      ctx.beginPath();
+      ctx.arc(0, 0, 95, 0, Math.PI * 2);
+      ctx.fill();
+
+      for (let i = 0; i < 6; i++) {
+        const sa = (i * Math.PI * 2) / 6 + time * 12;
+        const sr = 35 + ((time * 240 + i * 25) % 65);
+        ctx.fillStyle = '#facc15';
+        ctx.beginPath();
+        ctx.arc(Math.cos(sa) * sr, Math.sin(sa) * sr, 4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    } else {
+      // Badai Gasing Sarung: Classic Whirlwind Vortex
+      ctx.scale(1, 0.72);
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.18)';
+      ctx.beginPath();
+      ctx.arc(0, 0, ULT_RADIUS, 0, Math.PI * 2);
+      ctx.fill();
+
+      for (let i = 0; i < 3; i++) {
+        ctx.save();
+        ctx.rotate(time * 16 + (i * Math.PI * 2) / 3);
+        ctx.strokeStyle = i % 2 === 0 ? palette.sarung : palette.sarungStripe;
+        ctx.lineWidth = 11;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.arc(0, 0, 52 + i * 20, 0, Math.PI * 0.85);
+        ctx.stroke();
+
+        ctx.strokeStyle = '#090c14';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(0, 0, 58 + i * 20, 0, Math.PI * 0.85);
+        ctx.stroke();
+        ctx.restore();
+      }
     }
     ctx.restore();
   }
@@ -94,16 +191,78 @@ export function drawPlayer(ctx: CanvasRenderingContext2D, player: PlayerState, t
     drawTopDownArekRig(ctx, player, palette, time);
   }
 
-  // Player tag badge & custom nickname above head
-  const displayName = player.name ? `${palette.label} • ${player.name}` : palette.label;
+  // 3. Clear, Unmistakable Player Indicator & Nametag Above Head
   ctx.save();
-  ctx.font = '900 10px "Segoe UI", system-ui, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.lineWidth = 3;
-  ctx.strokeStyle = '#090c14';
-  ctx.strokeText(displayName, player.x, player.y - player.z - 62);
-  ctx.fillStyle = '#fde047';
-  ctx.fillText(displayName, player.x, player.y - player.z - 62);
+  const bobY = Math.sin(time * 6) * 3;
+  const tagY = player.y - player.z - 64;
+
+  if (isLocalPlayer && !isMonitor) {
+    // Prominent "▼ KAMU" Beacon Pill — Eliminates all confusion of who is who!
+    const pillW = 54;
+    const pillH = 17;
+    const px = player.x - pillW * 0.5;
+    const py = tagY - 14 + bobY;
+
+    ctx.fillStyle = '#0284c7';
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.roundRect(px, py, pillW, pillH, 8);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '900 10px "Segoe UI", system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('▼ KAMU', player.x, py + 12);
+
+    // Player Nickname underneath
+    if (player.name) {
+      ctx.font = '800 10px "Segoe UI", system-ui, sans-serif';
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = '#090c14';
+      ctx.strokeText(player.name, player.x, tagY + 14);
+      ctx.fillStyle = '#fde047';
+      ctx.fillText(player.name, player.x, tagY + 14);
+    }
+  } else if (isMonitor) {
+    // Monitor Mode: Distinct color-coded badge for each player
+    const monLabel = `▼ ${palette.label}`;
+    ctx.font = '900 11px "Segoe UI", system-ui, sans-serif';
+    const textW = ctx.measureText(monLabel).width + 16;
+    const px = player.x - textW * 0.5;
+    const py = tagY - 14 + bobY;
+
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+    ctx.strokeStyle = palette.accent;
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    ctx.roundRect(px, py, textW, 18, 8);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = palette.accent;
+    ctx.textAlign = 'center';
+    ctx.fillText(monLabel, player.x, py + 13);
+
+    // Name underneath
+    ctx.font = '800 10px "Segoe UI", system-ui, sans-serif';
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = '#090c14';
+    ctx.strokeText(player.name || palette.name.split(' (')[0], player.x, tagY + 14);
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillText(player.name || palette.name.split(' (')[0], player.x, tagY + 14);
+  } else {
+    // Teammate badge in multiplayer
+    const teamLabel = `${palette.label} • ${player.name}`;
+    ctx.font = '900 10px "Segoe UI", system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#090c14';
+    ctx.strokeText(teamLabel, player.x, tagY);
+    ctx.fillStyle = palette.accent;
+    ctx.fillText(teamLabel, player.x, tagY);
+  }
   ctx.restore();
 }
 
@@ -194,14 +353,130 @@ function drawTopDownArekRig(
     ctx.fill();
   }
 
-  ctx.fillStyle = palette.peci;
-  ctx.beginPath();
-  ctx.roundRect(-12, -55 + bob, 24, 12, [6, 6, 2, 2]);
-  ctx.fill();
-  ctx.stroke();
+  // Distinct Headwear & Accessories per Character Silhouette
+  const hg = palette.headgear ?? 'peci_garuda';
+  if (hg === 'udeng_kenjeran') {
+    // Cak Bagus: Udeng segitiga khas Suroboyo + Kacamata hitam
+    ctx.fillStyle = '#1e3a8a';
+    ctx.beginPath();
+    ctx.moveTo(-14, -46 + bob);
+    ctx.lineTo(0, -60 + bob); // pointed peak
+    ctx.lineTo(14, -46 + bob);
+    ctx.lineTo(11, -43 + bob);
+    ctx.lineTo(-11, -43 + bob);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
 
-  ctx.fillStyle = '#facc15';
-  ctx.fillRect(-10, -46 + bob, 20, 2.5);
+    // Batik orange trim on udeng
+    ctx.fillStyle = '#f97316';
+    ctx.fillRect(-10, -46 + bob, 20, 2.5);
+
+    // Kacamata hitam (sunglasses) if facing forward
+    if (!facingUp) {
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(-8, -42 + bob, 7, 5);
+      ctx.fillRect(1, -42 + bob, 7, 5);
+      ctx.strokeStyle = '#64748b';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(-8, -40 + bob);
+      ctx.lineTo(8, -40 + bob);
+      ctx.stroke();
+      ctx.lineWidth = 2.8;
+      ctx.strokeStyle = '#090c14';
+    }
+  } else if (hg === 'blangkon_batik') {
+    // Cak Dimas: Blangkon Jawa Timuran dengan mondolan
+    ctx.fillStyle = '#78350f';
+    ctx.beginPath();
+    ctx.roundRect(-13, -54 + bob, 26, 12, [8, 8, 3, 3]);
+    ctx.fill();
+    ctx.stroke();
+
+    // Mondolan knot behind head
+    ctx.fillStyle = '#451a03';
+    ctx.beginPath();
+    ctx.arc(facingUp ? 0 : -10, -48 + bob, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Batik gold band
+    ctx.fillStyle = '#facc15';
+    ctx.fillRect(-11, -46 + bob, 22, 2.5);
+  } else if (hg === 'baret_bonek') {
+    // Cak Raka: Topi Baret Hijau Bonek miring + Syal loreng
+    ctx.fillStyle = '#15803d';
+    ctx.beginPath();
+    // Tilted beret
+    ctx.moveTo(-14, -45 + bob);
+    ctx.quadraticCurveTo(-16, -58 + bob, 4, -58 + bob);
+    ctx.lineTo(15, -48 + bob);
+    ctx.lineTo(-11, -44 + bob);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Silver emblem pin
+    ctx.fillStyle = '#e2e8f0';
+    ctx.beginPath();
+    ctx.arc(-6, -51 + bob, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Syal leher loreng hijau
+    ctx.fillStyle = '#047857';
+    ctx.fillRect(-8, -32 + bob, 16, 4);
+    ctx.fillStyle = '#022c22';
+    ctx.fillRect(-4, -32 + bob, 4, 4);
+  } else if (hg === 'sorban_putih') {
+    // Cak Yudi: Sorban Putih Melingkar berlapis + ekor sorban
+    ctx.fillStyle = '#f8fafc';
+    ctx.beginPath();
+    ctx.roundRect(-14, -56 + bob, 28, 14, [10, 10, 5, 5]);
+    ctx.fill();
+    ctx.stroke();
+
+    // Sorban folds
+    ctx.strokeStyle = '#cbd5e1';
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.moveTo(-11, -50 + bob);
+    ctx.lineTo(11, -50 + bob);
+    ctx.moveTo(-10, -45 + bob);
+    ctx.lineTo(10, -45 + bob);
+    ctx.stroke();
+    ctx.lineWidth = 2.8;
+    ctx.strokeStyle = '#090c14';
+
+    // Hanging sorban tail over shoulder
+    ctx.fillStyle = '#f8fafc';
+    ctx.beginPath();
+    ctx.roundRect(-14, -44 + bob, 5, 12, 2);
+    ctx.fill();
+    ctx.stroke();
+  } else {
+    // Cak Bima (Default): Peci Hitam Klasik dengan Bros Garuda Emas
+    ctx.fillStyle = palette.peci;
+    ctx.beginPath();
+    ctx.roundRect(-12, -55 + bob, 24, 12, [6, 6, 2, 2]);
+    ctx.fill();
+    ctx.stroke();
+
+    // Gold diamond/Garuda pin
+    ctx.fillStyle = '#facc15';
+    ctx.beginPath();
+    ctx.moveTo(0, -52 + bob);
+    ctx.lineTo(3.5, -48 + bob);
+    ctx.lineTo(0, -44 + bob);
+    ctx.lineTo(-3.5, -48 + bob);
+    ctx.closePath();
+    ctx.fill();
+
+    // Selempang Merah Putih di pundak
+    ctx.fillStyle = '#ef4444';
+    ctx.fillRect(-10, -32 + bob, 20, 3);
+  }
 
   const meleeActive = player.meleeTimer > 0;
   const sarungLen = meleeActive ? 34 : 16;

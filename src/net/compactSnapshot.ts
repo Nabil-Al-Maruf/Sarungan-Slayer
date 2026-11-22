@@ -7,6 +7,7 @@ import type {
   PickupKind,
   PlayerState,
   SoundEvent,
+  UltType,
 } from '../core/types';
 import { createPlayer } from '../entities/player';
 
@@ -37,7 +38,7 @@ export interface CompactSnapshot {
     number?, // shieldHp
     number?, // shieldMaxHp
   ];
-  // Players: [id, name, pal, x, y, z, dx, dy, hp, maxHp, ult, coins, rev, kd, dmgM, cdM, spdM, buffs, pCd, ultT]
+  // Players: [id, name, pal, x, y, z, dx, dy, hp, maxHp, ult, coins, rev, kd, dmgM, cdM, spdM, buffs, pCd, ultT, ultType?]
   pl: Array<
     [
       string,
@@ -60,6 +61,7 @@ export interface CompactSnapshot {
       BuffId[],
       number,
       number,
+      UltType?,
     ]
   >;
   // Enemies: [id, kind, x, y, z, dx, dy, hp, maxHp, flash]
@@ -145,6 +147,7 @@ export function packCompactSnapshot(state: GameState, sounds: SoundEvent[]): Com
       p.pendingBuffChoices,
       Math.round(p.projCooldown * 10) / 10,
       Math.round(p.ultActiveTimer * 100) / 100,
+      p.ultType ?? 'gasing',
     ]),
     en: state.enemies.map((e) => [
       e.id,
@@ -247,6 +250,7 @@ export function packStickSnapshot(state: GameState, targetPlayerId: string): Com
             p.pendingBuffChoices,
             Math.round(p.projCooldown * 10) / 10,
             Math.round(p.ultActiveTimer * 10) / 10,
+            p.ultType ?? 'gasing',
           ],
         ]
       : [],
@@ -298,8 +302,22 @@ export function mergeCompactSnapshot(
     state.survival.mapBannerText = sv[8];
 
     for (const [id, lv, hp, maxHp] of sv[9]) {
-      const bar = state.survival.barricades.find((b) => b.id === id);
-      if (bar) {
+      let bar = state.survival.barricades.find((b) => b.id === id);
+      if (!bar && id === 'bottom') {
+        bar = {
+          id: 'bottom',
+          label: 'BARRICADE BAWAH',
+          x: 434,
+          y: 395,
+          w: 92,
+          h: 26,
+          level: lv as 1 | 2 | 3 | 4,
+          hp,
+          maxHp,
+          hitFlashTimer: 0,
+        };
+        state.survival.barricades.push(bar);
+      } else if (bar) {
         bar.level = lv as 1 | 2 | 3 | 4;
         bar.hp = hp;
         bar.maxHp = maxHp;
@@ -348,6 +366,7 @@ export function mergeCompactSnapshot(
       buffs,
       pCd,
       ultT,
+      ultType,
     ] = row;
 
     playerTargets.set(id, { x: sx, y: sy, z: sz });
@@ -369,6 +388,7 @@ export function mergeCompactSnapshot(
     existing.speedMult = spdM;
     existing.pendingBuffChoices = buffs;
     existing.ultActiveTimer = ultT;
+    if (ultType) existing.ultType = ultType;
 
     // For remote players, update facing & cooldown; for local player, keep local prediction!
     if (id !== localPlayerId) {

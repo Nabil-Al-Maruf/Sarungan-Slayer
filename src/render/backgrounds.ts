@@ -21,6 +21,8 @@ function getOrBuildStaticGround(theme: MapTheme, arenaWidth: number): HTMLCanvas
     drawTunjunganGround(octx, arenaWidth, 0, 0);
   } else if (theme === 'suramadu') {
     drawSuramaduGround(octx, arenaWidth, 0, 0);
+  } else if (theme === 'perempatan') {
+    drawPerempatanGround(octx, arenaWidth, 0, 0);
   } else {
     drawTambakGround(octx, arenaWidth, 0, 0);
   }
@@ -89,6 +91,10 @@ export function drawTopDownMapGround(
   }
   if (theme === 'suramadu') {
     drawSuramaduGround(ctx, arenaWidth, cameraX, time);
+    return;
+  }
+  if (theme === 'perempatan') {
+    drawPerempatanGround(ctx, arenaWidth, cameraX, time);
     return;
   }
   drawTambakGround(ctx, arenaWidth, cameraX, time);
@@ -340,6 +346,143 @@ function drawSuramaduGround(
     ctx.stroke();
   }
   ctx.restore();
+}
+
+function drawPerempatanGround(
+  ctx: CanvasRenderingContext2D,
+  arenaWidth: number,
+  _cameraX: number,
+  _time: number
+): void {
+  // 1. Dark Urban Base Ground (Joyoboyo District Asphalt & Sidewalks)
+  ctx.fillStyle = '#1e293b';
+  ctx.fillRect(0, 0, arenaWidth, VIRTUAL_HEIGHT);
+
+  // 2. The 4 Corner Neighborhood Blocks (Sidewalks, Buildings, Street Food)
+  // Corner Sidewalk concrete base
+  ctx.fillStyle = '#64748b';
+  // NW corner (Top-Left)
+  ctx.fillRect(0, 0, 360, 210);
+  // NE corner (Top-Right)
+  ctx.fillRect(596, 0, arenaWidth - 596, 210);
+  // SW corner (Bottom-Left)
+  ctx.fillRect(0, 404, 360, VIRTUAL_HEIGHT - 404);
+  // SE corner (Bottom-Right)
+  ctx.fillRect(596, 404, arenaWidth - 596, VIRTUAL_HEIGHT - 404);
+
+  // Decorative paving tiles in all 4 corners
+  ctx.fillStyle = '#475569';
+  const tile = 36;
+  for (let y = 0; y < 210; y += tile) {
+    for (let x = 0; x < 360; x += tile) {
+      if ((Math.floor(x / tile) + Math.floor(y / tile)) % 2 === 0) {
+        ctx.fillRect(x, y, tile, tile);
+      }
+    }
+    for (let x = 596; x < arenaWidth; x += tile) {
+      if ((Math.floor(x / tile) + Math.floor(y / tile)) % 2 === 0) {
+        ctx.fillRect(x, y, tile, tile);
+      }
+    }
+  }
+  for (let y = 404; y < VIRTUAL_HEIGHT; y += tile) {
+    for (let x = 0; x < 360; x += tile) {
+      if ((Math.floor(x / tile) + Math.floor(y / tile)) % 2 === 0) {
+        ctx.fillRect(x, y, tile, tile);
+      }
+    }
+    for (let x = 596; x < arenaWidth; x += tile) {
+      if ((Math.floor(x / tile) + Math.floor(y / tile)) % 2 === 0) {
+        ctx.fillRect(x, y, tile, tile);
+      }
+    }
+  }
+
+  // Corner curbs (stone borders facing the streets)
+  ctx.fillStyle = '#cbd5e1';
+  // NW curbs
+  ctx.fillRect(352, 0, 10, 210);
+  ctx.fillRect(0, 202, 360, 10);
+  // NE curbs
+  ctx.fillRect(596, 0, 10, 210);
+  ctx.fillRect(596, 202, arenaWidth - 596, 10);
+  // SW curbs
+  ctx.fillRect(352, 404, 10, VIRTUAL_HEIGHT - 404);
+  ctx.fillRect(0, 404, 360, 10);
+  // SE curbs
+  ctx.fillRect(596, 404, 10, VIRTUAL_HEIGHT - 404);
+  ctx.fillRect(596, 404, arenaWidth - 596, 10);
+
+  // 3. The 4 Intersecting Roads (Asphalt)
+  // Horizontal Highway (West <-> East)
+  ctx.fillStyle = '#334155';
+  ctx.fillRect(0, 212, arenaWidth, 192);
+
+  // Vertical Avenue (North <-> South)
+  ctx.fillRect(362, 0, 234, VIRTUAL_HEIGHT);
+
+  // 4. Central Roundabout / Courtyard Plaza (Around Pos Warkop)
+  ctx.save();
+  ctx.fillStyle = '#d6c3a3';
+  ctx.strokeStyle = '#8b7355';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.roundRect(338, 194, 284, 228, 30);
+  ctx.fill();
+  ctx.stroke();
+
+  // Decorative inner paving circle
+  ctx.strokeStyle = 'rgba(139, 115, 85, 0.45)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(480, 308, 105, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+
+  // 5. Road Markings & Dashed Lines
+  // Yellow center divider for West and East roads
+  ctx.fillStyle = '#facc15';
+  for (let x = 0; x < 320; x += 48) {
+    ctx.fillRect(x, 305, 28, 6);
+  }
+  for (let x = 640; x < arenaWidth; x += 48) {
+    ctx.fillRect(x, 305, 28, 6);
+  }
+  // Yellow center divider for North and South avenues
+  for (let y = 0; y < 180; y += 42) {
+    ctx.fillRect(477, y, 6, 24);
+  }
+  for (let y = 430; y < VIRTUAL_HEIGHT; y += 42) {
+    ctx.fillRect(477, y, 6, 24);
+  }
+
+  // 6. White Zebra Crosswalks on All 4 Approaches
+  ctx.fillStyle = 'rgba(248, 250, 252, 0.78)';
+  // North crosswalk
+  for (let x = 376; x < 580; x += 22) {
+    ctx.fillRect(x, 184, 14, 8);
+  }
+  // South crosswalk
+  for (let x = 376; x < 580; x += 22) {
+    ctx.fillRect(x, 424, 14, 8);
+  }
+  // West crosswalk
+  for (let y = 226; y < 390; y += 22) {
+    ctx.fillRect(324, y, 8, 14);
+  }
+  // East crosswalk
+  for (let y = 226; y < 390; y += 22) {
+    ctx.fillRect(626, y, 8, 14);
+  }
+
+  // 7. Buildings along North edge
+  drawHeritageBuilding(ctx, 16, 6, 150, 110, 'TERMINAL JOYOBOYO', '#fef3c7');
+  drawHeritageBuilding(ctx, 180, 6, 150, 110, 'WARKOP SIMPANG', '#f1f5f9');
+  drawHeritageBuilding(ctx, 620, 6, 150, 110, 'DEPOT BEGAL', '#fed7aa');
+  drawHeritageBuilding(ctx, 785, 6, 150, 110, 'BENGKEL SUROBOYO', '#e2e8f0');
+
+  // North Gapura
+  drawKampungGate(ctx, 396, 16, 168, 96, 'SIMPANG 4 • JOYOBOYO');
 }
 
 function drawHeritageBuilding(

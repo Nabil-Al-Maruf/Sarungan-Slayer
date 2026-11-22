@@ -90,57 +90,61 @@ export function resolveCombat(state: GameState, dt: number): void {
     // 2. 360° Ultimate Vortex (Badai Sarung Suroboyo)
     if (player.ultActiveTimer > 0) {
       player.ultActiveTimer = Math.max(0, player.ultActiveTimer - dt);
-      player.ultTickTimer -= dt;
+      const uType = player.ultType ?? 'gasing';
 
-      const angle = state.time * 18 + Math.random() * Math.PI * 2;
-      const dist = 28 + Math.random() * (ULT_RADIUS - 24);
-      state.particles.push({
-        x: player.x + Math.cos(angle) * dist,
-        y: player.y + Math.sin(angle) * (dist * 0.72),
-        z: 10 + Math.random() * 24,
-        vx: -Math.sin(angle) * 240,
-        vy: Math.cos(angle) * 160,
-        vz: 40 + Math.random() * 60,
-        size: 4 + Math.random() * 4,
-        color: Math.random() < 0.5 ? '#fde047' : '#38bdf8',
-        alpha: 0.9,
-        life: 0.24,
-        maxLife: 0.24,
-        gravity: 0,
-      });
+      if (uType === 'gasing') {
+        player.ultTickTimer -= dt;
 
-      if (player.ultTickTimer <= 0) {
-        player.ultTickTimer = ULT_TICK_INTERVAL;
-        state.soundQueue.push('ult_tick');
-        state.shakeTimer = Math.max(state.shakeTimer, 0.08);
-        state.shakeIntensity = Math.max(state.shakeIntensity, 3);
+        const angle = state.time * 18 + Math.random() * Math.PI * 2;
+        const dist = 28 + Math.random() * (ULT_RADIUS - 24);
+        state.particles.push({
+          x: player.x + Math.cos(angle) * dist,
+          y: player.y + Math.sin(angle) * (dist * 0.72),
+          z: 10 + Math.random() * 24,
+          vx: -Math.sin(angle) * 240,
+          vy: Math.cos(angle) * 160,
+          vz: 40 + Math.random() * 60,
+          size: 4 + Math.random() * 4,
+          color: Math.random() < 0.5 ? '#fde047' : '#38bdf8',
+          alpha: 0.9,
+          life: 0.24,
+          maxLife: 0.24,
+          gravity: 0,
+        });
 
-        for (const enemy of state.enemies) {
-          if (enemy.hp <= 0) continue;
-          const dx = enemy.x - player.x;
-          const dy = enemy.y - player.y;
-          const d = Math.hypot(dx, dy);
-          if (d <= ULT_RADIUS + enemy.radius) {
-            const nx = d > 0.1 ? dx / d : 1;
-            const ny = d > 0.1 ? dy / d : 0;
-            hitEnemy(
-              state,
-              enemy,
-              player,
-              Math.round(ULT_DAMAGE_PER_TICK * player.dmgMult),
-              nx * ULT_KNOCKBACK,
-              ny * ULT_KNOCKBACK,
-              0,
-              false
-            );
+        if (player.ultTickTimer <= 0) {
+          player.ultTickTimer = ULT_TICK_INTERVAL;
+          state.soundQueue.push('ult_tick');
+          state.shakeTimer = Math.max(state.shakeTimer, 0.08);
+          state.shakeIntensity = Math.max(state.shakeIntensity, 3);
+
+          for (const enemy of state.enemies) {
+            if (enemy.hp <= 0) continue;
+            const dx = enemy.x - player.x;
+            const dy = enemy.y - player.y;
+            const d = Math.hypot(dx, dy);
+            if (d <= ULT_RADIUS + enemy.radius) {
+              const nx = d > 0.1 ? dx / d : 1;
+              const ny = d > 0.1 ? dy / d : 0;
+              hitEnemy(
+                state,
+                enemy,
+                player,
+                Math.round(ULT_DAMAGE_PER_TICK * player.dmgMult),
+                nx * ULT_KNOCKBACK,
+                ny * ULT_KNOCKBACK,
+                0,
+                false
+              );
+            }
           }
-        }
 
-        for (const crate of state.crates) {
-          if (crate.hp <= 0) continue;
-          const d = Math.hypot(crate.x - player.x, crate.y - player.y);
-          if (d <= ULT_RADIUS + crate.radius) {
-            damageCrate(state, crate, ULT_DAMAGE_PER_TICK);
+          for (const crate of state.crates) {
+            if (crate.hp <= 0) continue;
+            const d = Math.hypot(crate.x - player.x, crate.y - player.y);
+            if (d <= ULT_RADIUS + crate.radius) {
+              damageCrate(state, crate, ULT_DAMAGE_PER_TICK);
+            }
           }
         }
       }

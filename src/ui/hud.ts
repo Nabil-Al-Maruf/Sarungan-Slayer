@@ -126,11 +126,20 @@ export class HudController {
       player.ultActiveTimer > 0
         ? `${((player.ultActiveTimer / 3) * 100).toFixed(1)}%`
         : `${ultPct.toFixed(1)}%`;
+    const ultType = player.ultType ?? 'gasing';
+    const ultLabelName =
+      ultType === 'petir'
+        ? '⚡ PETIR'
+        : ultType === 'mercon'
+          ? '💥 BAZOOKA'
+          : ultType === 'naga'
+            ? '🐉 NAGA'
+            : '🌀 GASING';
     const ultTxt =
       player.ultActiveTimer > 0
-        ? 'BADAI!'
+        ? `${ultLabelName}!`
         : ultPct >= 100
-          ? 'SIAP!'
+          ? `${ultLabelName} SIAP!`
           : `${Math.floor(ultPct)}%`;
 
     if (this.lastUltWidth !== ultW) {

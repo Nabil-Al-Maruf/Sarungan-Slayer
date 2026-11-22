@@ -2,7 +2,7 @@ import './style.css';
 import { ProceduralAudio } from './audio/sfx';
 import { FIXED_DT, PLAYER_PALETTES, VIRTUAL_HEIGHT, VIRTUAL_WIDTH } from './core/constants';
 import { InputManager } from './core/input';
-import type { BuffId, GameState, PlayerInput } from './core/types';
+import type { BuffId, GameState, PlayerInput, UltType } from './core/types';
 import { createSandboxState, stepSandbox } from './modes/sandbox';
 import {
   createStoryState,
@@ -663,6 +663,17 @@ function refreshShopUI(): void {
   shopTicketsEl.textContent = `${player.reviveTickets}`;
   btnSkipIntermission.classList.toggle('hidden', surv.phase !== 'intermission');
 
+  // Bottom Barricade lock state when wave < 31
+  const bottomBtn = document.getElementById('shop-bar-bottom') as HTMLButtonElement | null;
+  const hasBottom = surv.barricades.some((b) => b.id === 'bottom');
+  if (bottomBtn && !hasBottom) {
+    bottomBtn.disabled = true;
+    const descEl = document.getElementById('shop-bar-bottom-desc');
+    const costEl = document.getElementById('shop-bar-bottom-cost');
+    if (descEl) descEl.textContent = 'Jalur Selatan Terbuka di Wave 31+';
+    if (costEl) costEl.textContent = 'WAVE 31';
+  }
+
   for (const bar of surv.barricades) {
     const info = getBarricadeActionInfo(bar);
     const btn = document.getElementById(`shop-bar-${bar.id}`) as HTMLButtonElement | null;
@@ -723,6 +734,17 @@ function refreshShopUI(): void {
   }
   if (shieldCost) {
     shieldCost.textContent = shieldActive ? 'AKTIF ✓' : '150 Receh';
+  }
+
+  // Active Ultimate Jurus Selection buttons
+  const curUlt = player.ultType ?? 'gasing';
+  const allUlts: UltType[] = ['gasing', 'petir', 'mercon', 'naga'];
+  for (const u of allUlts) {
+    const uBtn = document.getElementById(`shop-ult-${u}`) as HTMLButtonElement | null;
+    const badge = document.getElementById(`shop-ult-badge-${u}`);
+    const isActive = curUlt === u;
+    if (uBtn) uBtn.classList.toggle('active', isActive);
+    if (badge) badge.textContent = isActive ? 'AKTIF ✓' : 'PILIH';
   }
 }
 
@@ -1332,8 +1354,8 @@ btnStartMabar.addEventListener('click', () => {
 
 document.getElementById('btn-close-lobby')!.addEventListener('click', () => openMenu());
 
-// Shop Buttons
-document.querySelectorAll<HTMLButtonElement>('.shop-item-btn[data-item]').forEach((btn) => {
+// Shop & Ultimate Jurus Buttons
+document.querySelectorAll<HTMLButtonElement>('.shop-item-btn[data-item], .shop-ult-btn[data-item]').forEach((btn) => {
   btn.addEventListener('click', () => {
     audio.unlock();
     const itemId = btn.dataset.item as ShopItemId;
@@ -1762,7 +1784,7 @@ function frame(now: number): void {
   }
 
   if (!wsMgr.isStickClient) {
-    renderGame(ctx, state);
+    renderGame(ctx, state, wsMgr.localPlayerId, wsMgr.isMonitor);
   }
   const perfText = wsMgr.connected
     ? `${currentFps} FPS • ${wsMgr.pingMs}ms ${wsMgr.transportMode}`

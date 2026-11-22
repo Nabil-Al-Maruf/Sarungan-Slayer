@@ -17,7 +17,12 @@ interface Renderable {
   draw: () => void;
 }
 
-export function renderGame(ctx: CanvasRenderingContext2D, state: GameState): void {
+export function renderGame(
+  ctx: CanvasRenderingContext2D,
+  state: GameState,
+  localPlayerId = 'p1',
+  isMonitor = false
+): void {
   ctx.save();
   ctx.clearRect(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
 
@@ -93,7 +98,7 @@ export function renderGame(ctx: CanvasRenderingContext2D, state: GameState): voi
   for (const player of state.players) {
     queue.push({
       sortY: player.y,
-      draw: () => drawPlayer(ctx, player, state.time),
+      draw: () => drawPlayer(ctx, player, state.time, player.id === localPlayerId, isMonitor),
     });
   }
 

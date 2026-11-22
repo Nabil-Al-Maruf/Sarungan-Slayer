@@ -2,6 +2,7 @@ import {
   ARENA_MAX_X,
   ARENA_MIN_X,
   PROJ_SPEED,
+  ULT_DEFS,
   VIRTUAL_HEIGHT,
   VIRTUAL_WIDTH,
 } from '../core/constants';
@@ -14,6 +15,7 @@ import type {
   MapTheme,
   PlayerInput,
   PlayerState,
+  UltType,
 } from '../core/types';
 import { resolveCombat } from '../entities/combat';
 import { spawnCrate, updateCratesAndPickups } from '../entities/crate';
@@ -26,6 +28,11 @@ export type ShopItemId =
   | 'barricade_left'
   | 'barricade_top'
   | 'barricade_right'
+  | 'barricade_bottom'
+  | 'ult_gasing'
+  | 'ult_petir'
+  | 'ult_mercon'
+  | 'ult_naga'
   | 'tower_pos'
   | 'upgrade_core'
   | 'shield_core'
@@ -207,6 +214,9 @@ export function saveBestWave(wave: number): void {
 }
 
 export function getThemeForWave(wave: number): { theme: MapTheme; locationName: string } {
+  if (wave >= 31) {
+    return { theme: 'perempatan', locationName: 'SIMPANG EMPAT MAUT • JOYOBOYO' };
+  }
   const block = Math.floor((wave - 1) / 10) % 3;
   if (block === 0) return { theme: 'tambak', locationName: 'KAMPUNG TAMBAK' };
   if (block === 1) return { theme: 'tunjungan', locationName: 'ALUN-ALUN TUNJUNGAN' };
@@ -424,6 +434,27 @@ export function buyShopItem(
     return { ok: true, message: `${bar.label} diperkuat!` };
   }
 
+  if (itemId.startsWith('ult_')) {
+    const newUlt = itemId.replace('ult_', '') as UltType;
+    if (player.ultType === newUlt) {
+      return { ok: false, message: 'Jurus ini sudah aktif!' };
+    }
+    player.ultType = newUlt;
+    state.soundQueue.push('pickup_kopi');
+    const def = ULT_DEFS[newUlt];
+    state.floatingTexts.push({
+      x: player.x,
+      y: player.y - 54,
+      vy: -45,
+      text: `JURUS: ${def.title.toUpperCase()}! ${def.icon}`,
+      color: '#facc15',
+      scale: 1.15,
+      life: 1.4,
+      maxLife: 1.4,
+    });
+    return { ok: true, message: `Jurus diganti: ${def.title}!` };
+  }
+
   if (itemId === 'tower_pos') {
     const curLv = surv.core.towerLevel || 0;
     if (curLv >= 4) {
@@ -576,18 +607,26 @@ function pickZombieKindForWave(wave: number): EnemyKind {
 
 function spawnSurvivalZombie(state: GameState, wave: number): void {
   const kind = pickZombieKindForWave(wave);
-  const lane = Math.floor(Math.random() * 3);
+  const laneCount = wave >= 31 ? 4 : 3;
+  const lane = Math.floor(Math.random() * laneCount);
   let sx = 46;
   let sy = 325;
   if (lane === 0) {
+    // Jalur Barat (Kiri)
     sx = 42;
     sy = 250 + Math.random() * 170;
   } else if (lane === 1) {
+    // Jalur Utara (Atas)
     sx = 415 + Math.random() * 130;
     sy = 142;
-  } else {
+  } else if (lane === 2) {
+    // Jalur Timur (Kanan)
     sx = VIRTUAL_WIDTH - 42;
     sy = 250 + Math.random() * 170;
+  } else {
+    // Jalur Selatan (Bawah) - Khusus Wave 31+
+    sx = 415 + Math.random() * 130;
+    sy = VIRTUAL_HEIGHT - 36;
   }
 
   const z = spawnEnemy(state, kind, sx, sy);
@@ -805,6 +844,23 @@ export function stepSurvival(
       surv.wave++;
       surv.phase = 'wave';
       const isBossWave = surv.wave % 5 === 0;
+
+      // Wave 31+ 4-Way Crossroad: Activate 4th Barricade (Bawah / Selatan)
+      if (surv.wave >= 31 && !surv.barricades.some((b) => b.id === 'bottom')) {
+        surv.barricades.push({
+          id: 'bottom',
+          label: 'BARRICADE BAWAH',
+          x: 434,
+          y: 395,
+          w: 92,
+          h: 26,
+          level: 1,
+          hp: BARRICADE_MAX_HP[1],
+          maxHp: BARRICADE_MAX_HP[1],
+          hitFlashTimer: 0,
+        });
+        state.soundQueue.push('pickup_heal');
+      }
 
       const { theme, locationName } = getThemeForWave(surv.wave);
       const changedMap = theme !== state.theme;
