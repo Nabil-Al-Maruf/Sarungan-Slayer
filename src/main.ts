@@ -22,6 +22,7 @@ import {
   saveBestWave,
   skipIntermission,
   stepSurvival,
+  getCoreUpgradeCost,
   TOWER_TIER_NAME,
   TOWER_UPGRADE_COST,
   type ShopItemId,
@@ -702,11 +703,12 @@ function refreshShopUI(): void {
   const coreHpBtn = document.getElementById('shop-upgrade-core') as HTMLButtonElement | null;
   const coreHpDesc = document.getElementById('shop-upgrade-core-desc');
   const coreHpCost = document.getElementById('shop-upgrade-core-cost');
+  const upCost = getCoreUpgradeCost(surv.core.maxHp);
   if (coreHpBtn) coreHpBtn.disabled = false;
   if (coreHpDesc) {
     coreHpDesc.textContent = `HP Sekarang: ${Math.ceil(surv.core.hp)}/${surv.core.maxHp} • Tambah +200 Max HP`;
   }
-  if (coreHpCost) coreHpCost.textContent = '75 Receh';
+  if (coreHpCost) coreHpCost.textContent = `${upCost} Receh`;
 
   // Pos Warkop 1-Wave Energy Shield (Tameng Gaib)
   const shieldBtn = document.getElementById('shop-shield-core') as HTMLButtonElement | null;
@@ -720,7 +722,7 @@ function refreshShopUI(): void {
       : 'Perisai pelindung Pos Ronda (1 Wave) + Sengat Zombie';
   }
   if (shieldCost) {
-    shieldCost.textContent = shieldActive ? 'AKTIF ✓' : '65 Receh';
+    shieldCost.textContent = shieldActive ? 'AKTIF ✓' : '150 Receh';
   }
 }
 

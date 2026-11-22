@@ -175,11 +175,16 @@ export const TOWER_TIER_NAME: Record<1 | 2 | 3 | 4, string> = {
 };
 
 export const TOWER_UPGRADE_COST: Record<1 | 2 | 3 | 4, number> = {
-  1: 70,  // Beli Senjata Lv.1
-  2: 110, // Upgrade ke Lv.2
-  3: 160, // Upgrade ke Lv.3
-  4: 230, // Upgrade ke Lv.4
+  1: 180, // Beli Senjata Lv.1 (Ketapel Krikil)
+  2: 320, // Upgrade ke Lv.2 (Pecut Mercon Bumbung)
+  3: 550, // Upgrade ke Lv.3 (Meriam Bambu Karbit)
+  4: 900, // Upgrade ke Lv.4 (Gatling Kembang Api Suramadu)
 };
+
+export function getCoreUpgradeCost(maxHp: number): number {
+  const tiers = Math.max(0, Math.round((maxHp - 500) / 200));
+  return 180 + tiers * 90; // 180 -> 270 -> 360 -> 450 -> 540...
+}
 
 export function loadBestWave(): number {
   try {
@@ -354,17 +359,19 @@ export function getBarricadeActionInfo(bar: BarricadeState): {
   if (bar.hp <= 0) {
     return {
       actionLabel: `Bangun Ulang (Lv.1 ${BARRICADE_TIER_NAME[1]})`,
-      cost: 45,
+      cost: 95,
       disabled: false,
     };
   }
   if (bar.hp < bar.maxHp) {
-    const repairCost = Math.max(25, Math.round(35 * (bar.level * 0.75)));
+    const baseRepairs: Record<1 | 2 | 3 | 4, number> = { 1: 50, 2: 85, 3: 130, 4: 190 };
+    const repairCost = baseRepairs[bar.level] ?? 60;
     return { actionLabel: `Perbaiki Penuh (Lv.${bar.level})`, cost: repairCost, disabled: false };
   }
   if (bar.level < 4) {
     const nextLv = (bar.level + 1) as 2 | 3 | 4;
-    const cost = nextLv === 2 ? 80 : nextLv === 3 ? 140 : 210;
+    const upgradeCosts: Record<2 | 3 | 4, number> = { 2: 160, 3: 320, 4: 580 };
+    const cost = upgradeCosts[nextLv];
     return {
       actionLabel: `Upgrade → Lv.${nextLv} ${BARRICADE_TIER_NAME[nextLv]}`,
       cost,
@@ -445,7 +452,7 @@ export function buyShopItem(
   }
 
   if (itemId === 'upgrade_core') {
-    const cost = 75;
+    const cost = getCoreUpgradeCost(surv.core.maxHp);
     if (player.coins < cost) return { ok: false, message: 'Uang Receh kurang rek!' };
     player.coins -= cost;
     surv.core.maxHp += 200;
@@ -465,7 +472,7 @@ export function buyShopItem(
   }
 
   if (itemId === 'shield_core') {
-    const cost = 65;
+    const cost = 150;
     if (surv.core.shieldActive && surv.core.shieldHp > 0) {
       return { ok: false, message: 'Tameng Gaib sudah aktif untuk wave ini!' };
     }
@@ -489,7 +496,7 @@ export function buyShopItem(
   }
 
   if (itemId === 'tiket_revive') {
-    const cost = 100;
+    const cost = 200;
     if (player.coins < cost) return { ok: false, message: 'Uang Receh kurang rek!' };
 
     const downed = state.players.find((p) => p.knockedDown);
@@ -507,7 +514,7 @@ export function buyShopItem(
   }
 
   if (itemId === 'es_teh_jumbo') {
-    const cost = 55;
+    const cost = 110;
     if (player.coins < cost) return { ok: false, message: 'Uang Receh kurang rek!' };
     player.coins -= cost;
     player.hp = player.maxHp;
@@ -527,7 +534,7 @@ export function buyShopItem(
   }
 
   if (itemId === 'kopi_pekat') {
-    const cost = 75;
+    const cost = 160;
     if (player.coins < cost) return { ok: false, message: 'Uang Receh kurang rek!' };
     player.coins -= cost;
     player.ult = player.maxUlt;
