@@ -3,6 +3,11 @@ import type { GameState } from '../core/types';
 
 export class HudController {
   private badgeEl = document.getElementById('hud-player-badge')!;
+  private personalBarsEl = document.getElementById('hud-personal-bars')!;
+  private monitorTeamStripEl = document.getElementById('monitor-team-strip')!;
+  private pecutPillEl = document.getElementById('hud-pecut-pill')!;
+  private paletteBtnEl = document.getElementById('btn-palette')!;
+  private touchToggleBtnEl = document.getElementById('btn-touch-toggle')!;
   private hpFillEl = document.getElementById('hud-hp-fill')!;
   private hpTextEl = document.getElementById('hud-hp-text')!;
   private ultFillEl = document.getElementById('hud-ult-fill')!;
@@ -32,11 +37,15 @@ export class HudController {
   private lastCoinsText = '';
   private lastIsSurvival = false;
   private lastPerfText = '';
+  private lastMonitorHtml = '';
+  private lastWasMonitor: boolean | null = null;
 
-  public update(state: GameState, localPlayerId = 'p1', perfText = '60 FPS'): void {
-    const player = state.players.find((p) => p.id === localPlayerId) ?? state.players[0];
-    if (!player) return;
-
+  public update(
+    state: GameState,
+    localPlayerId = 'p1',
+    perfText = '60 FPS',
+    isMonitor = false
+  ): void {
     if (this.lastPerfText !== perfText) {
       this.lastPerfText = perfText;
       this.perfEl.textContent = perfText;
@@ -46,6 +55,47 @@ export class HudController {
       this.lastModeTitle = state.stageTitle;
       this.modeTitleEl.textContent = state.stageTitle;
     }
+
+    const koTxt = `KO: ${state.koCount}`;
+    if (this.lastKoText !== koTxt) {
+      this.lastKoText = koTxt;
+      this.koCountEl.textContent = koTxt;
+    }
+
+    if (this.lastWasMonitor !== isMonitor) {
+      this.lastWasMonitor = isMonitor;
+      this.personalBarsEl.classList.toggle('hidden', isMonitor);
+      this.monitorTeamStripEl.classList.toggle('hidden', !isMonitor);
+      this.pecutPillEl.classList.toggle('hidden', isMonitor);
+      this.paletteBtnEl.classList.toggle('hidden', isMonitor);
+      this.touchToggleBtnEl.classList.toggle('hidden', isMonitor);
+      if (isMonitor) {
+        this.coinsEl.classList.add('hidden');
+        this.warungHudBtn.classList.add('hidden');
+        this.lastBadge = 'TV';
+        this.badgeEl.textContent = '📺';
+        this.badgeEl.style.background = '#0284c7';
+      }
+    }
+
+    if (isMonitor) {
+      const stripHtml = state.players
+        .map((pl) => {
+          const pal = PLAYER_PALETTES[pl.paletteIndex % PLAYER_PALETTES.length];
+          const hpPct = Math.max(0, Math.min(100, (pl.hp / Math.max(1, pl.maxHp)) * 100));
+          const dead = pl.hp <= 0 || pl.knockedDown;
+          return `<div class="mon-chip${dead ? ' dead' : ''}"><span class="mon-dot" style="background:${pal.accent}">${pl.id.toUpperCase()}</span><div class="mon-info"><div class="mon-top"><b>${pl.name}</b><span>🪙${pl.coins}</span></div><div class="mon-bar"><div class="mon-bar-fill" style="width:${hpPct.toFixed(0)}%;background:${pal.accent}"></div></div></div></div>`;
+        })
+        .join('');
+      if (this.lastMonitorHtml !== stripHtml) {
+        this.lastMonitorHtml = stripHtml;
+        this.monitorTeamStripEl.innerHTML = stripHtml;
+      }
+      return;
+    }
+
+    const player = state.players.find((p) => p.id === localPlayerId) ?? state.players[0];
+    if (!player) return;
 
     const palette = PLAYER_PALETTES[player.paletteIndex % PLAYER_PALETTES.length];
     if (this.lastBadge !== palette.label) {
@@ -113,13 +163,7 @@ export class HudController {
       if (this.vbtnProjCdEl) this.vbtnProjCdEl.textContent = cdLabel;
     }
 
-    // KO counter & Survival Coins/Warung button
-    const koTxt = `KO: ${state.koCount}`;
-    if (this.lastKoText !== koTxt) {
-      this.lastKoText = koTxt;
-      this.koCountEl.textContent = koTxt;
-    }
-
+    // Survival Coins/Warung button
     const isSurvival = state.mode === 'survival';
     if (this.lastIsSurvival !== isSurvival) {
       this.lastIsSurvival = isSurvival;

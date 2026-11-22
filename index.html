@@ -18,7 +18,7 @@
         <header id="hud" class="hud" aria-label="Status Pemain">
           <div class="hud-left">
             <div class="player-badge" id="hud-player-badge">P1</div>
-            <div class="bars-stack">
+            <div class="bars-stack" id="hud-personal-bars">
               <div class="bar-row">
                 <span class="bar-label">HP</span>
                 <div class="bar-track hp-track">
@@ -34,11 +34,12 @@
                 <span id="hud-ult-text" class="bar-val">0%</span>
               </div>
             </div>
+            <div id="monitor-team-strip" class="monitor-team-strip hidden"></div>
           </div>
 
           <div class="hud-center">
             <div id="hud-mode-title" class="mode-pill">FASE 1 • ARENA LATIHAN TAMBAK</div>
-            <div class="cooldown-pill">
+            <div class="cooldown-pill" id="hud-pecut-pill">
               <span>PECUT</span>
               <div class="cd-track">
                 <div id="hud-proj-fill" class="cd-fill" style="width: 100%"></div>

@@ -861,6 +861,7 @@ btnRetryStage.addEventListener('click', () => {
       if (wsMgr.isHost) {
         wsMgr.sendStartGame();
       } else {
+        setStickMode(false);
         wsMgr.disconnect(true);
         openLobby();
       }
@@ -1172,11 +1173,11 @@ function frame(now: number): void {
 
   if (!wsMgr.isStickClient) {
     renderGame(ctx, state);
-    const perfText = wsMgr.connected
-      ? `${currentFps} FPS • ${wsMgr.pingMs}ms ${wsMgr.transportMode}`
-      : `${currentFps} FPS`;
-    hud.update(state, wsMgr.localPlayerId, perfText);
   }
+  const perfText = wsMgr.connected
+    ? `${currentFps} FPS • ${wsMgr.pingMs}ms ${wsMgr.transportMode}`
+    : `${currentFps} FPS`;
+  hud.update(state, wsMgr.localPlayerId, perfText, wsMgr.isMonitor);
   requestAnimationFrame(frame);
 }
 
