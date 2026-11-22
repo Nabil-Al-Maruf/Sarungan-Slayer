@@ -844,10 +844,15 @@ export class WsManager {
       this.sendWs({ type: 'ping', ts: now });
     }
 
-    // Quantize analog to 0.2 steps & throttle pure movement to 20Hz for 1 Mbps smoothness;
-    // action buttons (kibas/pecut/dash/lompat/ult) ALWAYS send immediately (0ms)!
-    const qx = typeof input.moveX === 'number' ? Math.round(input.moveX * 5) / 5 : 0;
-    const qy = typeof input.moveY === 'number' ? Math.round(input.moveY * 5) / 5 : 0;
+    // High-precision analog movement:
+    // When on Local/Hotspot mode or good ping (< 100ms): 40Hz (25ms interval) with 0.05 step precision!
+    // When low-bandwidth or laggy: 20Hz (50ms interval) with 0.1 step precision.
+    const isFastLink = this.connectionMode === 'hotspot' || (!this.lowBandwidthMode && this.pingMs < 100);
+    const stepMult = isFastLink ? 20 : 10;
+    const minIntervalMs = isFastLink ? 25 : 50;
+
+    const qx = typeof input.moveX === 'number' ? Math.round(input.moveX * stepMult) / stepMult : 0;
+    const qy = typeof input.moveY === 'number' ? Math.round(input.moveY * stepMult) / stepMult : 0;
     const heldSig = `${input.up ? 1 : 0}${input.down ? 1 : 0}${input.left ? 1 : 0}${input.right ? 1 : 0}:${qx},${qy}`;
     const hasAction =
       input.jumpPressed ||
@@ -861,7 +866,7 @@ export class WsManager {
     }
 
     const isStopping = qx === 0 && qy === 0 && !input.up && !input.down && !input.left && !input.right;
-    if (!hasAction && !isStopping && now - this.lastMoveSendTs < 50) {
+    if (!hasAction && !isStopping && now - this.lastMoveSendTs < minIntervalMs) {
       return;
     }
 

@@ -1614,13 +1614,19 @@ function frame(now: number): void {
           showResultIfNeeded();
         } else {
           snapshotAccum += FIXED_DT;
-          // Adaptive rate for 1 Mbps mobile smoothness: 10Hz for Monitor->Stick, 12-15Hz for full-screen clients
+          // Dynamic adaptive rate:
+          // Local/Hotspot or fast ping (<60ms): 25Hz (0.04s) for fluid 60 FPS rendering!
+          // Normal online: 20Hz (0.05s)
+          // High latency (>120ms) or Low-BW: 12-15Hz (0.066-0.08s)
+          const isLocalOrFast = wsMgr.connectionMode === 'hotspot' || wsMgr.pingMs < 60;
           const snapInterval =
-            wsMgr.isMonitor || wsMgr.lowBandwidthMode
-              ? 0.1
-              : wsMgr.pingMs > 120
-                ? 0.08
-                : 0.066;
+            wsMgr.lowBandwidthMode
+              ? 0.08
+              : isLocalOrFast
+                ? 0.04
+                : wsMgr.pingMs > 120
+                  ? 0.08
+                  : 0.05;
           if (snapshotAccum >= snapInterval) {
             snapshotAccum = 0;
             wsMgr.broadcastCompactSnapshot(state, state.soundQueue);
