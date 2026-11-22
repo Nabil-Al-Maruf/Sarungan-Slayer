@@ -41,6 +41,8 @@ export class InputManager {
   private pendingPresses = new Set<VirtualAction>();
   private analogX = 0;
   private analogY = 0;
+  private lastTouchMeleeTime = 0;
+  private lastTouchProjTime = 0;
   private prevState: Record<VirtualAction, boolean> = {
     up: false,
     down: false,
@@ -154,9 +156,18 @@ export class InputManager {
       return (held && !this.prevState[action]) || this.pendingPresses.has(action);
     };
 
-    // Holding KIBAS or PECUT on mobile touch auto-fires when cooldown is ready!
-    const touchAutoMelee = this.touchHeld.has('melee');
-    const touchAutoProj = this.touchHeld.has('proj');
+    // Holding KIBAS or PECUT on mobile touch auto-fires smoothly every ~220ms (not 60Hz spam!)
+    const now = performance.now();
+    let touchAutoMelee = false;
+    if (this.touchHeld.has('melee') && now - this.lastTouchMeleeTime >= 220) {
+      this.lastTouchMeleeTime = now;
+      touchAutoMelee = true;
+    }
+    let touchAutoProj = false;
+    if (this.touchHeld.has('proj') && now - this.lastTouchProjTime >= 260) {
+      this.lastTouchProjTime = now;
+      touchAutoProj = true;
+    }
 
     const input: PlayerInput = {
       up,

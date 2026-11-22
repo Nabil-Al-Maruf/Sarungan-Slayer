@@ -58,7 +58,9 @@ export class WsManager {
   private connectTimeout: number | null = null;
   private lastSentHeld = '';
   private callbacks: WsCallbacks;
-  private latestServerState: GameState | null = null;
+  // Authoritative server target coordinates (never mutated by render state!)
+  private serverPlayerTargets = new Map<string, { x: number; y: number; z: number }>();
+  private serverEnemyTargets = new Map<number, { x: number; y: number; z: number }>();
 
   constructor(callbacks: WsCallbacks) {
     this.callbacks = callbacks;
@@ -106,7 +108,8 @@ export class WsManager {
     this.localPlayerId = 'p1';
     this.lobbyPlayers = [];
     this.lastSentHeld = '';
-    this.latestServerState = null;
+    this.serverPlayerTargets.clear();
+    this.serverEnemyTargets.clear();
 
     if (prevWs) {
       prevWs.onopen = null;
@@ -202,7 +205,8 @@ export class WsManager {
         this.callbacks.onLobbyUpdate(msg.roomCode, msg.players, msg.yourPlayerId, msg.isHost);
       } else if (msg.type === 'start_game') {
         this.lastSentHeld = '';
-        this.latestServerState = null;
+        this.serverPlayerTargets.clear();
+        this.serverEnemyTargets.clear();
         this.callbacks.onGameStart();
       } else if (msg.type === 'snapshot') {
         if (msg.state.status !== 'playing') {
@@ -210,7 +214,15 @@ export class WsManager {
           msg.state.shakeIntensity = 0;
           msg.state.hitstopTimer = 0;
         }
-        this.latestServerState = msg.state;
+        // Record true authoritative server coordinates before any render-state smoothing
+        this.serverPlayerTargets.clear();
+        for (const p of msg.state.players) {
+          this.serverPlayerTargets.set(p.id, { x: p.x, y: p.y, z: p.z });
+        }
+        this.serverEnemyTargets.clear();
+        for (const e of msg.state.enemies) {
+          this.serverEnemyTargets.set(e.id, { x: e.x, y: e.y, z: e.z });
+        }
         this.callbacks.onSnapshot(msg.state);
       } else if (msg.type === 'shop_result') {
         this.callbacks.onShopResult(msg.ok, msg.message);
@@ -285,13 +297,12 @@ export class WsManager {
     localInput: PlayerInput,
     dt: number
   ): void {
-    const target = this.latestServerState;
-    if (!target || renderState.status !== 'playing') return;
+    if (renderState.status !== 'playing') return;
 
     const lerpAlpha = Math.min(1, dt * 16);
 
     for (const rp of renderState.players) {
-      const tp = target.players.find((p) => p.id === rp.id);
+      const tp = this.serverPlayerTargets.get(rp.id);
       if (!tp) continue;
 
       if (rp.id === this.localPlayerId && !rp.knockedDown) {
@@ -345,7 +356,7 @@ export class WsManager {
     }
 
     for (const re of renderState.enemies) {
-      const te = target.enemies.find((e) => e.id === re.id);
+      const te = this.serverEnemyTargets.get(re.id);
       if (!te) continue;
       re.x += (te.x - re.x) * lerpAlpha;
       re.y += (te.y - re.y) * lerpAlpha;

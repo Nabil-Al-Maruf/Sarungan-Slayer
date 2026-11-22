@@ -1,6 +1,35 @@
 import { VIRTUAL_HEIGHT, VIRTUAL_WIDTH } from '../core/constants';
 import type { MapTheme, Obstacle } from '../core/types';
 
+let cachedBgCanvas: HTMLCanvasElement | null = null;
+let cachedBgKey = '';
+
+function getOrBuildStaticGround(theme: MapTheme, arenaWidth: number): HTMLCanvasElement | null {
+  if (typeof document === 'undefined') return null;
+  const key = `${theme}:${arenaWidth}`;
+  if (cachedBgCanvas && cachedBgKey === key) {
+    return cachedBgCanvas;
+  }
+
+  const off = cachedBgCanvas ?? document.createElement('canvas');
+  off.width = arenaWidth;
+  off.height = VIRTUAL_HEIGHT;
+  const octx = off.getContext('2d');
+  if (!octx) return null;
+
+  if (theme === 'tunjungan') {
+    drawTunjunganGround(octx, arenaWidth, 0, 0);
+  } else if (theme === 'suramadu') {
+    drawSuramaduGround(octx, arenaWidth, 0, 0);
+  } else {
+    drawTambakGround(octx, arenaWidth, 0, 0);
+  }
+
+  cachedBgCanvas = off;
+  cachedBgKey = key;
+  return off;
+}
+
 export function drawTopDownMapGround(
   ctx: CanvasRenderingContext2D,
   theme: MapTheme,
@@ -8,6 +37,52 @@ export function drawTopDownMapGround(
   cameraX: number,
   time: number
 ): void {
+  const cached = getOrBuildStaticGround(theme, arenaWidth);
+  if (cached) {
+    const sx = Math.max(0, Math.min(arenaWidth - VIRTUAL_WIDTH, Math.round(cameraX)));
+    ctx.drawImage(
+      cached,
+      sx,
+      0,
+      VIRTUAL_WIDTH,
+      VIRTUAL_HEIGHT,
+      sx,
+      0,
+      VIRTUAL_WIDTH,
+      VIRTUAL_HEIGHT
+    );
+
+    // Lightweight animated accents only (1-6 strokes/frame instead of 300+ vector shapes!)
+    if (theme === 'tambak') {
+      const wave = Math.sin(time * 2.5) * 4;
+      ctx.save();
+      ctx.strokeStyle = 'rgba(224, 242, 254, 0.55)';
+      ctx.lineWidth = 2.5;
+      for (let seg = 0; seg < arenaWidth; seg += 960) {
+        if (seg + 200 < cameraX || seg > cameraX + VIRTUAL_WIDTH) continue;
+        ctx.beginPath();
+        ctx.moveTo(seg + 45 + wave, 502);
+        ctx.lineTo(seg + 95 + wave, 502);
+        ctx.stroke();
+      }
+      ctx.restore();
+    } else if (theme === 'suramadu') {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(186, 230, 253, 0.22)';
+      ctx.lineWidth = 2;
+      for (let i = 0; i < 6; i++) {
+        const wx = cameraX + VIRTUAL_WIDTH - (((time * 340 + i * 210) % (VIRTUAL_WIDTH + 180)) - 90);
+        const wy = 155 + i * 62;
+        ctx.beginPath();
+        ctx.moveTo(wx, wy);
+        ctx.lineTo(wx + 65, wy + 4);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+    return;
+  }
+
   if (theme === 'tunjungan') {
     drawTunjunganGround(ctx, arenaWidth, cameraX, time);
     return;
@@ -26,11 +101,11 @@ function drawTambakGround(
   time: number
 ): void {
   const startX = Math.max(0, Math.floor(cameraX / 48) * 48 - 48);
-  const endX = Math.min(arenaWidth, cameraX + VIRTUAL_WIDTH + 96);
+  const endX = arenaWidth;
 
   // 1. Lush village grass
   ctx.fillStyle = '#5c9e47';
-  ctx.fillRect(cameraX, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
+  ctx.fillRect(0, 0, arenaWidth, VIRTUAL_HEIGHT);
 
   const tile = 48;
   ctx.fillStyle = '#549340';
@@ -95,10 +170,9 @@ function drawTambakGround(
 
   // 4. North Row of 3/4 Kampung Houses + Gapura
   ctx.fillStyle = 'rgba(15, 23, 42, 0.22)';
-  ctx.fillRect(cameraX, 114, VIRTUAL_WIDTH, 18);
+  ctx.fillRect(0, 114, arenaWidth, 18);
 
   for (let seg = 0; seg < arenaWidth; seg += 960) {
-    if (seg + 960 < cameraX - 80 || seg > cameraX + VIRTUAL_WIDTH + 80) continue;
     drawTopDownHouse(ctx, seg + 18, 6, 178, 114, '#f5e6ca', '#b45309', '#92400e');
     drawTopDownHouse(ctx, seg + 212, 12, 164, 108, '#e2e8f0', '#9a3412', '#7c2d12');
     drawKampungGate(
@@ -120,31 +194,31 @@ function drawTunjunganGround(
   cameraX: number,
   _time: number
 ): void {
-  const endX = Math.min(arenaWidth, cameraX + VIRTUAL_WIDTH + 96);
+  const endX = arenaWidth;
 
   // 1. Warm Golden-Hour Tunjungan Sidewalk (Top & Bottom)
   ctx.fillStyle = '#d6c7b2';
-  ctx.fillRect(cameraX, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
+  ctx.fillRect(0, 0, arenaWidth, VIRTUAL_HEIGHT);
 
   // 2. Wide Heritage Asphalt Road (Jalan Tunjungan)
   ctx.fillStyle = '#475569';
-  ctx.fillRect(cameraX, 175, VIRTUAL_WIDTH, 315);
+  ctx.fillRect(0, 175, arenaWidth, 315);
 
   // Warm sunset tint on asphalt
   ctx.fillStyle = 'rgba(251, 146, 60, 0.14)';
-  ctx.fillRect(cameraX, 175, VIRTUAL_WIDTH, 315);
+  ctx.fillRect(0, 175, arenaWidth, 315);
 
   // Curb borders
   ctx.fillStyle = '#94a3b8';
-  ctx.fillRect(cameraX, 165, VIRTUAL_WIDTH, 14);
-  ctx.fillRect(cameraX, 486, VIRTUAL_WIDTH, 14);
+  ctx.fillRect(0, 165, arenaWidth, 14);
+  ctx.fillRect(0, 486, arenaWidth, 14);
   ctx.strokeStyle = '#090c14';
   ctx.lineWidth = 2.5;
   ctx.beginPath();
-  ctx.moveTo(cameraX, 179);
-  ctx.lineTo(cameraX + VIRTUAL_WIDTH, 179);
-  ctx.moveTo(cameraX, 486);
-  ctx.lineTo(cameraX + VIRTUAL_WIDTH, 486);
+  ctx.moveTo(0, 179);
+  ctx.lineTo(arenaWidth, 179);
+  ctx.moveTo(0, 486);
+  ctx.lineTo(arenaWidth, 486);
   ctx.stroke();
 
   // Dashed yellow Tunjungan road divider
@@ -163,11 +237,10 @@ function drawTunjunganGround(
 
   // 3. North Heritage Colonial Buildings (Tunjungan / Siola / Hotel Majapahit style)
   ctx.fillStyle = 'rgba(15, 23, 42, 0.22)';
-  ctx.fillRect(cameraX, 114, VIRTUAL_WIDTH, 18);
+  ctx.fillRect(0, 114, arenaWidth, 18);
 
   const signs = ['TOKO TUNJUNGAN', 'GEDUNG SIOLA', 'WARKOP HERITAGE', 'BIOSKOP KUNO'];
   for (let x = 0; x < arenaWidth; x += 240) {
-    if (x + 240 < cameraX - 40 || x > cameraX + VIRTUAL_WIDTH + 40) continue;
     const idx = Math.floor(x / 240) % signs.length;
     drawHeritageBuilding(ctx, x + 8, 4, 224, 116, signs[idx], idx % 2 === 0 ? '#fef3c7' : '#f1f5f9');
   }
@@ -179,32 +252,29 @@ function drawSuramaduGround(
   cameraX: number,
   time: number
 ): void {
-  const endX = Math.min(arenaWidth, cameraX + VIRTUAL_WIDTH + 96);
+  const endX = arenaWidth;
 
   // 1. Night Sea Water (Madura Strait) at top & bottom strips
   ctx.fillStyle = '#0f172a';
-  ctx.fillRect(cameraX, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
+  ctx.fillRect(0, 0, arenaWidth, VIRTUAL_HEIGHT);
 
   // Twinkling distant city lights on horizon (y: 0..64)
   ctx.fillStyle = '#fde047';
   for (let x = Math.floor(cameraX / 70) * 70; x < endX; x += 70) {
-    const twinkle = Math.sin(time * 3 + x * 0.05) > 0 ? 1 : 0.45;
-    ctx.globalAlpha = twinkle;
     ctx.fillRect(x + 18, 22 + (x % 24), 4, 4);
     ctx.fillStyle = x % 140 === 0 ? '#38bdf8' : '#fb923c';
     ctx.fillRect(x + 44, 34 + (x % 18), 3, 3);
     ctx.fillStyle = '#fde047';
   }
-  ctx.globalAlpha = 1;
 
   // 2. Suramadu Bridge Asphalt Deck (y: 112..512)
   ctx.fillStyle = '#1e293b';
-  ctx.fillRect(cameraX, 112, VIRTUAL_WIDTH, 404);
+  ctx.fillRect(0, 112, arenaWidth, 404);
 
   // Bridge Guardrails (Top & Bottom)
   ctx.fillStyle = '#475569';
-  ctx.fillRect(cameraX, 104, VIRTUAL_WIDTH, 16);
-  ctx.fillRect(cameraX, 508, VIRTUAL_WIDTH, 16);
+  ctx.fillRect(0, 104, arenaWidth, 16);
+  ctx.fillRect(0, 508, arenaWidth, 16);
 
   // Glowing cyan/gold LED bridge lights along top rail
   for (let x = Math.floor(cameraX / 120) * 120; x < endX; x += 120) {
@@ -220,8 +290,8 @@ function drawSuramaduGround(
 
   // Yellow & white highway lane markings
   ctx.fillStyle = '#facc15';
-  ctx.fillRect(cameraX, 308, VIRTUAL_WIDTH, 5);
-  ctx.fillRect(cameraX, 318, VIRTUAL_WIDTH, 5);
+  ctx.fillRect(0, 308, arenaWidth, 5);
+  ctx.fillRect(0, 318, arenaWidth, 5);
 
   ctx.fillStyle = 'rgba(248, 250, 252, 0.6)';
   for (let x = Math.floor(cameraX / 100) * 100; x < endX; x += 100) {
@@ -231,7 +301,6 @@ function drawSuramaduGround(
 
   // 3. Iconic Suramadu Cable-Stayed Pylons & Cables (along north bridge edge)
   for (let px = 480; px < arenaWidth; px += 960) {
-    if (px + 420 < cameraX || px - 420 > cameraX + VIRTUAL_WIDTH) continue;
     ctx.save();
     // Diagonal stay cables
     ctx.strokeStyle = 'rgba(226, 232, 240, 0.42)';

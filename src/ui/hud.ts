@@ -18,60 +18,113 @@ export class HudController {
   private vbtnProjEl = document.getElementById('vbtn-proj');
   private vbtnProjCdEl = document.getElementById('vbtn-proj-cd');
 
+  private lastModeTitle = '';
+  private lastBadge = '';
+  private lastHpText = '';
+  private lastHpWidth = '';
+  private lastUltText = '';
+  private lastUltWidth = '';
+  private lastUltReady = false;
+  private lastProjText = '';
+  private lastProjWidth = '';
+  private lastKoText = '';
+  private lastCoinsText = '';
+  private lastIsSurvival = false;
+
   public update(state: GameState, localPlayerId = 'p1'): void {
     const player = state.players.find((p) => p.id === localPlayerId) ?? state.players[0];
     if (!player) return;
 
-    this.modeTitleEl.textContent = state.stageTitle;
+    if (this.lastModeTitle !== state.stageTitle) {
+      this.lastModeTitle = state.stageTitle;
+      this.modeTitleEl.textContent = state.stageTitle;
+    }
 
     const palette = PLAYER_PALETTES[player.paletteIndex % PLAYER_PALETTES.length];
-    this.badgeEl.textContent = palette.label;
-    this.badgeEl.style.background = palette.accent;
+    if (this.lastBadge !== palette.label) {
+      this.lastBadge = palette.label;
+      this.badgeEl.textContent = palette.label;
+      this.badgeEl.style.background = palette.accent;
+    }
 
     // HP Bar
     const hpPct = Math.max(0, Math.min(100, (player.hp / player.maxHp) * 100));
-    this.hpFillEl.style.width = `${hpPct}%`;
-    this.hpTextEl.textContent = `${Math.ceil(player.hp)}/${player.maxHp}`;
+    const hpW = `${hpPct.toFixed(1)}%`;
+    const hpTxt = `${Math.ceil(player.hp)}/${player.maxHp}`;
+    if (this.lastHpWidth !== hpW) {
+      this.lastHpWidth = hpW;
+      this.hpFillEl.style.width = hpW;
+    }
+    if (this.lastHpText !== hpTxt) {
+      this.lastHpText = hpTxt;
+      this.hpTextEl.textContent = hpTxt;
+    }
 
     // Ultimate Bar
     const ultPct = Math.max(0, Math.min(100, (player.ult / player.maxUlt) * 100));
     const ultReady = ultPct >= 100 || player.ultActiveTimer > 0;
-    this.ultFillEl.style.width =
-      player.ultActiveTimer > 0 ? `${(player.ultActiveTimer / 3) * 100}%` : `${ultPct}%`;
-    this.ultFillEl.classList.toggle('ready', ultReady);
-    this.ultTextEl.textContent =
+    const ultW =
+      player.ultActiveTimer > 0
+        ? `${((player.ultActiveTimer / 3) * 100).toFixed(1)}%`
+        : `${ultPct.toFixed(1)}%`;
+    const ultTxt =
       player.ultActiveTimer > 0
         ? 'BADAI!'
         : ultPct >= 100
           ? 'SIAP!'
           : `${Math.floor(ultPct)}%`;
 
-    if (this.vbtnUltEl) {
-      this.vbtnUltEl.classList.toggle('ready', ultReady);
+    if (this.lastUltWidth !== ultW) {
+      this.lastUltWidth = ultW;
+      this.ultFillEl.style.width = ultW;
+    }
+    if (this.lastUltReady !== ultReady) {
+      this.lastUltReady = ultReady;
+      this.ultFillEl.classList.toggle('ready', ultReady);
+      if (this.vbtnUltEl) this.vbtnUltEl.classList.toggle('ready', ultReady);
+    }
+    if (this.lastUltText !== ultTxt) {
+      this.lastUltText = ultTxt;
+      this.ultTextEl.textContent = ultTxt;
     }
 
     // Projectile Cooldown (2.5s * cdMult)
     const cd = player.projCooldown;
     const maxCd = PROJ_COOLDOWN * (player.cdMult || 1);
     const cdRatio = Math.max(0, Math.min(1, 1 - cd / maxCd));
-    this.projFillEl.style.width = `${cdRatio * 100}%`;
+    const cdW = `${(cdRatio * 100).toFixed(1)}%`;
     const cdLabel = cd > 0 ? `${cd.toFixed(1)}s` : 'SIAP';
-    this.projTextEl.textContent = cdLabel;
 
-    if (this.vbtnProjEl) {
-      this.vbtnProjEl.classList.toggle('cooling', cd > 0);
+    if (this.lastProjWidth !== cdW) {
+      this.lastProjWidth = cdW;
+      this.projFillEl.style.width = cdW;
     }
-    if (this.vbtnProjCdEl) {
-      this.vbtnProjCdEl.textContent = cdLabel;
+    if (this.lastProjText !== cdLabel) {
+      this.lastProjText = cdLabel;
+      this.projTextEl.textContent = cdLabel;
+      if (this.vbtnProjEl) this.vbtnProjEl.classList.toggle('cooling', cd > 0);
+      if (this.vbtnProjCdEl) this.vbtnProjCdEl.textContent = cdLabel;
     }
 
     // KO counter & Survival Coins/Warung button
-    this.koCountEl.textContent = `KO: ${state.koCount}`;
+    const koTxt = `KO: ${state.koCount}`;
+    if (this.lastKoText !== koTxt) {
+      this.lastKoText = koTxt;
+      this.koCountEl.textContent = koTxt;
+    }
+
     const isSurvival = state.mode === 'survival';
-    this.coinsEl.classList.toggle('hidden', !isSurvival);
-    this.warungHudBtn.classList.toggle('hidden', !isSurvival);
+    if (this.lastIsSurvival !== isSurvival) {
+      this.lastIsSurvival = isSurvival;
+      this.coinsEl.classList.toggle('hidden', !isSurvival);
+      this.warungHudBtn.classList.toggle('hidden', !isSurvival);
+    }
     if (isSurvival) {
-      this.coinsEl.textContent = `Rp ${player.coins}`;
+      const coinsTxt = `Rp ${player.coins}`;
+      if (this.lastCoinsText !== coinsTxt) {
+        this.lastCoinsText = coinsTxt;
+        this.coinsEl.textContent = coinsTxt;
+      }
     }
   }
 }
