@@ -379,6 +379,8 @@ const wsMgr = new WsManager({
     lobbyOverlay.classList.add('hidden');
     shopOverlay.classList.add('hidden');
     buffOverlay.classList.add('hidden');
+    ultOverlay.classList.add('hidden');
+    sandboxSkillsBar?.classList.add('hidden');
     pauseOverlay.classList.add('hidden');
     resultOverlay.classList.add('hidden');
 
@@ -398,6 +400,8 @@ const wsMgr = new WsManager({
     lobbyOverlay.classList.add('hidden');
     shopOverlay.classList.add('hidden');
     buffOverlay.classList.add('hidden');
+    ultOverlay.classList.add('hidden');
+    sandboxSkillsBar?.classList.add('hidden');
     pauseOverlay.classList.add('hidden');
     resultOverlay.classList.add('hidden');
 
@@ -2036,6 +2040,20 @@ function frame(now: number): void {
   if (!wsMgr.isStickClient) {
     renderGame(ctx, state, wsMgr.localPlayerId, wsMgr.isMonitor);
   }
+
+  // Strictly enforce: Jurus tester dock ONLY appears in Dojo Latihan (Camp Sandbox).
+  // In Multiplayer, Solo Survival, and Story Mode, it is ALWAYS hidden!
+  if (sandboxSkillsBar) {
+    const isSandboxActive =
+      state.mode === 'sandbox' &&
+      state.status === 'playing' &&
+      !menuOpen &&
+      !lobbyOpen &&
+      !pauseOpen &&
+      !resultShown;
+    sandboxSkillsBar.classList.toggle('hidden', !isSandboxActive);
+  }
+
   const perfText = wsMgr.connected
     ? `${currentFps} FPS • ${wsMgr.pingMs}ms ${wsMgr.transportMode}`
     : `${currentFps} FPS`;
