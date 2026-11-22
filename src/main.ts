@@ -10,6 +10,7 @@ import {
   saveStageCleared,
   stepStory,
 } from './modes/story';
+import { getStoryDialogue, type StoryBeat, type StoryLine } from './modes/storyScript';
 import {
   BUFF_DEFS,
   applyPlayerBuff,
@@ -53,6 +54,11 @@ let lobbyOpen = false;
 let shopOpen = false;
 let buffModalOpen = false;
 let pauseOpen = false;
+let storyDialogueOpen = false;
+let storyQueue: StoryLine[] = [];
+let storyIndex = 0;
+let storyBossShown = false;
+let storyOutroDone = false;
 let resultShown = false;
 let lastBuffSig = '';
 let snapshotAccum = 0;
@@ -75,6 +81,16 @@ const pauseSub = document.getElementById('pause-sub') as HTMLParagraphElement;
 const btnPauseResume = document.getElementById('btn-pause-resume') as HTMLButtonElement;
 const btnPauseRestart = document.getElementById('btn-pause-restart') as HTMLButtonElement;
 const btnPauseQuit = document.getElementById('btn-pause-quit') as HTMLButtonElement;
+const storyDialogueOverlay = document.getElementById('story-dialogue-overlay') as HTMLDivElement;
+const storyDialogueBox = document.getElementById('story-dialogue-box') as HTMLDivElement;
+const storyMissionBanner = document.getElementById('story-mission-banner') as HTMLDivElement;
+const storyAvatar = document.getElementById('story-avatar') as HTMLDivElement;
+const storySpeaker = document.getElementById('story-speaker') as HTMLElement;
+const storyRole = document.getElementById('story-role') as HTMLSpanElement;
+const storyProgress = document.getElementById('story-progress') as HTMLSpanElement;
+const storyText = document.getElementById('story-text') as HTMLParagraphElement;
+const btnStorySkip = document.getElementById('btn-story-skip') as HTMLButtonElement;
+const btnStoryNext = document.getElementById('btn-story-next') as HTMLButtonElement;
 const resultOverlay = document.getElementById('result-overlay') as HTMLDivElement;
 const resultEyebrow = document.getElementById('result-eyebrow') as HTMLDivElement;
 const resultTitle = document.getElementById('result-title') as HTMLHeadingElement;
@@ -865,7 +881,75 @@ btnPauseQuit.addEventListener('click', () => {
   openMenu();
 });
 
+function openStoryCutscene(beat: StoryBeat): void {
+  const lines = getStoryDialogue(state.stageNumber, beat, playerName);
+  if (lines.length === 0) return;
+  storyQueue = lines;
+  storyIndex = 0;
+  storyDialogueOpen = true;
+  renderStoryLine();
+  storyDialogueOverlay.classList.remove('hidden');
+}
+
+function renderStoryLine(): void {
+  const line = storyQueue[storyIndex];
+  if (!line) return;
+  storyDialogueBox.classList.toggle('side-right', line.side === 'right');
+  storyAvatar.textContent = line.avatar;
+  storyAvatar.style.borderColor = line.accent;
+  storySpeaker.textContent = line.speaker;
+  storySpeaker.style.color = line.accent;
+  storyRole.textContent = line.role;
+  storyProgress.textContent = `${storyIndex + 1}/${storyQueue.length}`;
+  storyText.textContent = line.text;
+  if (line.mission) {
+    storyMissionBanner.textContent = line.mission;
+    storyMissionBanner.classList.remove('hidden');
+  } else {
+    storyMissionBanner.classList.add('hidden');
+  }
+  btnStoryNext.textContent =
+    storyIndex + 1 >= storyQueue.length ? 'MULAI AKSI ➔' : 'LANJUT ➔';
+}
+
+function closeStoryCutscene(): void {
+  storyDialogueOpen = false;
+  storyDialogueOverlay.classList.add('hidden');
+  if (state.mode === 'story' && state.status !== 'playing') {
+    showResultIfNeeded();
+  }
+}
+
+function advanceStoryCutscene(): void {
+  if (!storyDialogueOpen) return;
+  audio.unlock();
+  if (storyIndex + 1 < storyQueue.length) {
+    storyIndex++;
+    renderStoryLine();
+  } else {
+    closeStoryCutscene();
+  }
+}
+
+btnStoryNext.addEventListener('click', () => advanceStoryCutscene());
+btnStorySkip.addEventListener('click', () => {
+  audio.unlock();
+  closeStoryCutscene();
+});
+
 window.addEventListener('keydown', (e) => {
+  if (storyDialogueOpen) {
+    if (e.code === 'Space' || e.code === 'Enter' || e.code === 'KeyJ' || e.code === 'KeyZ') {
+      e.preventDefault();
+      advanceStoryCutscene();
+      return;
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      closeStoryCutscene();
+      return;
+    }
+  }
   if (e.key === 'Escape' && !menuOpen && !lobbyOpen && !resultShown) {
     if (shopOpen) {
       shopOpen = false;
@@ -889,6 +973,7 @@ function openMenu(): void {
   shopOpen = false;
   buffModalOpen = false;
   pauseOpen = false;
+  storyDialogueOpen = false;
   resultShown = false;
   refreshMenuProgress();
   showMenuView('home');
@@ -896,6 +981,7 @@ function openMenu(): void {
   shopOverlay.classList.add('hidden');
   buffOverlay.classList.add('hidden');
   pauseOverlay.classList.add('hidden');
+  storyDialogueOverlay.classList.add('hidden');
   resultOverlay.classList.add('hidden');
   menuOverlay.classList.remove('hidden');
 }
@@ -923,12 +1009,17 @@ function startStoryStage(stage: 1 | 2 | 3): void {
   lobbyOpen = false;
   shopOpen = false;
   buffModalOpen = false;
+  pauseOpen = false;
+  storyBossShown = false;
+  storyOutroDone = false;
   resultShown = false;
   menuOverlay.classList.add('hidden');
   lobbyOverlay.classList.add('hidden');
   shopOverlay.classList.add('hidden');
   buffOverlay.classList.add('hidden');
+  pauseOverlay.classList.add('hidden');
   resultOverlay.classList.add('hidden');
+  openStoryCutscene('intro');
 }
 
 function startSoloSurvival(): void {
@@ -1188,7 +1279,7 @@ btnBgm.addEventListener('click', () => {
 });
 
 function showResultIfNeeded(): void {
-  if (resultShown || state.status === 'playing') return;
+  if (resultShown || state.status === 'playing' || storyDialogueOpen) return;
   resultShown = true;
   state.shakeTimer = 0;
   state.shakeIntensity = 0;
@@ -1324,7 +1415,7 @@ function frame(now: number): void {
       if (wsMgr.connected && !wsMgr.isHost) {
         // Client: 0ms Local Action & Movement Prediction + Delta Input + 60 FPS Lerp
         const netInput =
-          shopOpen || buffModalOpen || pauseOpen
+          shopOpen || buffModalOpen || pauseOpen || storyDialogueOpen
             ? {
                 up: false,
                 down: false,
@@ -1349,7 +1440,7 @@ function frame(now: number): void {
         const allInputs: Record<string, PlayerInput> = {};
         if (!wsMgr.isMonitor) {
           allInputs[wsMgr.localPlayerId] =
-            shopOpen || buffModalOpen || pauseOpen
+            shopOpen || buffModalOpen || pauseOpen || storyDialogueOpen
               ? {
                   up: false,
                   down: false,
@@ -1394,10 +1485,20 @@ function frame(now: number): void {
             wsMgr.broadcastCompactSnapshot(state, state.soundQueue);
           }
         }
-      } else if (!shopOpen && !buffModalOpen && !pauseOpen) {
+      } else if (!shopOpen && !buffModalOpen && !pauseOpen && !storyDialogueOpen) {
         // Offline Solo Mode
         if (state.mode === 'story') {
           stepStory(state, sampled, FIXED_DT);
+          if (!storyBossShown && state.storyZones?.some((z) => z.isBossZone && z.triggered && !z.cleared)) {
+            storyBossShown = true;
+            openStoryCutscene('boss');
+          }
+          // Check victory after step (cast to bypass narrow from outer playing-guard)
+          const storyStatus = (state as GameState).status;
+          if (storyStatus === 'victory' && !storyOutroDone) {
+            storyOutroDone = true;
+            openStoryCutscene('outro');
+          }
         } else if (state.mode === 'survival') {
           stepSurvival(state, sampled, FIXED_DT);
           checkPendingBuffModal();

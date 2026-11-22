@@ -2345,3 +2345,149 @@ body {
   color: #090c14;
   border-color: var(--border-ink);
 }
+
+/* ===== STORY MODE RPG DIALOGUE OVERLAY ===== */
+.story-dialogue-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 42;
+  background: linear-gradient(180deg, rgba(9, 12, 20, 0.18) 0%, rgba(9, 12, 20, 0.72) 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px max(14px, env(safe-area-inset-bottom));
+}
+
+.story-dialogue-overlay.hidden {
+  display: none;
+}
+
+.story-mission-banner {
+  background: linear-gradient(135deg, #eab308, #f59e0b);
+  color: #090c14;
+  border: 2.5px solid var(--border-ink);
+  border-radius: 999px;
+  padding: 4px 14px;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.3px;
+  box-shadow: 0 3px 0 var(--border-ink);
+  text-align: center;
+  max-width: min(680px, 95%);
+}
+
+.story-mission-banner.hidden {
+  display: none;
+}
+
+.story-dialogue-box {
+  width: min(700px, 96%);
+  background: rgba(15, 23, 42, 0.96);
+  border: 3px solid var(--border-ink);
+  border-radius: 16px;
+  padding: 10px 14px;
+  box-shadow: 0 6px 0 var(--border-ink), 0 12px 26px rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  animation: popIn 0.16s ease-out;
+}
+
+.story-dialogue-box.side-right {
+  flex-direction: row-reverse;
+}
+
+.story-avatar {
+  width: 54px;
+  height: 54px;
+  border-radius: 14px;
+  background: #1e293b;
+  border: 2.5px solid var(--border-ink);
+  display: grid;
+  place-items: center;
+  font-size: 28px;
+  flex-shrink: 0;
+  box-shadow: 0 3px 0 var(--border-ink);
+}
+
+.story-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.story-speaker-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.story-speaker {
+  font-size: 13px;
+  font-weight: 900;
+  color: #fde047;
+}
+
+.story-role {
+  font-size: 9.5px;
+  font-weight: 800;
+  background: #334155;
+  color: #cbd5e1;
+  padding: 2px 7px;
+  border-radius: 999px;
+}
+
+.story-progress {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 900;
+  color: #94a3b8;
+}
+
+.story-text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #f8fafc;
+  font-weight: 600;
+}
+
+.story-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.story-skip-btn,
+.story-next-btn {
+  padding: 6px 12px;
+  font-size: 11px;
+}
+
+@media (orientation: portrait) {
+  .story-dialogue-box {
+    padding: 8px 10px;
+    gap: 8px;
+  }
+
+  .story-avatar {
+    width: 40px;
+    height: 40px;
+    font-size: 20px;
+  }
+
+  .story-text {
+    font-size: 11.5px;
+  }
+
+  .story-mission-banner {
+    font-size: 9.5px;
+    padding: 3px 10px;
+  }
+}

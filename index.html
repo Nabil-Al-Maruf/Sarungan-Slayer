@@ -291,21 +291,21 @@
               <p class="modal-sub">Pilih Stage Petualangan Surabaya</p>
               <div class="stage-grid">
                 <button class="stage-btn" data-stage="1" id="btn-stage-1">
-                  <span class="stage-tag">STAGE 1</span>
+                  <span class="stage-tag">STAGE 1 • KISAH AWAL</span>
                   <strong>Gang Tambak &amp; Kenjeran</strong>
-                  <small>Boss: Cak Koordinator</small>
+                  <small>Kendi kopi &amp; Sarung Pusaka dicuri! Kejar Cak Koordinator.</small>
                   <span class="stage-status" id="status-stage-1">TERBUKA</span>
                 </button>
                 <button class="stage-btn" data-stage="2" id="btn-stage-2">
-                  <span class="stage-tag">STAGE 2</span>
+                  <span class="stage-tag">STAGE 2 • JEJAK PUSAKA</span>
                   <strong>Kawasan Jalan Tunjungan</strong>
-                  <small>Boss: Jagoan Tunjungan</small>
+                  <small>Buka blokade gerobak &amp; hadapi Jagoan Tunjungan.</small>
                   <span class="stage-status" id="status-stage-2">TERKUNCI</span>
                 </button>
                 <button class="stage-btn" data-stage="3" id="btn-stage-3">
-                  <span class="stage-tag">STAGE 3</span>
+                  <span class="stage-tag">STAGE 3 • DUEL FINAL</span>
                   <strong>Jembatan Suramadu (Malam)</strong>
-                  <small>Boss: Raja Sarung Baja</small>
+                  <small>Rebut kembali Sarung Pusaka dari Raja Sarung Baja!</small>
                   <span class="stage-status" id="status-stage-3">TERKUNCI</span>
                 </button>
               </div>
@@ -334,7 +334,7 @@
                 </div>
                 <div class="credit-row">
                   <span class="credit-role">VERSI RILIS</span>
-                  <strong>v1.5.0 — Controller Warung Fix, Auto-Disconnect Monitor, Jeda 20 Detik &amp; Optimasi 1 Mbps</strong>
+                  <strong>v1.6.0 — Controller Warung Fix, Auto-Disconnect Monitor, Jeda 20 Detik &amp; Optimasi 1 Mbps</strong>
                 </div>
               </div>
               <div class="menu-footer-actions">
@@ -347,7 +347,7 @@
               <div class="changelog-box">
                 <div class="changelog-entry">
                   <div class="changelog-head">
-                    <span class="version-badge">v1.5.0</span>
+                    <span class="version-badge">v1.6.0</span>
                     <strong>Fix Warung Controller, Auto-Tutup Monitor, Jeda 20 Detik &amp; Lancar 1 Mbps</strong>
                   </div>
                   <ul class="changelog-list">
@@ -422,13 +422,13 @@
 
             <div class="title-bottom-credit scenic-footer-credit">
               <span>© 2026 Nabil Al-Ma'ruf • Arek Sarungan Slayer</span>
-              <span>v1.5.0</span>
+              <span>v1.6.0</span>
             </div>
           </div>
 
           <!-- Right-Side Translucent Cartoon Icon Dock (matches reference) -->
           <div class="menu-side-dock" aria-label="Menu Cepat">
-            <button id="btn-open-changelog" class="dock-icon-btn dock-red" title="Info Update v1.5.0">
+            <button id="btn-open-changelog" class="dock-icon-btn dock-red" title="Info Update v1.6.0">
               <span class="dock-emoji">📰</span>
             </button>
             <button id="btn-quick-survival" class="dock-icon-btn dock-gold" title="Survival Solo & Rekor Wave">
@@ -633,6 +633,26 @@
           </div>
         </div>
 
+        <!-- Story Mode RPG Dialogue / Cutscene Overlay -->
+        <div id="story-dialogue-overlay" class="story-dialogue-overlay hidden">
+          <div class="story-mission-banner hidden" id="story-mission-banner"></div>
+          <div class="story-dialogue-box" id="story-dialogue-box">
+            <div class="story-avatar" id="story-avatar">🧣</div>
+            <div class="story-content">
+              <div class="story-speaker-row">
+                <strong class="story-speaker" id="story-speaker">CAK BIMA</strong>
+                <span class="story-role" id="story-role">AREK SUROBOYO</span>
+                <span class="story-progress" id="story-progress">1/3</span>
+              </div>
+              <p class="story-text" id="story-text">...</p>
+              <div class="story-actions">
+                <button id="btn-story-skip" class="ghost-btn story-skip-btn">LEWATI</button>
+                <button id="btn-story-next" class="primary-btn story-next-btn">LANJUT ➔</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Pause / Confirm Quit Overlay (prevents accidental exits) -->
         <div id="pause-overlay" class="overlay-modal hidden">
           <div class="modal-card pause-card">
@@ -743,3 +763,4 @@
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
+
