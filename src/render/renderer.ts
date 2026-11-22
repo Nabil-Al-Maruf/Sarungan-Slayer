@@ -12,9 +12,37 @@ import { TOWER_TIER_NAME } from '../modes/survival';
 import { drawTopDownMapGround, drawTopDownObstacle } from './backgrounds';
 import { drawCrate, drawEnemy, drawPickup, drawPlayer } from './characterRig';
 
-interface Renderable {
+const enum RenderType {
+  OBSTACLE = 1,
+  CORE = 2,
+  BARRICADE = 3,
+  CRATE = 4,
+  PICKUP = 5,
+  ENEMY = 6,
+  PLAYER = 7,
+}
+
+interface PooledRenderItem {
   sortY: number;
-  draw: () => void;
+  type: RenderType;
+  ref: any;
+  extra?: any;
+}
+
+const renderPool: PooledRenderItem[] = [];
+let poolCount = 0;
+
+function addRenderItem(sortY: number, type: RenderType, ref: any, extra?: any): void {
+  if (poolCount < renderPool.length) {
+    const it = renderPool[poolCount];
+    it.sortY = sortY;
+    it.type = type;
+    it.ref = ref;
+    it.extra = extra;
+  } else {
+    renderPool.push({ sortY, type, ref, extra });
+  }
+  poolCount++;
 }
 
 export function renderGame(
@@ -40,17 +68,15 @@ export function renderGame(
 
   drawTopDownMapGround(ctx, state.theme, state.arenaWidth, state.cameraX, state.time);
 
-  for (const hz of state.hazards) {
-    drawHazardZone(ctx, hz);
+  for (let i = 0; i < state.hazards.length; i++) {
+    drawHazardZone(ctx, state.hazards[i]);
   }
 
-  const queue: Renderable[] = [];
+  poolCount = 0;
 
-  for (const obs of state.obstacles) {
-    queue.push({
-      sortY: obs.y + obs.h,
-      draw: () => drawTopDownObstacle(ctx, obs),
-    });
+  for (let i = 0; i < state.obstacles.length; i++) {
+    const obs = state.obstacles[i];
+    addRenderItem(obs.y + obs.h, RenderType.OBSTACLE, obs);
   }
 
   if (state.survival) {
@@ -61,85 +87,111 @@ export function renderGame(
       (state.survival.phase === 'intermission' ||
         Math.hypot(p0.x - (core.x + core.w * 0.5), p0.y - (core.y + core.h * 0.5)) <= 130);
 
-    queue.push({
-      sortY: core.y + core.h,
-      draw: () => drawSurvivalCore(ctx, core, nearCore),
-    });
+    addRenderItem(core.y + core.h, RenderType.CORE, core, nearCore);
 
-    for (const bar of state.survival.barricades) {
-      queue.push({
-        sortY: bar.y + bar.h,
-        draw: () => drawBarricade(ctx, bar),
-      });
+    for (let i = 0; i < state.survival.barricades.length; i++) {
+      const bar = state.survival.barricades[i];
+      addRenderItem(bar.y + bar.h, RenderType.BARRICADE, bar);
     }
   }
 
-  for (const crate of state.crates) {
-    queue.push({
-      sortY: crate.y,
-      draw: () => drawCrate(ctx, crate),
-    });
+  for (let i = 0; i < state.crates.length; i++) {
+    const crate = state.crates[i];
+    addRenderItem(crate.y, RenderType.CRATE, crate);
   }
 
-  for (const pickup of state.pickups) {
-    queue.push({
-      sortY: pickup.y,
-      draw: () => drawPickup(ctx, pickup),
-    });
+  for (let i = 0; i < state.pickups.length; i++) {
+    const pickup = state.pickups[i];
+    addRenderItem(pickup.y, RenderType.PICKUP, pickup);
   }
 
-  for (const enemy of state.enemies) {
-    queue.push({
-      sortY: enemy.y,
-      draw: () => drawEnemy(ctx, enemy, state.time),
-    });
+  for (let i = 0; i < state.enemies.length; i++) {
+    const enemy = state.enemies[i];
+    addRenderItem(enemy.y, RenderType.ENEMY, enemy);
   }
 
-  for (const player of state.players) {
-    queue.push({
-      sortY: player.y,
-      draw: () => drawPlayer(ctx, player, state.time, player.id === localPlayerId, isMonitor),
-    });
+  for (let i = 0; i < state.players.length; i++) {
+    const player = state.players[i];
+    addRenderItem(player.y, RenderType.PLAYER, player);
   }
 
-  queue.sort((a, b) => a.sortY - b.sortY);
-  for (const item of queue) {
-    item.draw();
+  const activeItems = renderPool.slice(0, poolCount);
+  activeItems.sort((a, b) => a.sortY - b.sortY);
+
+  for (let i = 0; i < activeItems.length; i++) {
+    const item = activeItems[i];
+    switch (item.type) {
+      case RenderType.OBSTACLE:
+        drawTopDownObstacle(ctx, item.ref);
+        break;
+      case RenderType.CORE:
+        drawSurvivalCore(ctx, item.ref, item.extra);
+        break;
+      case RenderType.BARRICADE:
+        drawBarricade(ctx, item.ref);
+        break;
+      case RenderType.CRATE:
+        drawCrate(ctx, item.ref);
+        break;
+      case RenderType.PICKUP:
+        drawPickup(ctx, item.ref);
+        break;
+      case RenderType.ENEMY:
+        drawEnemy(ctx, item.ref, state.time);
+        break;
+      case RenderType.PLAYER:
+        drawPlayer(ctx, item.ref, state.time, item.ref.id === localPlayerId, isMonitor);
+        break;
+    }
   }
 
-  for (const slash of state.slashes) {
-    drawSlashEffect(ctx, slash);
+  for (let i = 0; i < state.slashes.length; i++) {
+    drawSlashEffect(ctx, state.slashes[i]);
   }
 
-  for (const proj of state.projectiles) {
-    drawProjectile(ctx, proj);
+  for (let i = 0; i < state.projectiles.length; i++) {
+    drawProjectile(ctx, state.projectiles[i]);
   }
 
-  for (const ep of state.enemyProjectiles) {
-    drawEnemyProjectile(ctx, ep);
+  for (let i = 0; i < state.enemyProjectiles.length; i++) {
+    drawEnemyProjectile(ctx, state.enemyProjectiles[i]);
   }
 
-  for (const p of state.particles) {
+  if (state.particles.length > 0) {
     ctx.save();
-    ctx.globalAlpha = p.alpha;
-    ctx.fillStyle = p.color;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y - p.z, p.size, 0, Math.PI * 2);
-    ctx.fill();
+    let curAlpha = -1;
+    let curColor = '';
+    for (let i = 0; i < state.particles.length; i++) {
+      const p = state.particles[i];
+      if (curAlpha !== p.alpha) {
+        ctx.globalAlpha = p.alpha;
+        curAlpha = p.alpha;
+      }
+      if (curColor !== p.color) {
+        ctx.fillStyle = p.color;
+        curColor = p.color;
+      }
+      ctx.beginPath();
+      ctx.arc(p.x, p.y - p.z, p.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
     ctx.restore();
   }
 
-  for (const ft of state.floatingTexts) {
-    const alpha = Math.min(1, (ft.life / ft.maxLife) * 1.4);
+  if (state.floatingTexts.length > 0) {
     ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.font = `900 ${Math.round(15 * ft.scale)}px "Segoe UI", system-ui, sans-serif`;
     ctx.textAlign = 'center';
     ctx.lineWidth = 4;
     ctx.strokeStyle = '#090c14';
-    ctx.strokeText(ft.text, ft.x, ft.y);
-    ctx.fillStyle = ft.color;
-    ctx.fillText(ft.text, ft.x, ft.y);
+    for (let i = 0; i < state.floatingTexts.length; i++) {
+      const ft = state.floatingTexts[i];
+      const alpha = Math.min(1, (ft.life / ft.maxLife) * 1.4);
+      ctx.globalAlpha = alpha;
+      ctx.font = `900 ${Math.round(15 * ft.scale)}px "Segoe UI", system-ui, sans-serif`;
+      ctx.strokeText(ft.text, ft.x, ft.y);
+      ctx.fillStyle = ft.color;
+      ctx.fillText(ft.text, ft.x, ft.y);
+    }
     ctx.restore();
   }
 

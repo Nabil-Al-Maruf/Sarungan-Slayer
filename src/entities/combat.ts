@@ -878,4 +878,12 @@ export function hitEnemy(
       });
     }
   }
+
+  // Potato device performance safeguard: cap particles & floating texts to avoid GC spikes
+  if (state.particles.length > 120) {
+    state.particles.splice(0, state.particles.length - 120);
+  }
+  if (state.floatingTexts.length > 25) {
+    state.floatingTexts.splice(0, state.floatingTexts.length - 25);
+  }
 }

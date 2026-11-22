@@ -1,4 +1,5 @@
 import type { InputManager, VirtualAction } from '../core/input';
+import { haptic } from './haptics';
 
 export type TouchDisplayMode = 'auto' | 'on' | 'off';
 export const TOUCH_MODE_STORAGE_KEY = 'arek_slayer_touch_mode_v1';
@@ -72,6 +73,7 @@ export function bindTouchControls(
     let centerY = 0;
     let maxRadius = 46;
 
+    let inDeadzone = true;
     const updateStick = (clientX: number, clientY: number) => {
       const dx = clientX - centerX;
       const dy = clientY - centerY;
@@ -84,8 +86,15 @@ export function bindTouchControls(
       joyKnob.style.transform = `translate(${Math.round(kx)}px, ${Math.round(ky)}px)`;
 
       if (dist < 6) {
+        if (!inDeadzone) {
+          inDeadzone = true;
+        }
         input.setAnalogMove(0, 0);
       } else {
+        if (inDeadzone) {
+          inDeadzone = false;
+          haptic.stick();
+        }
         const mag = Math.min(1, dist / (maxRadius * 0.76));
         input.setAnalogMove(Math.cos(angle) * mag, Math.sin(angle) * mag);
       }
@@ -93,6 +102,7 @@ export function bindTouchControls(
 
     const resetStick = () => {
       activePointerId = null;
+      inDeadzone = true;
       joyZone.classList.remove('active');
       joyKnob.style.transform = 'translate(0px, 0px)';
       input.setAnalogMove(0, 0);
@@ -105,6 +115,7 @@ export function bindTouchControls(
       activePointerId = e.pointerId;
       joyZone.setPointerCapture(e.pointerId);
       joyZone.classList.add('active');
+      haptic.stick();
 
       const rect = joyBase.getBoundingClientRect();
       centerX = rect.left + rect.width * 0.5;
@@ -143,17 +154,32 @@ export function bindTouchControls(
       btnPointerId = e.pointerId;
       btn.setPointerCapture(e.pointerId);
       btn.classList.add('pressed');
-      if (
-        typeof navigator !== 'undefined' &&
-        'vibrate' in navigator &&
-        localStorage.getItem('arek_slayer_haptic_v1') !== '0'
-      ) {
-        try {
-          navigator.vibrate(10);
-        } catch {
-          // Ignore unsupported vibrate
-        }
+
+      // Authentic console-grade haptic impulse based on action
+      switch (action) {
+        case 'melee':
+          haptic.attack();
+          break;
+        case 'dash':
+          haptic.dash();
+          break;
+        case 'jump':
+          haptic.jump();
+          break;
+        case 'proj':
+          haptic.proj();
+          break;
+        case 'ult':
+          haptic.ultimate();
+          break;
+        case 'shop':
+          haptic.tap();
+          break;
+        default:
+          haptic.tap();
+          break;
       }
+
       if (action === 'shop') {
         onShopClick?.();
         return;

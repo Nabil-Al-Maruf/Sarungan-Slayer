@@ -10,7 +10,7 @@ export function createSandboxState(paletteIndex = 0, customName?: string): GameS
     mode: 'sandbox',
     theme: 'tambak',
     stageNumber: 1,
-    stageTitle: 'ARENA LATIHAN • KAMPUNG TAMBAK',
+    stageTitle: 'DOJO LATIHAN • KAMPUNG TAMBAK',
     status: 'playing',
     time: 0,
     arenaWidth: VIRTUAL_WIDTH,

@@ -44,13 +44,14 @@ import {
 import { HudController } from './ui/hud';
 import { buildInviteUrl, renderQrCodeToCanvas } from './ui/qrHelper';
 import { bindTouchControls, type TouchDisplayMode } from './ui/touchControls';
+import { haptic } from './ui/haptics';
 
 const NAME_STORAGE_KEY = 'arek_slayer_player_name_v1';
 const SKIN_STORAGE_KEY = 'arek_slayer_player_skin_v1';
 
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 const stageWrap = document.getElementById('stage-wrap') as HTMLDivElement;
-const ctx = canvas.getContext('2d')!;
+const ctx = (canvas.getContext('2d', { alpha: false, desynchronized: true }) || canvas.getContext('2d'))!;
 
 const audio = new ProceduralAudio();
 const input = new InputManager(() => audio.unlock());
@@ -781,6 +782,12 @@ function checkPendingUltModal(): void {
     return;
   }
 
+  // Sequencing: If buff modal is open, suppress it while Ultimate choice is made
+  if (buffModalOpen) {
+    buffModalOpen = false;
+    buffOverlay.classList.add('hidden');
+  }
+
   if (ultModalOpen) return;
   ultModalOpen = true;
 
@@ -821,6 +828,13 @@ function pickUltChoice(ultType: UltType): void {
 
   ultModalOpen = false;
   ultOverlay.classList.add('hidden');
+  haptic.ultimate();
+
+  // Clean transition: If there are also pending 3-buff cards (e.g. at Wave 10, 20, 30...),
+  // smoothly pop the buff modal right after with zero overlap!
+  setTimeout(() => {
+    checkPendingBuffModal();
+  }, 220);
 }
 
 /**
@@ -842,7 +856,16 @@ function checkPendingBuffModal(): void {
     return;
   }
 
+  // Sequencing guard: If Ultimate Jurus Milestone is pending or open, wait for it to finish first!
   const player = getLocalPlayer();
+  if (ultModalOpen || player?.pendingUltChoice) {
+    if (buffModalOpen) {
+      buffModalOpen = false;
+      buffOverlay.classList.add('hidden');
+    }
+    return;
+  }
+
   const choices = player?.pendingBuffChoices ?? [];
   if (!player || choices.length === 0) {
     if (buffModalOpen) {
@@ -897,6 +920,7 @@ function pickBuffChoice(buffId: BuffId): void {
   buffModalOpen = false;
   lastBuffSig = '';
   buffOverlay.classList.add('hidden');
+  haptic.tap();
 }
 
 function toggleWarung(): void {
@@ -1035,10 +1059,9 @@ setBgmBtn.addEventListener('click', () => {
 
 setHapticBtn.addEventListener('click', () => {
   hapticEnabled = !hapticEnabled;
-  try {
-    localStorage.setItem('arek_slayer_haptic_v1', hapticEnabled ? '1' : '0');
-  } catch {
-    // Ignore
+  haptic.setEnabled(hapticEnabled);
+  if (hapticEnabled) {
+    haptic.tap();
   }
   refreshSettingsUI();
 });
@@ -1238,6 +1261,7 @@ window.addEventListener('keydown', (e) => {
     if (player && chosen) {
       player.ultType = chosen;
       player.ult = player.maxUlt;
+      haptic.tap();
       const def = ULT_DEFS[chosen];
       sandboxSkillsBar?.querySelectorAll('.sandbox-skill-btn[data-ult]').forEach((b) => {
         b.classList.toggle('active', (b as HTMLElement).dataset.ult === chosen);
@@ -1618,6 +1642,7 @@ if (sandboxSkillsBar) {
   sandboxSkillsBar.querySelectorAll<HTMLButtonElement>('.sandbox-skill-btn[data-ult]').forEach((btn) => {
     btn.addEventListener('click', () => {
       audio.unlock();
+      haptic.tap();
       const uType = btn.dataset.ult as UltType;
       const player = getLocalPlayer();
       if (player && uType) {
@@ -1643,6 +1668,7 @@ if (sandboxSkillsBar) {
 
   document.getElementById('btn-sandbox-refill')?.addEventListener('click', () => {
     audio.unlock();
+    haptic.ultimate();
     const player = getLocalPlayer();
     if (player) {
       player.ult = player.maxUlt;
@@ -1765,6 +1791,7 @@ function showResultIfNeeded(): void {
   refreshMenuProgress();
 
   if (state.status === 'victory') {
+    haptic.victory();
     resultEyebrow.textContent = `STAGE ${state.stageNumber} CLEAR!`;
     resultTitle.textContent =
       state.stageNumber === 3 ? 'JUARA SUROBOYO REK!' : 'MANTAP POLL CAK!';
@@ -1936,6 +1963,9 @@ function frame(now: number): void {
           if (rem) allInputs[p.id] = rem;
         }
         stepSurvival(state, allInputs, FIXED_DT);
+        if (state.soundQueue.includes('player_hurt')) {
+          haptic.damage();
+        }
         audio.playQueue(state.soundQueue);
         checkPendingBuffModal();
         checkPendingUltModal();
@@ -1987,6 +2017,9 @@ function frame(now: number): void {
           checkPendingUltModal();
         } else {
           stepSandbox(state, sampled, FIXED_DT);
+        }
+        if (state.soundQueue.includes('player_hurt')) {
+          haptic.damage();
         }
         audio.playQueue(state.soundQueue);
         if (state.status !== 'playing') {
