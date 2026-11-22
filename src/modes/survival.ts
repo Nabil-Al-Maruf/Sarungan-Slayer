@@ -697,7 +697,7 @@ export function stepSurvival(
         state.soundQueue.push('tower_shoot');
         state.projectiles.push({
           id: state.nextEntityId++,
-          ownerId: state.players[0]?.id ?? 'p1',
+          ownerId: 'tower',
           x: cx + Math.cos(angle) * 18,
           y: cy + Math.sin(angle) * 14,
           vx: Math.cos(angle) * spd,
@@ -717,7 +717,7 @@ export function stepSurvival(
           const spreadAngle = angle + (Math.random() - 0.5) * 0.16;
           state.projectiles.push({
             id: state.nextEntityId++,
-            ownerId: state.players[0]?.id ?? 'p1',
+            ownerId: 'tower',
             x: cx + Math.cos(spreadAngle) * 18,
             y: cy + Math.sin(spreadAngle) * 14,
             vx: Math.cos(spreadAngle) * spd,

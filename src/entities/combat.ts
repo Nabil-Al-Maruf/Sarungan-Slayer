@@ -171,7 +171,8 @@ export function resolveCombat(state: GameState, dt: number): void {
       });
     }
 
-    const owner = state.players.find((p) => p.id === proj.ownerId) ?? state.players[0];
+    const isTower = proj.ownerId === 'tower';
+    const owner = isTower ? undefined : (state.players.find((p) => p.id === proj.ownerId) ?? state.players[0]);
 
     for (const enemy of state.enemies) {
       if (enemy.hp <= 0 || proj.hitIds.includes(enemy.id)) continue;
@@ -203,8 +204,9 @@ export function resolveCombat(state: GameState, dt: number): void {
           projDmg,
           (proj.vx / speed) * 230,
           (proj.vy / speed) * 230,
-          Math.round(PROJ_ULT_GAIN * (owner?.ultGainMult ?? 1)),
-          false
+          isTower ? 0 : Math.round(PROJ_ULT_GAIN * (owner?.ultGainMult ?? 1)),
+          false,
+          isTower ? 'tower' : undefined
         );
         if (proj.pierceLeft <= 0) break;
       }
@@ -381,7 +383,107 @@ export function resolveCombat(state: GameState, dt: number): void {
   }
 }
 
-function hitEnemy(
+export function getZombieCoinReward(kind: string): number {
+  switch (kind) {
+    case 'zombie_dukun':
+      return 90;
+    case 'zombie_buto_ijo':
+      return 80;
+    case 'zombie_gendruwo':
+      return 60;
+    case 'zombie_tuyul':
+      return 50;
+    case 'zombie_kuntilanak':
+      return 40;
+    case 'zombie_petasan':
+      return 35;
+    case 'zombie_pocong':
+      return 35;
+    case 'zombie_bocil':
+      return 25;
+    default:
+      return 20;
+  }
+}
+
+/**
+ * Handle kills caused by automated base defense systems (Tower, Barrier Duri Lv.4, or Tameng Gaib Pos Warkop).
+ * The bounty is split equally among ALL players in the room for fair co-op economy!
+ */
+export function handleDefenseKill(
+  state: GameState,
+  enemy: EnemyState,
+  source: 'tower' | 'barrier' | 'shield'
+): void {
+  enemy.hp = 0;
+  state.koCount++;
+  state.soundQueue.push('ko');
+
+  if (enemy.kind === 'zombie_petasan') {
+    explodePetasan(state, enemy);
+  }
+
+  if (state.mode === 'survival') {
+    const baseReward = getZombieCoinReward(enemy.kind);
+    const label =
+      source === 'tower'
+        ? 'TOWER'
+        : source === 'barrier'
+          ? 'TEMBOK DURI'
+          : 'TAMENG GAIB';
+
+    const eligible = state.players.filter((p) => !p.knockedDown);
+    const recipients = eligible.length > 0 ? eligible : state.players;
+    const count = Math.max(1, recipients.length);
+    const splitBase = Math.ceil(baseReward / count);
+
+    for (const p of recipients) {
+      const reward = Math.round(splitBase * (p.coinMult ?? 1));
+      p.coins += reward;
+      state.floatingTexts.push({
+        x: p.x,
+        y: p.y - p.z - 68,
+        vy: -48,
+        text: `+${reward} (${label} 🤝)`,
+        color: '#fde047',
+        scale: 0.95,
+        life: 0.95,
+        maxLife: 0.95,
+      });
+    }
+
+    state.floatingTexts.push({
+      x: enemy.x,
+      y: enemy.y - enemy.z - 72,
+      vy: -55,
+      text: `+${baseReward} (${label} DIBAGI RATA 🤝)`,
+      color: '#38bdf8',
+      scale: 1.05,
+      life: 0.95,
+      maxLife: 0.95,
+    });
+  }
+
+  // KO death particles
+  for (let i = 0; i < 14; i++) {
+    state.particles.push({
+      x: enemy.x,
+      y: enemy.y,
+      z: 18,
+      vx: (Math.random() - 0.5) * 260,
+      vy: (Math.random() - 0.5) * 200,
+      vz: 100 + Math.random() * 160,
+      size: 4 + Math.random() * 4,
+      color: i % 2 === 0 ? enemy.shirtColor : '#fde047',
+      alpha: 1,
+      life: 0.45 + Math.random() * 0.2,
+      maxLife: 0.65,
+      gravity: 600,
+    });
+  }
+}
+
+export function hitEnemy(
   state: GameState,
   enemy: EnemyState,
   attacker: PlayerState | undefined,
@@ -389,7 +491,8 @@ function hitEnemy(
   kbX: number,
   kbY: number,
   ultGain: number,
-  blocked: boolean
+  blocked: boolean,
+  defenseSource?: 'tower' | 'barrier' | 'shield'
 ): void {
   enemy.hp -= damage;
   enemy.hitFlashTimer = 0.12;
@@ -443,6 +546,11 @@ function hitEnemy(
   }
 
   if (enemy.hp <= 0) {
+    if (defenseSource) {
+      handleDefenseKill(state, enemy, defenseSource);
+      return;
+    }
+
     state.koCount++;
     state.soundQueue.push('ko');
 
@@ -451,26 +559,9 @@ function hitEnemy(
       explodePetasan(state, enemy);
     }
 
-    // Award Uang Receh in Survival Mode (including Tower kills credited to all alive players!)
+    // Award Uang Receh in Survival Mode for individual player kills
     if (state.mode === 'survival') {
-      const baseReward =
-        enemy.kind === 'zombie_dukun'
-          ? 90
-          : enemy.kind === 'zombie_buto_ijo'
-            ? 80
-            : enemy.kind === 'zombie_gendruwo'
-              ? 60
-              : enemy.kind === 'zombie_tuyul'
-                ? 50
-                : enemy.kind === 'zombie_kuntilanak'
-                  ? 40
-                  : enemy.kind === 'zombie_petasan'
-                    ? 35
-                    : enemy.kind === 'zombie_pocong'
-                      ? 35
-                      : enemy.kind === 'zombie_bocil'
-                        ? 25
-                        : 20;
+      const baseReward = getZombieCoinReward(enemy.kind);
       const recipient = attacker ?? state.players[0];
       if (recipient) {
         const reward = Math.round(baseReward * (recipient.coinMult ?? 1));

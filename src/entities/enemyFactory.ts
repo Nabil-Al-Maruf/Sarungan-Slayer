@@ -1,6 +1,7 @@
 import { circlesOverlap, stepTopDownPhysics } from '../core/physics';
 import type { EnemyKind, EnemyState, GameState } from '../core/types';
 import { BARRICADE_MAX_HP } from '../modes/survival';
+import { handleDefenseKill } from './combat';
 import { damagePlayer } from './player';
 
 interface EnemySpec {
@@ -1010,6 +1011,11 @@ function updateZombieSurvivalAI(state: GameState, zombie: EnemyState, dt: number
               alpha: 1,
             });
           }
+
+          if (zombie.hp <= 0) {
+            handleDefenseKill(state, zombie, 'barrier');
+            return;
+          }
         }
 
         if (bar.hp <= 0) {
@@ -1091,6 +1097,11 @@ function updateZombieSurvivalAI(state: GameState, zombie: EnemyState, dt: number
           life: 0.75,
           maxLife: 0.75,
         });
+
+        if (zombie.hp <= 0) {
+          handleDefenseKill(state, zombie, 'shield');
+          return;
+        }
 
         if (surv.core.shieldHp <= 0) {
           surv.core.shieldActive = false;
