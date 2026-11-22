@@ -326,28 +326,28 @@ function setLocalPlayStyle(style: LocalPlayStyle): void {
   localStyleMonitorBtn.classList.toggle('active', style === 'monitor');
 
   if (style === 'monitor') {
-    hotspotGuideTitle.textContent = 'Cara Mabar Mode Monitor + Stick HP:';
+    hotspotGuideTitle.textContent = 'Cara Mabar Mode Monitor + Stick HP (Satu Jaringan):';
     hotspotGuideStep1.innerHTML =
-      '1. Perangkat <b>Monitor</b> (Laptop/Tablet/HP utama) nyalakan/sambung ke <b>Hotspot</b> lalu klik <b>Buat Room Monitor</b>.';
+      '1. Pastikan Monitor &amp; semua HP berada di <b>satu jaringan yang sama</b> (Wi-Fi / Hotspot HP siapa saja / Bluetooth).';
     hotspotGuideStep2.innerHTML =
-      '2. HP teman sambung ke Hotspot yang sama &amp; masukkan <b>Kode Room (H---)</b> — HP teman otomatis jadi <b>Stick Gamepad</b>!';
+      '2. Perangkat <b>Monitor</b> (Laptop/Tablet/HP utama) klik <b>Buat Room Monitor</b> (tidak harus pemilik Hotspot).';
     hotspotGuideStep3.innerHTML =
-      '3. Layar arena tampil di Monitor, dan semua teman mengendalikan jagoannya lewat Stick HP masing-masing!';
+      '3. HP teman masukkan <b>Kode Room (H---)</b> — HP teman otomatis jadi <b>Stick Gamepad</b>!';
     if (wsMgr.connectionMode === 'hotspot') {
       labelHostModeEl.textContent = 'HOST MONITOR (LAYAR UTAMA)';
       btnCreateRoom.textContent = 'BUAT ROOM MONITOR';
     }
   } else {
-    hotspotGuideTitle.textContent = 'Cara Mabar Local Hotspot / Bluetooth Tethering:';
+    hotspotGuideTitle.textContent = 'Cara Mabar Local (Satu Jaringan Wi-Fi / Hotspot / Bluetooth):';
     hotspotGuideStep1.innerHTML =
-      '1. Host menyalakan <b>Hotspot Wi-Fi</b> atau <b>Bluetooth Tethering</b> di HP.';
+      '1. Pastikan semua perangkat berada di <b>satu jaringan yang sama</b> (Wi-Fi, Hotspot HP siapa saja, atau Bluetooth Tethering).';
     hotspotGuideStep2.innerHTML =
-      '2. Teman <b>wajib terhubung</b> ke jaringan Hotspot/Tethering Host tersebut.';
+      '2. <b>Siapa saja</b> boleh jadi Host (tidak harus perangkat yang menyalakan Hotspot).';
     hotspotGuideStep3.innerHTML =
-      '3. Host klik <b>Buat Room Hotspot</b> (Kode <code>H---</code>), lalu teman masukkan kode itu!';
+      '3. Host klik <b>Buat Room Local</b> (Kode <code>H---</code>), lalu teman masukkan kode itu!';
     if (wsMgr.connectionMode === 'hotspot') {
-      labelHostModeEl.textContent = 'HOST HOTSPOT / BLUETOOTH';
-      btnCreateRoom.textContent = 'BUAT ROOM HOTSPOT';
+      labelHostModeEl.textContent = 'HOST LOCAL (SATU JARINGAN)';
+      btnCreateRoom.textContent = 'BUAT ROOM LOCAL';
     }
   }
 }
@@ -383,7 +383,7 @@ function setConnectionMode(mode: ConnectionMode): void {
     setLocalPlayStyle(wsMgr.localPlayStyle);
     inputRoomCode.placeholder = 'H---';
     lobbyStatusEl.textContent =
-      'Nyalakan Hotspot/Tethering di HP Host, pastikan teman konek ke Hotspot tsb, lalu Buat/Gabung Room!';
+      'Pastikan semua di 1 jaringan (Wi-Fi / Hotspot siapa saja / Bluetooth). Siapa saja boleh Buat/Gabung Room!';
   } else {
     labelHostModeEl.textContent = 'JADI HOST ONLINE';
     btnCreateRoom.textContent = 'BUAT ROOM BARU';

@@ -242,7 +242,7 @@ export class WsManager {
     }
     if (this.connectionMode === 'hotspot' && !code.startsWith('H')) {
       this.callbacks.onStatus(
-        'Kode Room Hotspot selalu diawali huruf H (contoh: H7K2). Pastikan temanmu sudah konek ke Hotspot/Tethering Host!',
+        'Kode Room Local selalu diawali huruf H (contoh: H7K2). Pastikan semua berada di 1 jaringan yang sama!',
         true
       );
       return;
@@ -264,7 +264,7 @@ export class WsManager {
     const wsUrl = `${baseUrl}/room/${code}?palette=${paletteIndex}&name=${encodedName}${roleQuery}`;
 
     const modeLabel =
-      this.connectionMode === 'hotspot' ? 'Hotspot / Tethering Room' : 'Cloudflare Server Room';
+      this.connectionMode === 'hotspot' ? 'Local Room' : 'Cloudflare Server Room';
     this.callbacks.onStatus(`Menghubungkan ke ${modeLabel} (${code})...`);
 
     const ws = new WebSocket(wsUrl);
@@ -274,7 +274,7 @@ export class WsManager {
       if (this.ws === ws && ws.readyState !== WebSocket.OPEN) {
         this.callbacks.onStatus(
           this.connectionMode === 'hotspot'
-            ? `Gagal terhubung ke Hotspot Room ${code}. Pastikan HP tersambung ke Hotspot/Tethering Host!`
+            ? `Gagal terhubung ke Local Room ${code}. Pastikan berada di 1 jaringan yang sama & cek koneksi!`
             : `Gagal terhubung ke Room ${code}. Cek koneksi internetmu!`,
           true
         );
