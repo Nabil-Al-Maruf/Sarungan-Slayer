@@ -52,6 +52,7 @@ let menuOpen = true;
 let lobbyOpen = false;
 let shopOpen = false;
 let buffModalOpen = false;
+let pauseOpen = false;
 let resultShown = false;
 let lastBuffSig = '';
 let snapshotAccum = 0;
@@ -66,6 +67,12 @@ const lobbyOverlay = document.getElementById('lobby-overlay') as HTMLDivElement;
 const shopOverlay = document.getElementById('shop-overlay') as HTMLDivElement;
 const buffOverlay = document.getElementById('buff-overlay') as HTMLDivElement;
 const buffChoicesGrid = document.getElementById('buff-choices-grid') as HTMLDivElement;
+const pauseOverlay = document.getElementById('pause-overlay') as HTMLDivElement;
+const pauseEyebrow = document.getElementById('pause-eyebrow') as HTMLDivElement;
+const pauseSub = document.getElementById('pause-sub') as HTMLParagraphElement;
+const btnPauseResume = document.getElementById('btn-pause-resume') as HTMLButtonElement;
+const btnPauseRestart = document.getElementById('btn-pause-restart') as HTMLButtonElement;
+const btnPauseQuit = document.getElementById('btn-pause-quit') as HTMLButtonElement;
 const resultOverlay = document.getElementById('result-overlay') as HTMLDivElement;
 const resultEyebrow = document.getElementById('result-eyebrow') as HTMLDivElement;
 const resultTitle = document.getElementById('result-title') as HTMLHeadingElement;
@@ -248,12 +255,14 @@ const wsMgr = new WsManager({
     lobbyOpen = false;
     shopOpen = false;
     buffModalOpen = false;
+    pauseOpen = false;
     lastBuffSig = '';
     resultShown = false;
     menuOverlay.classList.add('hidden');
     lobbyOverlay.classList.add('hidden');
     shopOverlay.classList.add('hidden');
     buffOverlay.classList.add('hidden');
+    pauseOverlay.classList.add('hidden');
     resultOverlay.classList.add('hidden');
 
     setStickMode(wsMgr.isStickClient);
@@ -308,8 +317,10 @@ const wsMgr = new WsManager({
     state.hitstopTimer = 0;
     shopOpen = false;
     buffModalOpen = false;
+    pauseOpen = false;
     resultShown = false;
     buffOverlay.classList.add('hidden');
+    pauseOverlay.classList.add('hidden');
     openLobby();
     lobbyStatusEl.textContent = reason;
     lobbyStatusEl.style.color = '#f87171';
@@ -364,9 +375,7 @@ localStyleMonitorBtn.addEventListener('click', () => {
 
 btnStickExit.addEventListener('click', () => {
   audio.unlock();
-  setStickMode(false);
-  wsMgr.disconnect(true);
-  openMenu();
+  openPauseMenu();
 });
 
 function setConnectionMode(mode: ConnectionMode): void {
@@ -645,6 +654,66 @@ function showMenuView(view: 'home' | 'story' | 'credits' | 'changelog'): void {
   menuChangelogView.classList.toggle('hidden', view !== 'changelog');
 }
 
+function openPauseMenu(): void {
+  if (menuOpen || lobbyOpen || resultShown) return;
+  pauseOpen = true;
+  if (wsMgr.connected) {
+    pauseEyebrow.textContent = 'MENU JEDA MABAR';
+    pauseSub.textContent =
+      'Room tetap aktif. Pilih Lanjutkan agar tidak keluar dari permainan!';
+    btnPauseRestart.classList.toggle('hidden', !wsMgr.isHost);
+  } else {
+    pauseEyebrow.textContent = 'PERMAINAN DIJEDA';
+    pauseSub.textContent = 'Simulasi dijeda sementara. Ambil napas dulu rek!';
+    btnPauseRestart.classList.remove('hidden');
+  }
+  pauseOverlay.classList.remove('hidden');
+}
+
+function closePauseMenu(): void {
+  pauseOpen = false;
+  pauseOverlay.classList.add('hidden');
+}
+
+btnPauseResume.addEventListener('click', () => {
+  audio.unlock();
+  closePauseMenu();
+});
+
+btnPauseRestart.addEventListener('click', () => {
+  audio.unlock();
+  closePauseMenu();
+  if (state.mode === 'story') {
+    startStoryStage(state.stageNumber);
+  } else if (state.mode === 'survival') {
+    if (wsMgr.connected && wsMgr.isHost) {
+      wsMgr.sendStartGame();
+    } else {
+      startSoloSurvival();
+    }
+  } else {
+    startSandbox();
+  }
+});
+
+btnPauseQuit.addEventListener('click', () => {
+  audio.unlock();
+  closePauseMenu();
+  openMenu();
+});
+
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !menuOpen && !lobbyOpen && !resultShown) {
+    if (shopOpen) {
+      shopOpen = false;
+      shopOverlay.classList.add('hidden');
+    } else if (!buffModalOpen) {
+      if (pauseOpen) closePauseMenu();
+      else openPauseMenu();
+    }
+  }
+});
+
 function openMenu(): void {
   setStickMode(false);
   wsMgr.disconnect(true);
@@ -655,12 +724,14 @@ function openMenu(): void {
   lobbyOpen = false;
   shopOpen = false;
   buffModalOpen = false;
+  pauseOpen = false;
   resultShown = false;
   refreshMenuProgress();
   showMenuView('home');
   lobbyOverlay.classList.add('hidden');
   shopOverlay.classList.add('hidden');
   buffOverlay.classList.add('hidden');
+  pauseOverlay.classList.add('hidden');
   resultOverlay.classList.add('hidden');
   menuOverlay.classList.remove('hidden');
 }
@@ -912,7 +983,7 @@ btnWarungHud.addEventListener('click', () => {
 
 btnMenu.addEventListener('click', () => {
   audio.unlock();
-  openMenu();
+  openPauseMenu();
 });
 
 btnPalette.addEventListener('click', () => {
@@ -960,8 +1031,10 @@ function showResultIfNeeded(): void {
   state.hitstopTimer = 0;
   shopOpen = false;
   buffModalOpen = false;
+  pauseOpen = false;
   shopOverlay.classList.add('hidden');
   buffOverlay.classList.add('hidden');
+  pauseOverlay.classList.add('hidden');
 
   if (wsMgr.connected) {
     btnRetryStage.textContent = wsMgr.isHost ? 'MAIN LAGI (HOST)' : 'KELUAR KE LOBI';
@@ -1086,7 +1159,7 @@ function frame(now: number): void {
       if (wsMgr.connected && !wsMgr.isHost) {
         // Client: 0ms Local Action & Movement Prediction + Delta Input + 60 FPS Lerp
         const netInput =
-          shopOpen || buffModalOpen
+          shopOpen || buffModalOpen || pauseOpen
             ? {
                 up: false,
                 down: false,
@@ -1111,7 +1184,7 @@ function frame(now: number): void {
         const allInputs: Record<string, PlayerInput> = {};
         if (!wsMgr.isMonitor) {
           allInputs[wsMgr.localPlayerId] =
-            shopOpen || buffModalOpen
+            shopOpen || buffModalOpen || pauseOpen
               ? {
                   up: false,
                   down: false,
@@ -1149,7 +1222,7 @@ function frame(now: number): void {
             wsMgr.broadcastCompactSnapshot(state, state.soundQueue);
           }
         }
-      } else if (!shopOpen && !buffModalOpen) {
+      } else if (!shopOpen && !buffModalOpen && !pauseOpen) {
         // Offline Solo Mode
         if (state.mode === 'story') {
           stepStory(state, sampled, FIXED_DT);

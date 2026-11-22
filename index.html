@@ -55,7 +55,7 @@
             <button id="btn-warung-hud" class="hud-btn warung-hud-btn hidden" title="Buka Warung [B]">
               WARUNG
             </button>
-            <button id="btn-menu" class="hud-btn" title="Pilih Mode / Stage">MENU</button>
+            <button id="btn-menu" class="hud-btn hud-pause-btn" title="Jeda / Pause [Esc]">⏸</button>
             <button id="btn-palette" class="hud-btn" title="Ganti Skin Arek (P1-P5)">P1</button>
             <button id="btn-touch-toggle" class="hud-btn" title="Tampilkan Kontrol Sentuh">PAD</button>
             <button id="btn-sfx" class="hud-btn" title="Suara SFX">SFX</button>
@@ -463,6 +463,22 @@
           </div>
         </div>
 
+        <!-- Pause / Confirm Quit Overlay (prevents accidental exits) -->
+        <div id="pause-overlay" class="overlay-modal hidden">
+          <div class="modal-card pause-card">
+            <div class="modal-eyebrow" id="pause-eyebrow">PERMAINAN DIJEDA</div>
+            <h2 class="modal-title">PAUSE</h2>
+            <p class="modal-sub" id="pause-sub">
+              Ambil napas dulu rek, kopi masih anget.
+            </p>
+            <div class="pause-actions">
+              <button id="btn-pause-resume" class="primary-btn">▶ LANJUTKAN MAIN</button>
+              <button id="btn-pause-restart" class="secondary-btn">🔄 ULANGI STAGE / WAVE</button>
+              <button id="btn-pause-quit" class="danger-btn">🚪 KELUAR KE MENU UTAMA</button>
+            </div>
+          </div>
+        </div>
+
         <!-- Victory / Game Over Overlay -->
         <div id="result-overlay" class="overlay-modal hidden">
           <div class="modal-card result-card">
@@ -502,7 +518,7 @@
             <button class="vbtn util-btn" data-action="shop" id="vbtn-stick-shop" title="Buka Warung">
               🏪 WARUNG
             </button>
-            <button id="btn-stick-exit" class="stick-exit-btn" title="Keluar Stick">KELUAR</button>
+            <button id="btn-stick-exit" class="stick-pause-btn" title="Menu Jeda / Keluar">⏸</button>
           </div>
         </div>
 
