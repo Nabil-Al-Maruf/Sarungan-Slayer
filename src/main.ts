@@ -332,6 +332,11 @@ const wsMgr = new WsManager({
   },
   onGameStart() {
     audio.unlock();
+    // CRITICAL GUARD: If match is ALREADY playing, NEVER destroy active match and reset to Wave 1!
+    if (state && state.mode === 'survival' && state.status === 'playing' && !lobbyOpen && !menuOpen) {
+      console.warn('[onGameStart] Match already in progress, ignoring duplicate reset to Wave 1');
+      return;
+    }
     const usedPalettes = new Set<number>();
     const roster = wsMgr.lobbyPlayers
       .filter((p) => p.role !== 'monitor')
@@ -375,6 +380,21 @@ const wsMgr = new WsManager({
     if (wsMgr.isHost) {
       wsMgr.broadcastCompactSnapshot(state, []);
     }
+  },
+  onMatchResume() {
+    audio.unlock();
+    menuOpen = false;
+    lobbyOpen = false;
+    menuOverlay.classList.add('hidden');
+    lobbyOverlay.classList.add('hidden');
+    shopOverlay.classList.add('hidden');
+    buffOverlay.classList.add('hidden');
+    pauseOverlay.classList.add('hidden');
+    resultOverlay.classList.add('hidden');
+
+    setStickMode(wsMgr.isStickClient);
+    updateStickHud();
+    void requestScreenWakeLock();
   },
   onCompactSnapshot(snap) {
     wsMgr.mergeSnapshot(state, snap);

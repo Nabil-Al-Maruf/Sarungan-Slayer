@@ -49,6 +49,7 @@ type ServerToClientMsg =
       isHost: boolean;
     }
   | { type: 'start_game' }
+  | { type: 'in_match' }
   | { type: 'rtc_signal'; from: string; data: RtcSignalData }
   | { type: 'relay'; from: string; payload: GameNetPayload }
   | { type: 'peer_left'; id: string }
@@ -93,6 +94,7 @@ export interface WsCallbacks {
     isHost: boolean
   ) => void;
   onGameStart: () => void;
+  onMatchResume?: () => void;
   onCompactSnapshot: (snap: CompactSnapshot) => void;
   onRemoteBuy: (playerId: string, itemId: ShopItemId) => { ok: boolean; message: string };
   onRemoteBuff: (playerId: string, buffId: BuffId) => void;
@@ -429,6 +431,9 @@ export class WsManager {
         this.serverPlayerTargets.clear();
         this.serverEnemyTargets.clear();
         this.callbacks.onGameStart();
+      } else if (msg.type === 'in_match') {
+        this.lastSentHeld = '';
+        this.callbacks.onMatchResume?.();
       }
     };
 

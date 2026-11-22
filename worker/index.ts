@@ -94,14 +94,16 @@ export class GameRoom extends DurableObject<Env> {
           clearTimeout(this.monitorGraceTimer);
           this.monitorGraceTimer = null;
         }
-        this.sessions.delete(existingMonitor.ws);
-        try {
-          existingMonitor.ws.close(1000, 'Replaced by reconnect');
-        } catch {}
+        const oldWs = existingMonitor.ws;
+        this.sessions.delete(oldWs);
         existingMonitor.ws = serverWs;
         existingMonitor.disconnectedAt = undefined;
         this.sessions.set(serverWs, existingMonitor);
         this.bindSocket(serverWs, existingMonitor);
+
+        try {
+          oldWs.close(1000, 'Replaced by reconnect');
+        } catch {}
 
         // Notify all stick controllers that Monitor is back!
         const resumeMsg = JSON.stringify({
@@ -117,8 +119,9 @@ export class GameRoom extends DurableObject<Env> {
         }
 
         this.broadcastLobby();
+        // NEVER send start_game to monitor on reconnect! Monitor is the host running the match.
         if (this.inMatch) {
-          this.safeSend(serverWs, { type: 'start_game' });
+          this.safeSend(serverWs, { type: 'in_match' });
         }
         return new Response(null, { status: 101, webSocket: clientWs });
       }
@@ -132,18 +135,21 @@ export class GameRoom extends DurableObject<Env> {
         clearTimeout(graceTimer);
         this.disconnectGraceTimers.delete(reqSlot);
       }
-      this.sessions.delete(existing.ws);
-      try {
-        existing.ws.close(1000, 'Replaced by reconnect');
-      } catch {}
+      const oldWs = existing.ws;
+      this.sessions.delete(oldWs);
       existing.ws = serverWs;
       existing.disconnectedAt = undefined;
       this.sessions.set(serverWs, existing);
       this.bindSocket(serverWs, existing);
 
+      try {
+        oldWs.close(1000, 'Replaced by reconnect');
+      } catch {}
+
       this.broadcastLobby();
+      // Send in_match, NEVER start_game (which wipes active game and resets to Wave 1)!
       if (this.inMatch) {
-        this.safeSend(serverWs, { type: 'start_game' });
+        this.safeSend(serverWs, { type: 'in_match' });
       }
       return new Response(null, { status: 101, webSocket: clientWs });
     }
@@ -189,7 +195,7 @@ export class GameRoom extends DurableObject<Env> {
 
     this.broadcastLobby();
     if (this.inMatch) {
-      this.safeSend(serverWs, { type: 'start_game' });
+      this.safeSend(serverWs, { type: 'in_match' });
     }
     return new Response(null, { status: 101, webSocket: clientWs });
   }
@@ -200,11 +206,11 @@ export class GameRoom extends DurableObject<Env> {
     });
 
     serverWs.addEventListener('close', () => {
-      this.handleDisconnect(session);
+      this.handleDisconnect(session, serverWs);
     });
 
     serverWs.addEventListener('error', () => {
-      this.handleDisconnect(session);
+      this.handleDisconnect(session, serverWs);
     });
   }
 
@@ -303,9 +309,11 @@ export class GameRoom extends DurableObject<Env> {
     }
   }
 
-  private handleDisconnect(session: ClientSession): void {
-    if (!this.sessions.has(session.ws)) return;
-    this.sessions.delete(session.ws);
+  private handleDisconnect(session: ClientSession, closedWs: WebSocket): void {
+    // If session already reconnected with a newer socket, ignore this old socket closing!
+    if (session.ws !== closedWs) return;
+    if (!this.sessions.has(closedWs)) return;
+    this.sessions.delete(closedWs);
     session.disconnectedAt = Date.now();
 
     // 1. MONITOR TEMPORARY DISCONNECT (Network jitter / Wi-Fi sleep)
@@ -433,7 +441,7 @@ export default {
         {
           ok: true,
           service: 'arek-sarungan-slayer-mp',
-          version: '1.6.1',
+          version: '1.7.0',
           transport: 'webrtc-udp+wss-fallback',
         },
         { headers: CORS_HEADERS }

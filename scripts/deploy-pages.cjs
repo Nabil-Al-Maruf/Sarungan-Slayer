@@ -9,11 +9,29 @@ async function main() {
     process.exit(1);
   }
 
-  const files = [
-    { path: '/index.html', file: 'dist/index.html', mime: 'text/html' },
-    { path: '/assets/index-C9Dv7p-K.js', file: 'dist/assets/index-C9Dv7p-K.js', mime: 'application/javascript' },
-    { path: '/assets/index-DNNsTEIG.css', file: 'dist/assets/index-DNNsTEIG.css', mime: 'text/css' }
-  ];
+  function getMime(p) {
+    if (p.endsWith('.html')) return 'text/html';
+    if (p.endsWith('.js')) return 'application/javascript';
+    if (p.endsWith('.css')) return 'text/css';
+    if (p.endsWith('.json')) return 'application/json';
+    return 'application/octet-stream';
+  }
+
+  function walk(dir, base = '') {
+    let res = [];
+    for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, ent.name);
+      const rel = path.join(base, ent.name).replace(/\\/g, '/');
+      if (ent.isDirectory()) {
+        res.push(...walk(full, rel));
+      } else {
+        res.push({ path: '/' + rel, file: full, mime: getMime(ent.name) });
+      }
+    }
+    return res;
+  }
+
+  const files = walk('dist');
 
   const manifest = {};
   const uploadPayload = [];
