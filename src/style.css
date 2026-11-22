@@ -32,6 +32,10 @@ body {
   touch-action: none;
 }
 
+.hidden {
+  display: none !important;
+}
+
 .app-shell {
   width: 100vw;
   height: 100dvh;
@@ -2893,6 +2897,10 @@ body {
   z-index: 22;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 16px rgba(56, 189, 248, 0.35);
   pointer-events: auto;
+}
+
+.sandbox-skills-bar.hidden {
+  display: none !important;
 }
 
 .sandbox-skills-label {

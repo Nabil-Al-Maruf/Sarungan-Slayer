@@ -2052,6 +2052,7 @@ function frame(now: number): void {
       !pauseOpen &&
       !resultShown;
     sandboxSkillsBar.classList.toggle('hidden', !isSandboxActive);
+    sandboxSkillsBar.style.display = isSandboxActive ? 'flex' : 'none';
   }
 
   const perfText = wsMgr.connected
