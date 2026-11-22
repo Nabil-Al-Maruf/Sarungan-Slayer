@@ -1667,75 +1667,6 @@ body {
   box-shadow: 0 1px 0 var(--border-ink);
 }
 
-/* ===== FULL-SCREEN STICK HP CONTROLLER MODE ===== */
-.app-shell.stick-controller-mode .stage-wrap {
-  position: fixed;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  aspect-ratio: auto;
-  border: none;
-  background: transparent;
-  pointer-events: none;
-  z-index: 50;
-}
-
-.app-shell.stick-controller-mode #game-canvas,
-.app-shell.stick-controller-mode .hud,
-.app-shell.stick-controller-mode .desktop-hints {
-  display: none !important;
-}
-
-.app-shell.stick-controller-mode .overlay-modal {
-  pointer-events: auto;
-  z-index: 60;
-}
-
-.app-shell.stick-controller-mode .modal-card {
-  max-height: 92dvh;
-  overflow-y: auto;
-}
-
-.app-shell.stick-controller-mode .controls-deck {
-  display: flex !important;
-  flex-direction: column;
-  position: fixed;
-  inset: 0;
-  z-index: 30;
-  background: radial-gradient(circle at 50% 20%, #1e293b 0%, #0f172a 65%, #090c14 100%);
-  padding: max(8px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
-    max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
-  justify-content: space-between;
-}
-
-.app-shell.stick-controller-mode .deck-header,
-.app-shell.stick-controller-mode .act-shop-mini {
-  display: none !important;
-}
-
-.app-shell.stick-controller-mode .deck-body {
-  position: static;
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 4px;
-}
-
-.app-shell.stick-controller-mode .joystick-zone {
-  width: clamp(142px, 38vmin, 210px);
-  height: clamp(142px, 38vmin, 210px);
-  opacity: 1 !important;
-  pointer-events: auto;
-}
-
-.app-shell.stick-controller-mode .action-arc-zone {
-  width: clamp(184px, 48vmin, 256px);
-  height: clamp(154px, 40vmin, 212px);
-  opacity: 1 !important;
-  pointer-events: auto;
-}
-
 /* ===== LANDSCAPE MODE ===== */
 @media (orientation: landscape) {
   .app-shell.touch-active .controls-deck {
@@ -1908,5 +1839,155 @@ body {
     justify-content: space-between;
     gap: 6px;
     padding: 0 2px;
+  }
+}
+
+/* ===== FULL-SCREEN STICK HP CONTROLLER MODE (HIGHEST PRIORITY OVER .touch-active) ===== */
+.app-shell.stick-controller-mode .stage-wrap {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  border: none;
+  background: transparent;
+  pointer-events: none;
+  z-index: 50;
+}
+
+.app-shell.stick-controller-mode #game-canvas,
+.app-shell.stick-controller-mode .hud,
+.app-shell.stick-controller-mode .desktop-hints {
+  display: none !important;
+}
+
+.app-shell.stick-controller-mode .overlay-modal {
+  pointer-events: auto;
+  z-index: 60;
+}
+
+.app-shell.stick-controller-mode .modal-card {
+  max-height: 92dvh;
+  overflow-y: auto;
+}
+
+.app-shell.stick-controller-mode .controls-deck {
+  display: flex !important;
+  flex-direction: column;
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  pointer-events: auto;
+  background: radial-gradient(circle at 50% 18%, #1e293b 0%, #0f172a 62%, #090c14 100%);
+  padding: max(6px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
+    max(10px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.app-shell.stick-controller-mode .deck-header,
+.app-shell.stick-controller-mode .act-shop-mini {
+  display: none !important;
+}
+
+.app-shell.stick-controller-mode .stick-hud-bar {
+  flex-shrink: 0;
+  margin-bottom: 0;
+  padding: 5px 10px;
+  background: rgba(15, 23, 42, 0.94);
+  border: 2px solid #334155;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.45);
+}
+
+.app-shell.stick-controller-mode .stick-hud-right .util-btn {
+  padding: 6px 12px;
+  font-size: 11px;
+}
+
+.app-shell.stick-controller-mode .stick-pause-btn {
+  padding: 6px 11px;
+  font-size: 12px;
+}
+
+.app-shell.stick-controller-mode .deck-body {
+  position: static;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px;
+  gap: 8px;
+}
+
+/* HUGE blind-playable gamepad sizing in Landscape */
+@media (orientation: landscape) {
+  .app-shell.stick-controller-mode .deck-body {
+    padding: 0 2vw;
+  }
+
+  .app-shell.stick-controller-mode .joystick-zone {
+    width: clamp(200px, 64vh, 300px);
+    height: clamp(200px, 64vh, 300px);
+    opacity: 1 !important;
+    pointer-events: auto;
+  }
+
+  .app-shell.stick-controller-mode .action-arc-zone {
+    width: clamp(256px, 78vh, 370px);
+    height: clamp(216px, 66vh, 310px);
+    opacity: 1 !important;
+    pointer-events: auto;
+  }
+
+  .app-shell.stick-controller-mode .act-title {
+    font-size: clamp(11px, 3.3vh, 15px);
+  }
+
+  .app-shell.stick-controller-mode .act-melee .act-title {
+    font-size: clamp(15px, 4.4vh, 21px);
+  }
+
+  .app-shell.stick-controller-mode .act-sub {
+    font-size: clamp(9px, 2.5vh, 12px);
+  }
+}
+
+/* Maximized full-width gamepad sizing in Portrait */
+@media (orientation: portrait) {
+  .app-shell.stick-controller-mode .controls-deck {
+    padding: max(8px, env(safe-area-inset-top)) 6px max(16px, env(safe-area-inset-bottom)) 6px;
+  }
+
+  .app-shell.stick-controller-mode .deck-body {
+    align-items: center;
+    justify-content: space-between;
+    padding: 0;
+    gap: 2px;
+  }
+
+  .app-shell.stick-controller-mode .joystick-zone {
+    width: clamp(152px, 43vw, 220px);
+    height: clamp(152px, 43vw, 220px);
+    opacity: 1 !important;
+    pointer-events: auto;
+  }
+
+  .app-shell.stick-controller-mode .action-arc-zone {
+    width: clamp(190px, 53vw, 270px);
+    height: clamp(166px, 47vw, 232px);
+    opacity: 1 !important;
+    pointer-events: auto;
+  }
+
+  .app-shell.stick-controller-mode .act-title {
+    font-size: clamp(10px, 2.9vw, 13px);
+  }
+
+  .app-shell.stick-controller-mode .act-melee .act-title {
+    font-size: clamp(13px, 3.8vw, 17px);
+  }
+
+  .app-shell.stick-controller-mode .act-sub {
+    font-size: clamp(8px, 2.2vw, 10px);
   }
 }
