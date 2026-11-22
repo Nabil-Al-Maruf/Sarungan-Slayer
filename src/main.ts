@@ -61,6 +61,7 @@ let snapshotAccum = 0;
 const menuOverlay = document.getElementById('menu-overlay') as HTMLDivElement;
 const menuHomeView = document.getElementById('menu-home-view') as HTMLDivElement;
 const menuPlayView = document.getElementById('menu-play-view') as HTMLDivElement;
+const menuSettingsView = document.getElementById('menu-settings-view') as HTMLDivElement;
 const menuStoryView = document.getElementById('menu-story-view') as HTMLDivElement;
 const menuCreditsView = document.getElementById('menu-credits-view') as HTMLDivElement;
 const menuChangelogView = document.getElementById('menu-changelog-view') as HTMLDivElement;
@@ -182,7 +183,7 @@ function syncSelectedSkin(skinIdx: number, sendProfile = true): void {
   const pal = PLAYER_PALETTES[selectedPalette];
   btnPalette.textContent = pal.label;
 
-  document.querySelectorAll<HTMLButtonElement>('#lobby-skin-picker .skin-swatch').forEach((btn) => {
+  document.querySelectorAll<HTMLButtonElement>('#lobby-skin-picker .skin-swatch, #settings-skin-picker .skin-swatch').forEach((btn) => {
     btn.classList.toggle('active', Number(btn.dataset.skin) === selectedPalette);
   });
 
@@ -696,12 +697,41 @@ function toggleWarung(): void {
   shopOverlay.classList.remove('hidden');
 }
 
-function showMenuView(view: 'home' | 'play' | 'story' | 'credits' | 'changelog'): void {
+function showMenuView(view: 'home' | 'play' | 'settings' | 'story' | 'credits' | 'changelog'): void {
   menuHomeView.classList.toggle('hidden', view !== 'home');
   menuPlayView.classList.toggle('hidden', view !== 'play');
+  menuSettingsView.classList.toggle('hidden', view !== 'settings');
   menuStoryView.classList.toggle('hidden', view !== 'story');
   menuCreditsView.classList.toggle('hidden', view !== 'credits');
   menuChangelogView.classList.toggle('hidden', view !== 'changelog');
+}
+
+const inputSettingsName = document.getElementById('input-settings-name') as HTMLInputElement;
+const setSfxBtn = document.getElementById('set-sfx-btn') as HTMLButtonElement;
+const setBgmBtn = document.getElementById('set-bgm-btn') as HTMLButtonElement;
+const setHapticBtn = document.getElementById('set-haptic-btn') as HTMLButtonElement;
+const setLowBwBtn = document.getElementById('set-lowbw-btn') as HTMLButtonElement;
+
+let gfxQuality: 'low' | 'med' | 'high' =
+  (localStorage.getItem('arek_slayer_gfx_v1') as 'low' | 'med' | 'high') || 'med';
+let hapticEnabled = localStorage.getItem('arek_slayer_haptic_v1') !== '0';
+wsMgr.lowBandwidthMode = localStorage.getItem('arek_slayer_lowbw_v1') === '1';
+
+function refreshSettingsUI(): void {
+  inputSettingsName.value = playerName;
+  const sfxMuted = btnSfx.classList.contains('muted');
+  setSfxBtn.textContent = sfxMuted ? 'MATI' : 'NYALA';
+  setSfxBtn.classList.toggle('active', !sfxMuted);
+  const bgmOff = btnBgm.classList.contains('muted');
+  setBgmBtn.textContent = bgmOff ? 'MATI' : 'NYALA';
+  setBgmBtn.classList.toggle('active', !bgmOff);
+  setHapticBtn.textContent = hapticEnabled ? 'NYALA' : 'MATI';
+  setHapticBtn.classList.toggle('active', hapticEnabled);
+  setLowBwBtn.textContent = wsMgr.lowBandwidthMode ? 'HEMAT 1 MBPS (10Hz)' : 'NORMAL (UDP+WSS)';
+  setLowBwBtn.classList.toggle('active', wsMgr.lowBandwidthMode);
+  document.querySelectorAll<HTMLButtonElement>('#set-gfx-group .seg-btn').forEach((b) => {
+    b.classList.toggle('active', b.dataset.gfx === gfxQuality);
+  });
 }
 
 document.getElementById('btn-open-play')?.addEventListener('click', () => {
@@ -710,7 +740,18 @@ document.getElementById('btn-open-play')?.addEventListener('click', () => {
   showMenuView('play');
 });
 
+document.getElementById('btn-open-settings')?.addEventListener('click', () => {
+  audio.unlock();
+  refreshSettingsUI();
+  showMenuView('settings');
+});
+
 document.getElementById('btn-back-home-play')?.addEventListener('click', () => {
+  audio.unlock();
+  showMenuView('home');
+});
+
+document.getElementById('btn-back-home-settings')?.addEventListener('click', () => {
   audio.unlock();
   showMenuView('home');
 });
@@ -720,11 +761,60 @@ document.getElementById('btn-quick-survival')?.addEventListener('click', () => {
   startSoloSurvival();
 });
 
-document.getElementById('btn-quick-profile')?.addEventListener('click', () => {
+inputSettingsName.addEventListener('input', () => syncPlayerName(inputSettingsName.value));
+
+document.querySelectorAll<HTMLButtonElement>('#settings-skin-picker .skin-swatch').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    audio.unlock();
+    syncSelectedSkin(Number(btn.dataset.skin));
+  });
+});
+
+setSfxBtn.addEventListener('click', () => {
   audio.unlock();
-  refreshMenuProgress();
-  showMenuView('play');
-  inputPlayerName.focus();
+  const muted = audio.toggleSfx();
+  btnSfx.classList.toggle('muted', muted);
+  refreshSettingsUI();
+});
+
+setBgmBtn.addEventListener('click', () => {
+  const enabled = audio.toggleBgm();
+  btnBgm.classList.toggle('muted', !enabled);
+  refreshSettingsUI();
+});
+
+setHapticBtn.addEventListener('click', () => {
+  hapticEnabled = !hapticEnabled;
+  try {
+    localStorage.setItem('arek_slayer_haptic_v1', hapticEnabled ? '1' : '0');
+  } catch {
+    // Ignore
+  }
+  refreshSettingsUI();
+});
+
+document.querySelectorAll<HTMLButtonElement>('#set-gfx-group .seg-btn').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const q = (btn.dataset.gfx as 'low' | 'med' | 'high') || 'med';
+    gfxQuality = q;
+    try {
+      localStorage.setItem('arek_slayer_gfx_v1', q);
+    } catch {
+      // Ignore
+    }
+    resizeCanvas();
+    refreshSettingsUI();
+  });
+});
+
+setLowBwBtn.addEventListener('click', () => {
+  wsMgr.lowBandwidthMode = !wsMgr.lowBandwidthMode;
+  try {
+    localStorage.setItem('arek_slayer_lowbw_v1', wsMgr.lowBandwidthMode ? '1' : '0');
+  } catch {
+    // Ignore
+  }
+  refreshSettingsUI();
 });
 
 function openPauseMenu(): void {
@@ -1163,7 +1253,8 @@ function resizeCanvas(): void {
   canvas.style.width = `${Math.floor(displayW)}px`;
   canvas.style.height = `${Math.floor(displayH)}px`;
 
-  const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+  const maxDpr = gfxQuality === 'low' ? 1.0 : gfxQuality === 'high' ? 1.5 : 1.25;
+  const dpr = Math.min(window.devicePixelRatio || 1, maxDpr);
   const targetW = Math.round(VIRTUAL_WIDTH * dpr);
   const targetH = Math.round(VIRTUAL_HEIGHT * dpr);
   if (canvas.width !== targetW || canvas.height !== targetH) {
@@ -1292,11 +1383,12 @@ function frame(now: number): void {
         } else {
           snapshotAccum += FIXED_DT;
           // Adaptive rate for 1 Mbps mobile smoothness: 10Hz for Monitor->Stick, 12-15Hz for full-screen clients
-          const snapInterval = wsMgr.isMonitor
-            ? 0.1
-            : wsMgr.pingMs > 120
-              ? 0.08
-              : 0.066;
+          const snapInterval =
+            wsMgr.isMonitor || wsMgr.lowBandwidthMode
+              ? 0.1
+              : wsMgr.pingMs > 120
+                ? 0.08
+                : 0.066;
           if (snapshotAccum >= snapInterval) {
             snapshotAccum = 0;
             wsMgr.broadcastCompactSnapshot(state, state.soundQueue);

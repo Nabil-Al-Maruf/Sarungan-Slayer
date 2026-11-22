@@ -98,7 +98,11 @@ export function bindTouchControls(
       btnPointerId = e.pointerId;
       btn.setPointerCapture(e.pointerId);
       btn.classList.add('pressed');
-      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      if (
+        typeof navigator !== 'undefined' &&
+        'vibrate' in navigator &&
+        localStorage.getItem('arek_slayer_haptic_v1') !== '0'
+      ) {
         try {
           navigator.vibrate(10);
         } catch {

@@ -176,10 +176,65 @@
                   <span class="pill-gloss"></span>
                   <span class="pill-label">MABAR</span>
                 </button>
-                <button id="btn-open-credits" class="cartoon-pill-btn anim-stagger-3">
+                <button id="btn-open-settings" class="cartoon-pill-btn anim-stagger-3">
                   <span class="pill-gloss"></span>
-                  <span class="pill-label">CREDITS</span>
+                  <span class="pill-label">PENGATURAN</span>
                 </button>
+              </div>
+            </div>
+
+            <!-- View 1C: Settings / Pengaturan Menu -->
+            <div id="menu-settings-view" class="menu-view scenic-subpanel hidden">
+              <h2 class="subpanel-title">⚙️ PENGATURAN GAME</h2>
+              <div class="settings-list">
+                <div class="setting-row">
+                  <span class="setting-label">👤 Nama Arek</span>
+                  <input
+                    id="input-settings-name"
+                    class="profile-name-input"
+                    type="text"
+                    maxlength="14"
+                    placeholder="Cak Suroboyo"
+                    autocomplete="off"
+                  />
+                </div>
+                <div class="setting-row">
+                  <span class="setting-label">👕 Skin Default</span>
+                  <div id="settings-skin-picker" class="skin-picker-row">
+                    <button class="skin-swatch active" data-skin="0" style="--sw: #ef4444">BIMA</button>
+                    <button class="skin-swatch" data-skin="1" style="--sw: #2563eb">BAGUS</button>
+                    <button class="skin-swatch" data-skin="2" style="--sw: #eab308">DIMAS</button>
+                    <button class="skin-swatch" data-skin="3" style="--sw: #10b981">RAKA</button>
+                    <button class="skin-swatch" data-skin="4" style="--sw: #9333ea">YUDI</button>
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <span class="setting-label">🔊 Efek Suara (SFX)</span>
+                  <button id="set-sfx-btn" class="setting-toggle active">NYALA</button>
+                </div>
+                <div class="setting-row">
+                  <span class="setting-label">🎵 Musik Latar (BGM)</span>
+                  <button id="set-bgm-btn" class="setting-toggle">MATI</button>
+                </div>
+                <div class="setting-row">
+                  <span class="setting-label">📳 Getaran Stick HP</span>
+                  <button id="set-haptic-btn" class="setting-toggle active">NYALA</button>
+                </div>
+                <div class="setting-row">
+                  <span class="setting-label">📱 Kualitas Grafis</span>
+                  <div class="setting-seg" id="set-gfx-group">
+                    <button class="seg-btn" data-gfx="low">RENDAH</button>
+                    <button class="seg-btn active" data-gfx="med">SEDANG</button>
+                    <button class="seg-btn" data-gfx="high">TINGGI</button>
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <span class="setting-label">📶 Jaringan Mabar</span>
+                  <button id="set-lowbw-btn" class="setting-toggle">NORMAL (UDP+WSS)</button>
+                </div>
+              </div>
+              <div class="menu-footer-actions">
+                <button id="btn-back-home-settings" class="primary-btn">← SIMPAN &amp; KEMBALI</button>
               </div>
             </div>
 
@@ -379,8 +434,8 @@
             <button id="btn-quick-survival" class="dock-icon-btn dock-gold" title="Survival Solo & Rekor Wave">
               <span class="dock-emoji">🏆</span>
             </button>
-            <button id="btn-quick-profile" class="dock-icon-btn dock-blue" title="Pengaturan Nama & Mode">
-              <span class="dock-emoji">⚙️</span>
+            <button id="btn-open-credits" class="dock-icon-btn dock-blue" title="Credits & Versi">
+              <span class="dock-emoji">⭐</span>
             </button>
           </div>
         </div>

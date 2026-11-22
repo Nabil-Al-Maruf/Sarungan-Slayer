@@ -108,6 +108,7 @@ export class WsManager {
   public connectionMode: ConnectionMode = 'online';
   public localPlayStyle: LocalPlayStyle = 'normal';
   public customHotspotHost = '';
+  public lowBandwidthMode = false;
   public pingMs = 0;
   public transportMode: 'UDP' | 'WSS' = 'WSS';
 
@@ -145,6 +146,7 @@ export class WsManager {
   // WebRTC UDP DataChannels (Host maintains 1 per client; Client maintains 1 to Host)
   private pcs = new Map<string, RTCPeerConnection>();
   private dcs = new Map<string, RTCDataChannel>();
+  private pendingIce = new Map<string, RTCIceCandidateInit[]>();
   private remoteInputs = new Map<string, PlayerInput>();
 
   // Authoritative target positions (never mutated by render state)
@@ -214,6 +216,7 @@ export class WsManager {
       }
     }
     this.pcs.clear();
+    this.pendingIce.clear();
     this.transportMode = 'WSS';
   }
 
@@ -471,6 +474,7 @@ export class WsManager {
 
   private cleanupPeer(peerId: string): void {
     this.remoteInputs.delete(peerId);
+    this.pendingIce.delete(peerId);
     const dc = this.dcs.get(peerId);
     if (dc) {
       try {
@@ -562,6 +566,7 @@ export class WsManager {
         };
 
         await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+        await this.flushPendingIce(fromId, pc);
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
         this.sendWs({
@@ -573,15 +578,36 @@ export class WsManager {
         const pc = this.pcs.get(fromId);
         if (pc) {
           await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+          await this.flushPendingIce(fromId, pc);
         }
       } else if (data.kind === 'ice') {
         const pc = this.pcs.get(fromId);
-        if (pc && data.candidate) {
-          await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+        if (data.candidate) {
+          if (pc && pc.remoteDescription) {
+            await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+          } else {
+            // Queue ICE candidate until remoteDescription is set (fixes UDP failing on fast LAN/Hotspot!)
+            const queue = this.pendingIce.get(fromId) ?? [];
+            queue.push(data.candidate);
+            this.pendingIce.set(fromId, queue);
+          }
         }
       }
     } catch {
       // Silently stay on WSS relay fallback
+    }
+  }
+
+  private async flushPendingIce(peerId: string, pc: RTCPeerConnection): Promise<void> {
+    const queue = this.pendingIce.get(peerId);
+    if (!queue || queue.length === 0) return;
+    this.pendingIce.delete(peerId);
+    for (const cand of queue) {
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(cand));
+      } catch {
+        // Ignore stale candidate
+      }
     }
   }
 
@@ -638,12 +664,16 @@ export class WsManager {
   private sendPayloadToPeer(peerId: string, payload: GameNetPayload): void {
     const dc = this.dcs.get(peerId);
     if (dc && dc.readyState === 'open') {
+      if (payload.t === 'snap' && dc.bufferedAmount > 8192) return;
       try {
         dc.send(JSON.stringify(payload));
         return;
       } catch {
         // Fall back to WSS
       }
+    }
+    if (payload.t === 'snap' && this.ws && this.ws.bufferedAmount > 4096) {
+      return;
     }
     this.sendWs({ type: 'relay', to: peerId, payload });
   }
@@ -743,6 +773,10 @@ export class WsManager {
         } catch {
           // Fallback to WSS below
         }
+      }
+      // Anti-bufferbloat guard on WSS TCP: drop non-critical snapshot if socket buffer is backed up
+      if (this.ws && this.ws.bufferedAmount > 4096 && sounds.length === 0) {
+        continue;
       }
       this.sendWs({
         type: 'relay',
