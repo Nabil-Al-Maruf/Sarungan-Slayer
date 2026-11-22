@@ -5,12 +5,15 @@ export interface Env {
   GAME_ROOM: DurableObjectNamespace<GameRoom>;
 }
 
+export type LobbyRole = 'player' | 'monitor' | 'stick';
+
 export interface LobbyPlayer {
   id: string;
   paletteIndex: number;
   name: string;
   customName: string;
   isHost: boolean;
+  role: LobbyRole;
 }
 
 interface ClientSession {
@@ -20,6 +23,7 @@ interface ClientSession {
   customName: string;
   name: string;
   isHost: boolean;
+  role: LobbyRole;
 }
 
 type ClientMsg =
@@ -33,10 +37,18 @@ function formatLobbyDisplayName(
   slotId: string,
   customName: string,
   paletteIndex: number,
-  isHost: boolean
+  isHost: boolean,
+  role: LobbyRole = 'player'
 ): string {
-  const pal = PLAYER_PALETTES[paletteIndex % PLAYER_PALETTES.length];
-  const clean = customName.trim().slice(0, 14) || pal.name.split(' ')[1];
+  const clean =
+    customName.trim().slice(0, 14) ||
+    (paletteIndex >= 0 ? PLAYER_PALETTES[paletteIndex % PLAYER_PALETTES.length].name.split(' ')[1] : 'Layar');
+  if (role === 'monitor') {
+    return `📺 MONITOR • ${clean}`;
+  }
+  if (role === 'stick') {
+    return `🎮 ${slotId.toUpperCase()} • ${clean} (STICK)`;
+  }
   return `${slotId.toUpperCase()} • ${clean}${isHost ? ' (HOST)' : ''}`;
 }
 
@@ -52,8 +64,9 @@ export class GameRoom extends DurableObject<Env> {
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
     const code = (url.searchParams.get('code') || 'ROOM').toUpperCase().slice(0, 4);
-    const preferredPalette = Number(url.searchParams.get('palette') || '0') || 0;
+    const preferredPalette = Math.abs(Number(url.searchParams.get('palette') || '0') || 0) % PLAYER_PALETTES.length;
     const rawName = (url.searchParams.get('name') || '').trim().slice(0, 14);
+    const reqRole = url.searchParams.get('role') === 'monitor' ? 'monitor' : 'player';
     this.roomCode = code;
 
     if (request.headers.get('Upgrade') !== 'websocket') {
@@ -68,28 +81,39 @@ export class GameRoom extends DurableObject<Env> {
     const [clientWs, serverWs] = Object.values(pair);
     serverWs.accept();
 
-    if (this.sessions.size >= 5) {
+    const fighterCount = [...this.sessions.values()].filter((s) => s.role !== 'monitor').length;
+    if (fighterCount >= 5) {
       this.safeSend(serverWs, { type: 'room_full' });
       serverWs.close(1008, 'Room full');
       return new Response(null, { status: 101, webSocket: clientWs });
     }
 
-    const usedIds = new Set([...this.sessions.values()].map((s) => s.id));
-    let slotNum = 1;
-    while (usedIds.has(`p${slotNum}`) && slotNum <= 5) slotNum++;
-    const playerId = `p${slotNum}`;
+    const hasMonitor = [...this.sessions.values()].some((s) => s.role === 'monitor');
     const isHost = this.sessions.size === 0;
-    const paletteIndex = preferredPalette % PLAYER_PALETTES.length;
-    const pal = PLAYER_PALETTES[paletteIndex];
-    const customName = rawName || pal.name.split(' ')[1];
+    const role: LobbyRole = isHost && reqRole === 'monitor' ? 'monitor' : hasMonitor ? 'stick' : 'player';
+
+    let playerId = 'monitor';
+    let paletteIndex = -1;
+    let customName = rawName || 'Monitor';
+
+    if (role !== 'monitor') {
+      const usedIds = new Set([...this.sessions.values()].map((s) => s.id));
+      let slotNum = 1;
+      while (usedIds.has(`p${slotNum}`) && slotNum <= 5) slotNum++;
+      playerId = `p${slotNum}`;
+      paletteIndex = this.pickUniquePalette(preferredPalette);
+      const pal = PLAYER_PALETTES[paletteIndex];
+      customName = rawName || pal.name.split(' ')[1];
+    }
 
     const session: ClientSession = {
       ws: serverWs,
       id: playerId,
       paletteIndex,
       customName,
-      name: formatLobbyDisplayName(playerId, customName, paletteIndex, isHost),
+      name: formatLobbyDisplayName(playerId, customName, paletteIndex, isHost, role),
       isHost,
+      role,
     };
     this.sessions.set(serverWs, session);
 
@@ -126,13 +150,20 @@ export class GameRoom extends DurableObject<Env> {
     if (msg.type === 'set_profile') {
       const cleanName =
         (typeof msg.name === 'string' ? msg.name.trim().slice(0, 14) : '') || session.customName;
-      const palIdx =
-        typeof msg.paletteIndex === 'number'
-          ? Math.abs(Math.floor(msg.paletteIndex)) % PLAYER_PALETTES.length
-          : session.paletteIndex;
       session.customName = cleanName;
-      session.paletteIndex = palIdx;
-      session.name = formatLobbyDisplayName(session.id, cleanName, palIdx, session.isHost);
+      if (session.role !== 'monitor' && typeof msg.paletteIndex === 'number') {
+        const palIdx = Math.abs(Math.floor(msg.paletteIndex)) % PLAYER_PALETTES.length;
+        if (!this.isPaletteTaken(palIdx, session)) {
+          session.paletteIndex = palIdx;
+        }
+      }
+      session.name = formatLobbyDisplayName(
+        session.id,
+        cleanName,
+        session.paletteIndex,
+        session.isHost,
+        session.role
+      );
       this.broadcastLobby();
       return;
     }
@@ -214,7 +245,8 @@ export class GameRoom extends DurableObject<Env> {
           nextHost.id,
           nextHost.customName,
           nextHost.paletteIndex,
-          true
+          true,
+          nextHost.role
         );
       }
     }
@@ -232,6 +264,23 @@ export class GameRoom extends DurableObject<Env> {
     this.broadcastLobby();
   }
 
+  private isPaletteTaken(paletteIndex: number, exclude?: ClientSession): boolean {
+    for (const s of this.sessions.values()) {
+      if (s !== exclude && s.role !== 'monitor' && s.paletteIndex === paletteIndex) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private pickUniquePalette(preferred: number, exclude?: ClientSession): number {
+    if (!this.isPaletteTaken(preferred, exclude)) return preferred;
+    for (let i = 0; i < PLAYER_PALETTES.length; i++) {
+      if (!this.isPaletteTaken(i, exclude)) return i;
+    }
+    return preferred;
+  }
+
   private broadcastLobby(): void {
     const players: LobbyPlayer[] = [...this.sessions.values()].map((s) => ({
       id: s.id,
@@ -239,6 +288,7 @@ export class GameRoom extends DurableObject<Env> {
       name: s.name,
       customName: s.customName,
       isHost: s.isHost,
+      role: s.role,
     }));
 
     for (const s of this.sessions.values()) {

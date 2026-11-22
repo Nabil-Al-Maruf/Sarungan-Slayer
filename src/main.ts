@@ -23,7 +23,12 @@ import {
   stepSurvival,
   type ShopItemId,
 } from './modes/survival';
-import { WsManager, type ConnectionMode, type LobbyPlayer } from './net/wsManager';
+import {
+  WsManager,
+  type ConnectionMode,
+  type LobbyPlayer,
+  type LocalPlayStyle,
+} from './net/wsManager';
 import { renderGame } from './render/renderer';
 import { HudController } from './ui/hud';
 import { bindTouchControls } from './ui/touchControls';
@@ -86,6 +91,25 @@ const inputRoomCode = document.getElementById('input-room-code') as HTMLInputEle
 const lobbyRosterEl = document.getElementById('lobby-roster') as HTMLDivElement;
 const lobbyPlayerCountEl = document.getElementById('lobby-player-count') as HTMLSpanElement;
 const btnStartMabar = document.getElementById('btn-start-mabar') as HTMLButtonElement;
+const appShellEl = document.querySelector('.app-shell') as HTMLDivElement;
+const localStyleNormalBtn = document.getElementById('local-style-normal') as HTMLButtonElement;
+const localStyleMonitorBtn = document.getElementById('local-style-monitor') as HTMLButtonElement;
+const hotspotGuideTitle = document.getElementById('hotspot-guide-title') as HTMLElement;
+const hotspotGuideStep1 = document.getElementById('hotspot-guide-step1') as HTMLElement;
+const hotspotGuideStep2 = document.getElementById('hotspot-guide-step2') as HTMLElement;
+const hotspotGuideStep3 = document.getElementById('hotspot-guide-step3') as HTMLElement;
+
+// Stick HP Controller HUD references
+const stickHudBar = document.getElementById('stick-hud-bar') as HTMLDivElement;
+const stickPlayerBadge = document.getElementById('stick-player-badge') as HTMLSpanElement;
+const stickPlayerName = document.getElementById('stick-player-name') as HTMLElement;
+const stickWavePill = document.getElementById('stick-wave-pill') as HTMLSpanElement;
+const stickHpFill = document.getElementById('stick-hp-fill') as HTMLDivElement;
+const stickHpText = document.getElementById('stick-hp-text') as HTMLSpanElement;
+const stickUltText = document.getElementById('stick-ult-text') as HTMLSpanElement;
+const stickCoinsText = document.getElementById('stick-coins-text') as HTMLSpanElement;
+const stickPingPill = document.getElementById('stick-ping-pill') as HTMLSpanElement;
+const btnStickExit = document.getElementById('btn-stick-exit') as HTMLButtonElement;
 
 // Shop DOM references
 const shopCoinsEl = document.getElementById('shop-coins') as HTMLElement;
@@ -115,8 +139,20 @@ function syncPlayerName(newName: string): void {
   }
 }
 
-function syncSelectedSkin(skinIdx: number): void {
-  selectedPalette = Math.abs(Math.floor(skinIdx)) % PLAYER_PALETTES.length;
+function syncSelectedSkin(skinIdx: number, sendProfile = true): void {
+  const nextIdx = Math.abs(Math.floor(skinIdx)) % PLAYER_PALETTES.length;
+  if (
+    wsMgr.connected &&
+    wsMgr.lobbyPlayers.some(
+      (pl) => pl.id !== wsMgr.localPlayerId && pl.role !== 'monitor' && pl.paletteIndex === nextIdx
+    )
+  ) {
+    lobbyStatusEl.textContent = 'Skin itu sudah dipakai pemain lain! Pilih skin yang berbeda.';
+    lobbyStatusEl.style.color = '#f87171';
+    return;
+  }
+
+  selectedPalette = nextIdx;
   try {
     localStorage.setItem(SKIN_STORAGE_KEY, String(selectedPalette));
   } catch {
@@ -134,7 +170,7 @@ function syncSelectedSkin(skinIdx: number): void {
     p.paletteIndex = selectedPalette;
   }
 
-  if (wsMgr.connected) {
+  if (sendProfile && wsMgr.connected) {
     wsMgr.sendSetProfile(playerName, selectedPalette);
   }
 }
@@ -149,6 +185,32 @@ document.querySelectorAll<HTMLButtonElement>('#lobby-skin-picker .skin-swatch').
   });
 });
 
+function setStickMode(active: boolean): void {
+  appShellEl.classList.toggle('stick-controller-mode', active);
+  stickHudBar.classList.toggle('hidden', !active);
+}
+
+function updateStickHud(): void {
+  if (!wsMgr.isStickClient) return;
+  const p = getLocalPlayer();
+  const surv = state.survival;
+  if (p) {
+    const pal = PLAYER_PALETTES[p.paletteIndex % PLAYER_PALETTES.length];
+    stickPlayerBadge.textContent = p.id.toUpperCase();
+    stickPlayerBadge.style.background = pal.accent;
+    stickPlayerName.textContent = p.name.toUpperCase();
+    const hpPct = Math.max(0, Math.min(100, (p.hp / Math.max(1, p.maxHp)) * 100));
+    stickHpFill.style.width = `${hpPct}%`;
+    stickHpText.textContent = `${Math.ceil(p.hp)}/${p.maxHp}`;
+    stickUltText.textContent = `ULT ${Math.floor(p.ult)}%`;
+    stickCoinsText.textContent = `🪙 ${p.coins}`;
+  }
+  if (surv) {
+    stickWavePill.textContent = surv.phase === 'intermission' ? `W${surv.wave} ⏱${Math.ceil(surv.intermissionTimer)}s` : `W${surv.wave}`;
+  }
+  stickPingPill.textContent = wsMgr.pingMs > 0 ? `${wsMgr.pingMs}ms ${wsMgr.transportMode}` : wsMgr.transportMode;
+}
+
 // ===== HYBRID WEBRTC UDP P2P + CLOUDFLARE WSS FALLBACK MANAGER =====
 const wsMgr = new WsManager({
   onStatus(text, isError) {
@@ -160,11 +222,26 @@ const wsMgr = new WsManager({
   },
   onGameStart() {
     audio.unlock();
-    const roster = wsMgr.lobbyPlayers.map((p) => ({
-      id: p.id,
-      paletteIndex: p.paletteIndex,
-      name: p.customName,
-    }));
+    const usedPalettes = new Set<number>();
+    const roster = wsMgr.lobbyPlayers
+      .filter((p) => p.role !== 'monitor')
+      .map((p) => {
+        let pal = Math.abs(Math.floor(p.paletteIndex)) % PLAYER_PALETTES.length;
+        if (usedPalettes.has(pal)) {
+          for (let i = 0; i < PLAYER_PALETTES.length; i++) {
+            if (!usedPalettes.has(i)) {
+              pal = i;
+              break;
+            }
+          }
+        }
+        usedPalettes.add(pal);
+        return {
+          id: p.id,
+          paletteIndex: pal,
+          name: p.customName,
+        };
+      });
     state = createSurvivalState(selectedPalette, roster, playerName);
     snapshotAccum = 0;
     menuOpen = false;
@@ -179,14 +256,20 @@ const wsMgr = new WsManager({
     buffOverlay.classList.add('hidden');
     resultOverlay.classList.add('hidden');
 
+    setStickMode(wsMgr.isStickClient);
+    updateStickHud();
+
     if (wsMgr.isHost) {
       wsMgr.broadcastCompactSnapshot(state, []);
     }
   },
   onCompactSnapshot(snap) {
     wsMgr.mergeSnapshot(state, snap);
-    if (snap.snd.length > 0) {
+    if (snap.snd.length > 0 && !wsMgr.isStickClient) {
       audio.playQueue(snap.snd);
+    }
+    if (wsMgr.isStickClient) {
+      updateStickHud();
     }
     if (shopOpen) {
       refreshShopUI();
@@ -219,6 +302,7 @@ const wsMgr = new WsManager({
     refreshShopUI();
   },
   onDisconnect(reason) {
+    setStickMode(false);
     state.shakeTimer = 0;
     state.shakeIntensity = 0;
     state.hitstopTimer = 0;
@@ -232,6 +316,59 @@ const wsMgr = new WsManager({
   },
 });
 
+function setLocalPlayStyle(style: LocalPlayStyle): void {
+  if (wsMgr.connected) {
+    wsMgr.disconnect(true);
+    renderLobbyRoster('', [], 'p1', false);
+  }
+  wsMgr.localPlayStyle = style;
+  localStyleNormalBtn.classList.toggle('active', style === 'normal');
+  localStyleMonitorBtn.classList.toggle('active', style === 'monitor');
+
+  if (style === 'monitor') {
+    hotspotGuideTitle.textContent = 'Cara Mabar Mode Monitor + Stick HP:';
+    hotspotGuideStep1.innerHTML =
+      '1. Perangkat <b>Monitor</b> (Laptop/Tablet/HP utama) nyalakan/sambung ke <b>Hotspot</b> lalu klik <b>Buat Room Monitor</b>.';
+    hotspotGuideStep2.innerHTML =
+      '2. HP teman sambung ke Hotspot yang sama &amp; masukkan <b>Kode Room (H---)</b> — HP teman otomatis jadi <b>Stick Gamepad</b>!';
+    hotspotGuideStep3.innerHTML =
+      '3. Layar arena tampil di Monitor, dan semua teman mengendalikan jagoannya lewat Stick HP masing-masing!';
+    if (wsMgr.connectionMode === 'hotspot') {
+      labelHostModeEl.textContent = 'HOST MONITOR (LAYAR UTAMA)';
+      btnCreateRoom.textContent = 'BUAT ROOM MONITOR';
+    }
+  } else {
+    hotspotGuideTitle.textContent = 'Cara Mabar Local Hotspot / Bluetooth Tethering:';
+    hotspotGuideStep1.innerHTML =
+      '1. Host menyalakan <b>Hotspot Wi-Fi</b> atau <b>Bluetooth Tethering</b> di HP.';
+    hotspotGuideStep2.innerHTML =
+      '2. Teman <b>wajib terhubung</b> ke jaringan Hotspot/Tethering Host tersebut.';
+    hotspotGuideStep3.innerHTML =
+      '3. Host klik <b>Buat Room Hotspot</b> (Kode <code>H---</code>), lalu teman masukkan kode itu!';
+    if (wsMgr.connectionMode === 'hotspot') {
+      labelHostModeEl.textContent = 'HOST HOTSPOT / BLUETOOTH';
+      btnCreateRoom.textContent = 'BUAT ROOM HOTSPOT';
+    }
+  }
+}
+
+localStyleNormalBtn.addEventListener('click', () => {
+  audio.unlock();
+  setLocalPlayStyle('normal');
+});
+
+localStyleMonitorBtn.addEventListener('click', () => {
+  audio.unlock();
+  setLocalPlayStyle('monitor');
+});
+
+btnStickExit.addEventListener('click', () => {
+  audio.unlock();
+  setStickMode(false);
+  wsMgr.disconnect(true);
+  openMenu();
+});
+
 function setConnectionMode(mode: ConnectionMode): void {
   if (wsMgr.connected) {
     wsMgr.disconnect(true);
@@ -243,8 +380,7 @@ function setConnectionMode(mode: ConnectionMode): void {
   hotspotGuideEl.classList.toggle('hidden', mode !== 'hotspot');
 
   if (mode === 'hotspot') {
-    labelHostModeEl.textContent = 'HOST HOTSPOT / BLUETOOTH';
-    btnCreateRoom.textContent = 'BUAT ROOM HOTSPOT';
+    setLocalPlayStyle(wsMgr.localPlayStyle);
     inputRoomCode.placeholder = 'H---';
     lobbyStatusEl.textContent =
       'Nyalakan Hotspot/Tethering di HP Host, pastikan teman konek ke Hotspot tsb, lalu Buat/Gabung Room!';
@@ -282,16 +418,39 @@ function renderLobbyRoster(
   localId: string,
   isHost: boolean
 ): void {
+  const fighters = players.filter((p) => p.role !== 'monitor');
+  const me = players.find((p) => p.id === localId);
+  if (me && me.role !== 'monitor' && me.paletteIndex !== selectedPalette) {
+    syncSelectedSkin(me.paletteIndex, false);
+  }
+
+  const takenByOthers = new Set(
+    fighters.filter((p) => p.id !== localId).map((p) => p.paletteIndex)
+  );
+  document.querySelectorAll<HTMLButtonElement>('#lobby-skin-picker .skin-swatch').forEach((btn) => {
+    const idx = Number(btn.dataset.skin);
+    const taken = takenByOthers.has(idx);
+    btn.disabled = taken;
+    btn.classList.toggle('taken', taken);
+  });
+
   if (roomCode && players.length > 0) {
     hostCodeWrap.classList.remove('hidden');
     lobbyRoomCodeEl.textContent = roomCode;
+    const isMonitorHost = me?.role === 'monitor';
     btnStartMabar.classList.toggle('hidden', !isHost);
+    btnStartMabar.disabled = isMonitorHost && fighters.length === 0;
+    btnStartMabar.textContent =
+      isMonitorHost && fighters.length === 0
+        ? 'MENUNGGU STICK HP GABUNG...'
+        : 'MULAI MABAR SURVIVAL ➔';
   } else {
     hostCodeWrap.classList.add('hidden');
     btnStartMabar.classList.add('hidden');
+    btnStartMabar.disabled = false;
   }
 
-  lobbyPlayerCountEl.textContent = `${players.length}/5`;
+  lobbyPlayerCountEl.textContent = `${fighters.length}/5`;
   if (players.length === 0) {
     lobbyRosterEl.innerHTML = '<div class="roster-empty">Belum ada room aktif.</div>';
     return;
@@ -299,9 +458,12 @@ function renderLobbyRoster(
 
   lobbyRosterEl.innerHTML = players
     .map((p) => {
-      const pal = PLAYER_PALETTES[p.paletteIndex % PLAYER_PALETTES.length];
+      const isMon = p.role === 'monitor';
+      const dotColor = isMon
+        ? '#38bdf8'
+        : PLAYER_PALETTES[p.paletteIndex % PLAYER_PALETTES.length].accent;
       const you = p.id === localId ? ' (KAMU)' : '';
-      return `<div class="roster-chip"><span class="roster-dot" style="background:${pal.accent}"></span>${p.name}${you}</div>`;
+      return `<div class="roster-chip"><span class="roster-dot" style="background:${dotColor}"></span>${p.name}${you}</div>`;
     })
     .join('');
 }
@@ -366,7 +528,13 @@ function refreshShopUI(): void {
  * and displays the 3 random Buff cards modal (Player picks 1!).
  */
 function checkPendingBuffModal(): void {
-  if (state.mode !== 'survival' || state.status !== 'playing' || menuOpen || lobbyOpen) {
+  if (
+    state.mode !== 'survival' ||
+    state.status !== 'playing' ||
+    menuOpen ||
+    lobbyOpen ||
+    wsMgr.isMonitor
+  ) {
     if (buffModalOpen) {
       buffModalOpen = false;
       buffOverlay.classList.add('hidden');
@@ -478,6 +646,7 @@ function showMenuView(view: 'home' | 'story' | 'credits' | 'changelog'): void {
 }
 
 function openMenu(): void {
+  setStickMode(false);
   wsMgr.disconnect(true);
   state.shakeTimer = 0;
   state.shakeIntensity = 0;
@@ -931,11 +1100,16 @@ function frame(now: number): void {
               }
             : sampled;
         wsMgr.sendDeltaInput(netInput);
-        wsMgr.applyPredictionAndLerp(state, netInput, FIXED_DT, (ev) => audio.play(ev));
+        if (!wsMgr.isStickClient) {
+          wsMgr.applyPredictionAndLerp(state, netInput, FIXED_DT, (ev) => audio.play(ev));
+        } else {
+          updateStickHud();
+        }
       } else if (wsMgr.connected && wsMgr.isHost) {
         // Host: Authoritative 60Hz Simulation + 20Hz Compact Snapshot over UDP/WSS
-        const allInputs: Record<string, PlayerInput> = {
-          [wsMgr.localPlayerId]:
+        const allInputs: Record<string, PlayerInput> = {};
+        if (!wsMgr.isMonitor) {
+          allInputs[wsMgr.localPlayerId] =
             shopOpen || buffModalOpen
               ? {
                   up: false,
@@ -949,8 +1123,8 @@ function frame(now: number): void {
                   ultPressed: false,
                   shopPressed: false,
                 }
-              : sampled,
-        };
+              : sampled;
+        }
         for (const p of state.players) {
           if (p.id === wsMgr.localPlayerId) continue;
           const rem = wsMgr.getRemoteInput(p.id);
@@ -996,11 +1170,13 @@ function frame(now: number): void {
     accumulator -= FIXED_DT;
   }
 
-  renderGame(ctx, state);
-  const perfText = wsMgr.connected
-    ? `${currentFps} FPS • ${wsMgr.pingMs}ms ${wsMgr.transportMode}`
-    : `${currentFps} FPS`;
-  hud.update(state, wsMgr.localPlayerId, perfText);
+  if (!wsMgr.isStickClient) {
+    renderGame(ctx, state);
+    const perfText = wsMgr.connected
+      ? `${currentFps} FPS • ${wsMgr.pingMs}ms ${wsMgr.transportMode}`
+      : `${currentFps} FPS`;
+    hud.update(state, wsMgr.localPlayerId, perfText);
+  }
   requestAnimationFrame(frame);
 }
 

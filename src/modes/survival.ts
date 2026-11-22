@@ -572,11 +572,11 @@ export function stepSurvival(
           nearest = e;
         }
       }
-      if (nearest && bestDist <= 420) {
-        surv.core.towerCooldown = 0.52;
+      if (nearest && bestDist <= 330) {
+        surv.core.towerCooldown = 0.95;
         const angle = Math.atan2(nearest.y - cy, nearest.x - cx);
         surv.core.towerAimAngle = angle;
-        const spd = PROJ_SPEED * 1.15;
+        const spd = PROJ_SPEED * 0.92;
         state.soundQueue.push('tower_shoot');
         state.projectiles.push({
           id: state.nextEntityId++,
@@ -586,12 +586,12 @@ export function stepSurvival(
           vx: Math.cos(angle) * spd,
           vy: Math.sin(angle) * spd,
           angle,
-          radius: 14,
-          damage: 34,
-          pierceLeft: 2,
+          radius: 11,
+          damage: 18,
+          pierceLeft: 1,
           hitIds: [],
-          life: 1.1,
-          maxLife: 1.1,
+          life: 0.85,
+          maxLife: 0.85,
           color: '#fb923c',
         });
       }

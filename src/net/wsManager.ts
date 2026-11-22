@@ -25,15 +25,19 @@ import {
   type CompactSnapshot,
 } from './compactSnapshot';
 
+export type LobbyRole = 'player' | 'monitor' | 'stick';
+
 export interface LobbyPlayer {
   id: string;
   paletteIndex: number;
   name: string;
   customName?: string;
   isHost: boolean;
+  role?: LobbyRole;
 }
 
 export type ConnectionMode = 'online' | 'hotspot';
+export type LocalPlayStyle = 'normal' | 'monitor';
 
 type ServerToClientMsg =
   | {
@@ -100,9 +104,24 @@ export class WsManager {
   public localPlayerId = 'p1';
   public lobbyPlayers: LobbyPlayer[] = [];
   public connectionMode: ConnectionMode = 'online';
+  public localPlayStyle: LocalPlayStyle = 'normal';
   public customHotspotHost = '';
   public pingMs = 0;
   public transportMode: 'UDP' | 'WSS' = 'WSS';
+
+  public get isMonitor(): boolean {
+    return (
+      this.isHost &&
+      this.lobbyPlayers.some((p) => p.id === this.localPlayerId && p.role === 'monitor')
+    );
+  }
+
+  public get isStickClient(): boolean {
+    return (
+      !this.isHost &&
+      this.lobbyPlayers.some((p) => p.id === this.localPlayerId && p.role === 'stick')
+    );
+  }
 
   private ws: WebSocket | null = null;
   private connectTimeout: number | null = null;
@@ -210,7 +229,9 @@ export class WsManager {
 
   public createRoom(hostPaletteIndex = 0, playerName = 'Cak Bima'): void {
     const code = this.generateRoomCode();
-    this.connectToRoom(code, hostPaletteIndex, playerName);
+    const roleParam =
+      this.connectionMode === 'hotspot' && this.localPlayStyle === 'monitor' ? 'monitor' : 'player';
+    this.connectToRoom(code, hostPaletteIndex, playerName, roleParam);
   }
 
   public joinRoom(rawCode: string, paletteIndex = 0, playerName = 'Arek SBY'): void {
@@ -229,12 +250,18 @@ export class WsManager {
     this.connectToRoom(code, paletteIndex, playerName);
   }
 
-  private connectToRoom(code: string, paletteIndex: number, playerName: string): void {
+  private connectToRoom(
+    code: string,
+    paletteIndex: number,
+    playerName: string,
+    role: 'player' | 'monitor' = 'player'
+  ): void {
     this.disconnect(true);
     this.roomCode = code;
     const baseUrl = this.getWsBaseUrl();
     const encodedName = encodeURIComponent(playerName.trim().slice(0, 14) || 'Arek');
-    const wsUrl = `${baseUrl}/room/${code}?palette=${paletteIndex}&name=${encodedName}`;
+    const roleQuery = role === 'monitor' ? '&role=monitor' : '';
+    const wsUrl = `${baseUrl}/room/${code}?palette=${paletteIndex}&name=${encodedName}${roleQuery}`;
 
     const modeLabel =
       this.connectionMode === 'hotspot' ? 'Hotspot / Tethering Room' : 'Cloudflare Server Room';

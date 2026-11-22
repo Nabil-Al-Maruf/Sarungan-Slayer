@@ -68,6 +68,8 @@ export interface CompactSnapshot {
   pk: Array<[number, PickupKind, number, number, number]>;
   // Sound events
   snd: SoundEvent[];
+  // Pending 2-Wave Buff choices per player (only sent when active)
+  pb?: Record<string, BuffId[]>;
 }
 
 const ENEMY_COLORS: Partial<Record<EnemyKind, { shirt: string; sarung: string; r: number; name: string }>> = {
@@ -80,6 +82,13 @@ const ENEMY_COLORS: Partial<Record<EnemyKind, { shirt: string; sarung: string; r
 
 export function packCompactSnapshot(state: GameState, sounds: SoundEvent[]): CompactSnapshot {
   const surv = state.survival;
+  const pb: Record<string, BuffId[]> = {};
+  for (const p of state.players) {
+    if (p.pendingBuffChoices && p.pendingBuffChoices.length > 0) {
+      pb[p.id] = p.pendingBuffChoices;
+    }
+  }
+  const hasBuffs = Object.keys(pb).length > 0;
   return {
     t: Math.round(state.time * 100) / 100,
     st: state.status === 'victory' ? 'v' : state.status === 'gameover' ? 'g' : 'p',
@@ -160,6 +169,7 @@ export function packCompactSnapshot(state: GameState, sounds: SoundEvent[]): Com
       Math.round(pk.z),
     ]),
     snd: sounds,
+    ...(hasBuffs ? { pb } : {}),
   };
 }
 
@@ -207,6 +217,16 @@ export function mergeCompactSnapshot(
         bar.hp = hp;
         bar.maxHp = maxHp;
       }
+    }
+  }
+
+  if (snap.pb) {
+    for (const p of state.players) {
+      p.pendingBuffChoices = snap.pb[p.id] ?? [];
+    }
+  } else {
+    for (const p of state.players) {
+      p.pendingBuffChoices = [];
     }
   }
 

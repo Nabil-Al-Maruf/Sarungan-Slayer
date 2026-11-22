@@ -76,7 +76,7 @@
         <div id="menu-overlay" class="overlay-modal title-screen-bg">
           <div class="modal-card menu-card title-card-anim">
             <div class="title-top-meta">
-              <span class="version-badge">v1.3.0</span>
+              <span class="version-badge">v1.4.0</span>
               <span class="modal-eyebrow">SUROBOYO TOP-DOWN ACTION ARCADE</span>
               <span class="version-badge p2p-badge">UDP P2P + WSS</span>
             </div>
@@ -189,7 +189,7 @@
                 </div>
                 <div class="credit-row">
                   <span class="credit-role">VERSI RILIS</span>
-                  <strong>v1.2.0 — Hotspot Mabar, Roguelike Buff &amp; Tower Edition</strong>
+                  <strong>v1.4.0 — Monitor + Stick HP, Anti-Duplikat Skin &amp; Android Stick Fix</strong>
                 </div>
               </div>
               <div class="menu-footer-actions">
@@ -200,6 +200,18 @@
             <!-- View 4: Info Update / Changelog -->
             <div id="menu-changelog-view" class="menu-view hidden">
               <div class="changelog-box">
+                <div class="changelog-entry">
+                  <div class="changelog-head">
+                    <span class="version-badge">v1.4.0</span>
+                    <strong>Mode Monitor + Stick HP, Skin Unik &amp; Stick Android Rapi</strong>
+                  </div>
+                  <ul class="changelog-list">
+                    <li><b>2 Opsi Mabar Local Hotspot:</b> Pilih <b>Main Biasa</b> (semua main di layar masing-masing) atau <b>Mode Monitor + Stick HP</b> (1 layar jadi Monitor utama, HP teman jadi Stick/Gamepad!).</li>
+                    <li><b>Layout Stick Android Portrait &amp; Landscape:</b> Ukuran analog &amp; tombol diperbaiki agar pas di layar HP kecil maupun lebar, aman dari notch/gesture bar, plus tombol Warung di mode Landscape.</li>
+                    <li><b>Skin Unik Saat Mabar:</b> Skin yang sudah dipakai pemain lain otomatis terkunci agar tidak ada skin kembar saat mabar.</li>
+                    <li><b>Nerf Tower Pos Warkop:</b> Jarak, damage &amp; kecepatan tembak Tower disesuaikan agar Survival tetap menantang.</li>
+                  </ul>
+                </div>
                 <div class="changelog-entry">
                   <div class="changelog-head">
                     <span class="version-badge">v1.3.0</span>
@@ -274,10 +286,20 @@
             </div>
 
             <div id="hotspot-guide" class="hotspot-guide hidden">
-              <strong>Cara Mabar Local Hotspot / Bluetooth Tethering:</strong>
-              <span>1. Host menyalakan <b>Hotspot Wi-Fi</b> atau <b>Bluetooth Tethering</b> di HP.</span>
-              <span>2. Teman <b>wajib terhubung</b> ke jaringan Hotspot/Tethering Host tersebut.</span>
-              <span>3. Host klik <b>Buat Room Hotspot</b> (Kode <code>H---</code>), lalu teman masukkan kode itu!</span>
+              <div class="local-style-row">
+                <button id="local-style-normal" class="local-style-btn active" data-style="normal">
+                  📱 MAIN BIASA
+                  <small>Semua main di layar masing-masing</small>
+                </button>
+                <button id="local-style-monitor" class="local-style-btn" data-style="monitor">
+                  📺 MONITOR + STICK HP
+                  <small>1 Layar jadi Monitor, HP jadi Stick</small>
+                </button>
+              </div>
+              <strong id="hotspot-guide-title">Cara Mabar Local Hotspot / Bluetooth Tethering:</strong>
+              <span id="hotspot-guide-step1">1. Host menyalakan <b>Hotspot Wi-Fi</b> atau <b>Bluetooth Tethering</b> di HP.</span>
+              <span id="hotspot-guide-step2">2. Teman <b>wajib terhubung</b> ke jaringan Hotspot/Tethering Host tersebut.</span>
+              <span id="hotspot-guide-step3">3. Host klik <b>Buat Room Hotspot</b> (Kode <code>H---</code>), lalu teman masukkan kode itu!</span>
               <div class="lan-ip-row">
                 <span>IP Server LAN (Opsional jika tanpa sinyal seluler):</span>
                 <input
@@ -457,6 +479,32 @@
 
       <!-- Virtual Controls (Ergonomic 360° Analog Thumbstick + Arc Action Pad) -->
       <section id="controls-deck" class="controls-deck" aria-label="Kontrol Virtual">
+        <!-- Dedicated Stick HP Status Bar (Active only in Monitor + Stick HP mode) -->
+        <div id="stick-hud-bar" class="stick-hud-bar hidden">
+          <div class="stick-hud-left">
+            <span id="stick-player-badge" class="stick-badge">P1</span>
+            <div class="stick-stats">
+              <div class="stick-name-row">
+                <strong id="stick-player-name">AREK</strong>
+                <span id="stick-wave-pill">W1</span>
+              </div>
+              <div class="stick-bars-row">
+                <div class="stick-bar-track"><div id="stick-hp-fill" class="stick-hp-fill"></div></div>
+                <span id="stick-hp-text" class="stick-bar-val">100/100</span>
+                <span id="stick-ult-text" class="stick-ult-val">ULT 0%</span>
+                <span id="stick-coins-text" class="stick-coins-val">🪙 0</span>
+              </div>
+            </div>
+          </div>
+          <div class="stick-hud-right">
+            <span id="stick-ping-pill" class="stick-ping">UDP</span>
+            <button class="vbtn util-btn" data-action="shop" id="vbtn-stick-shop" title="Buka Warung">
+              🏪 WARUNG
+            </button>
+            <button id="btn-stick-exit" class="stick-exit-btn" title="Keluar Stick">KELUAR</button>
+          </div>
+        </div>
+
         <div class="deck-header">
           <span class="deck-brand">AREK SARUNGAN SLAYER</span>
           <button class="vbtn util-btn" data-action="shop" id="vbtn-shop" title="Buka Warung">
@@ -476,6 +524,9 @@
 
           <!-- Right: Ergonomic Thumb Arc Action Cluster -->
           <div class="action-arc-zone">
+            <button class="vbtn act-btn act-shop-mini" data-action="shop" id="vbtn-shop-arc" title="Buka Warung">
+              <span class="act-title">🏪</span>
+            </button>
             <button class="vbtn act-btn act-ult" data-action="ult" id="vbtn-ult">
               <span class="act-title">BADAI</span>
               <span class="act-sub">ULT</span>

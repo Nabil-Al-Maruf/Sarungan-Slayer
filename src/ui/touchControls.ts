@@ -27,7 +27,7 @@ export function bindTouchControls(
     let activePointerId: number | null = null;
     let centerX = 0;
     let centerY = 0;
-    const maxRadius = 46;
+    let maxRadius = 46;
 
     const updateStick = (clientX: number, clientY: number) => {
       const dx = clientX - centerX;
@@ -40,10 +40,10 @@ export function bindTouchControls(
 
       joyKnob.style.transform = `translate(${Math.round(kx)}px, ${Math.round(ky)}px)`;
 
-      if (dist < 7) {
+      if (dist < 6) {
         input.setAnalogMove(0, 0);
       } else {
-        const mag = Math.min(1, dist / (maxRadius * 0.78));
+        const mag = Math.min(1, dist / (maxRadius * 0.76));
         input.setAnalogMove(Math.cos(angle) * mag, Math.sin(angle) * mag);
       }
     };
@@ -65,6 +65,7 @@ export function bindTouchControls(
       const rect = joyBase.getBoundingClientRect();
       centerX = rect.left + rect.width * 0.5;
       centerY = rect.top + rect.height * 0.5;
+      maxRadius = Math.max(32, rect.width * 0.36);
       updateStick(e.clientX, e.clientY);
     });
 
@@ -97,6 +98,13 @@ export function bindTouchControls(
       btnPointerId = e.pointerId;
       btn.setPointerCapture(e.pointerId);
       btn.classList.add('pressed');
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        try {
+          navigator.vibrate(10);
+        } catch {
+          // Ignore unsupported vibrate
+        }
+      }
       if (action === 'shop') {
         onShopClick?.();
         return;
