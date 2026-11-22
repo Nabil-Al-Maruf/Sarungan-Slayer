@@ -2,7 +2,7 @@ import './style.css';
 import { ProceduralAudio } from './audio/sfx';
 import { FIXED_DT, PLAYER_PALETTES, VIRTUAL_HEIGHT, VIRTUAL_WIDTH } from './core/constants';
 import { InputManager } from './core/input';
-import type { BuffId, GameState } from './core/types';
+import type { BuffId, GameState, PlayerInput } from './core/types';
 import { createSandboxState, stepSandbox } from './modes/sandbox';
 import {
   createStoryState,
@@ -49,6 +49,7 @@ let shopOpen = false;
 let buffModalOpen = false;
 let resultShown = false;
 let lastBuffSig = '';
+let snapshotAccum = 0;
 
 // Overlay DOM references
 const menuOverlay = document.getElementById('menu-overlay') as HTMLDivElement;
@@ -148,7 +149,7 @@ document.querySelectorAll<HTMLButtonElement>('#lobby-skin-picker .skin-swatch').
   });
 });
 
-// ===== WEBSOCKET MANAGER (ONLINE WSS + LOCAL HOTSPOT / BLUETOOTH TETHERING) =====
+// ===== HYBRID WEBRTC UDP P2P + CLOUDFLARE WSS FALLBACK MANAGER =====
 const wsMgr = new WsManager({
   onStatus(text, isError) {
     lobbyStatusEl.textContent = text;
@@ -159,6 +160,13 @@ const wsMgr = new WsManager({
   },
   onGameStart() {
     audio.unlock();
+    const roster = wsMgr.lobbyPlayers.map((p) => ({
+      id: p.id,
+      paletteIndex: p.paletteIndex,
+      name: p.customName,
+    }));
+    state = createSurvivalState(selectedPalette, roster, playerName);
+    snapshotAccum = 0;
     menuOpen = false;
     lobbyOpen = false;
     shopOpen = false;
@@ -170,55 +178,40 @@ const wsMgr = new WsManager({
     shopOverlay.classList.add('hidden');
     buffOverlay.classList.add('hidden');
     resultOverlay.classList.add('hidden');
+
+    if (wsMgr.isHost) {
+      wsMgr.broadcastCompactSnapshot(state, []);
+    }
   },
-  onSnapshot(remoteState) {
-    const prevState = state;
-    const isSameMatch =
-      prevState.mode === 'survival' &&
-      remoteState.mode === 'survival' &&
-      remoteState.status === 'playing' &&
-      prevState.status === 'playing';
-
-    if (isSameMatch) {
-      const prevPlayers = new Map(prevState.players.map((p) => [p.id, p]));
-      const prevEnemies = new Map(prevState.enemies.map((e) => [e.id, e]));
-
-      for (const np of remoteState.players) {
-        const old = prevPlayers.get(np.id);
-        if (old && Math.hypot(np.x - old.x, np.y - old.y) < 95) {
-          np.x = old.x;
-          np.y = old.y;
-          np.z = old.z;
-          np.animTime = old.animTime;
-        }
-      }
-      for (const ne of remoteState.enemies) {
-        const old = prevEnemies.get(ne.id);
-        if (old && Math.hypot(ne.x - old.x, ne.y - old.y) < 110) {
-          ne.x = old.x;
-          ne.y = old.y;
-          ne.z = old.z;
-          ne.animTime = old.animTime;
-        }
-      }
-    }
-
-    if (remoteState.status !== 'playing') {
-      remoteState.shakeTimer = 0;
-      remoteState.shakeIntensity = 0;
-      remoteState.hitstopTimer = 0;
-    }
-
-    state = remoteState;
-    if (state.soundQueue.length > 0) {
-      audio.playQueue(state.soundQueue);
-      state.soundQueue.length = 0;
+  onCompactSnapshot(snap) {
+    wsMgr.mergeSnapshot(state, snap);
+    if (snap.snd.length > 0) {
+      audio.playQueue(snap.snd);
     }
     if (shopOpen) {
       refreshShopUI();
     }
     checkPendingBuffModal();
     showResultIfNeeded();
+  },
+  onRemoteBuy(playerId, itemId) {
+    const p = state.players.find((pl) => pl.id === playerId);
+    if (!p) return { ok: false, message: 'Pemain tidak ditemukan' };
+    const res = buyShopItem(state, p, itemId);
+    wsMgr.broadcastCompactSnapshot(state, state.soundQueue);
+    state.soundQueue.length = 0;
+    return res;
+  },
+  onRemoteBuff(playerId, buffId) {
+    const p = state.players.find((pl) => pl.id === playerId);
+    if (!p) return;
+    applyPlayerBuff(state, p, buffId);
+    wsMgr.broadcastCompactSnapshot(state, state.soundQueue);
+    state.soundQueue.length = 0;
+  },
+  onRemoteSkip() {
+    skipIntermission(state);
+    wsMgr.broadcastCompactSnapshot(state, []);
   },
   onShopResult(ok, message) {
     shopFeedbackEl.textContent = message;
@@ -424,7 +417,7 @@ function pickBuffChoice(buffId: BuffId): void {
   const player = getLocalPlayer();
   if (!player) return;
 
-  if (wsMgr.connected) {
+  if (wsMgr.connected && !wsMgr.isHost) {
     wsMgr.sendPickBuff(buffId);
     player.pendingBuffChoices = [];
   } else {
@@ -650,7 +643,7 @@ document.querySelectorAll<HTMLButtonElement>('.shop-item-btn[data-item]').forEac
     audio.unlock();
     const itemId = btn.dataset.item as ShopItemId;
 
-    if (wsMgr.connected) {
+    if (wsMgr.connected && !wsMgr.isHost) {
       wsMgr.sendBuy(itemId);
       return;
     }
@@ -668,7 +661,7 @@ document.querySelectorAll<HTMLButtonElement>('.shop-item-btn[data-item]').forEac
 
 btnSkipIntermission.addEventListener('click', () => {
   audio.unlock();
-  if (wsMgr.connected) {
+  if (wsMgr.connected && !wsMgr.isHost) {
     wsMgr.sendSkipIntermission();
   } else {
     skipIntermission(state);
@@ -853,7 +846,7 @@ function resizeCanvas(): void {
   canvas.style.width = `${Math.floor(displayW)}px`;
   canvas.style.height = `${Math.floor(displayH)}px`;
 
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
   const targetW = Math.round(VIRTUAL_WIDTH * dpr);
   const targetH = Math.round(VIRTUAL_HEIGHT * dpr);
   if (canvas.width !== targetW || canvas.height !== targetH) {
@@ -883,14 +876,24 @@ if (inviteRoom && inviteRoom.trim().length === 4) {
   lobbyStatusEl.style.color = '#4ade80';
 }
 
-// Fixed-timestep 60Hz Loop
+// Fixed-timestep 60Hz Loop + Live FPS & Ping Meter
 let lastTime = performance.now();
 let accumulator = 0;
+let fpsFrames = 0;
+let fpsLastSample = performance.now();
+let currentFps = 60;
 
 function frame(now: number): void {
   const delta = Math.min(0.1, (now - lastTime) / 1000);
   lastTime = now;
   accumulator += delta;
+
+  fpsFrames++;
+  if (now - fpsLastSample >= 500) {
+    currentFps = Math.round((fpsFrames * 1000) / (now - fpsLastSample));
+    fpsFrames = 0;
+    fpsLastSample = now;
+  }
 
   while (accumulator >= FIXED_DT) {
     const sampled = input.sample();
@@ -910,7 +913,8 @@ function frame(now: number): void {
     }
 
     if (!menuOpen && !lobbyOpen && state.status === 'playing') {
-      if (wsMgr.connected) {
+      if (wsMgr.connected && !wsMgr.isHost) {
+        // Client: 0ms Local Action & Movement Prediction + Delta Input + 60 FPS Lerp
         const netInput =
           shopOpen || buffModalOpen
             ? {
@@ -927,8 +931,51 @@ function frame(now: number): void {
               }
             : sampled;
         wsMgr.sendDeltaInput(netInput);
-        wsMgr.applyPredictionAndLerp(state, netInput, FIXED_DT);
+        wsMgr.applyPredictionAndLerp(state, netInput, FIXED_DT, (ev) => audio.play(ev));
+      } else if (wsMgr.connected && wsMgr.isHost) {
+        // Host: Authoritative 60Hz Simulation + 20Hz Compact Snapshot over UDP/WSS
+        const allInputs: Record<string, PlayerInput> = {
+          [wsMgr.localPlayerId]:
+            shopOpen || buffModalOpen
+              ? {
+                  up: false,
+                  down: false,
+                  left: false,
+                  right: false,
+                  jumpPressed: false,
+                  dashPressed: false,
+                  meleePressed: false,
+                  projPressed: false,
+                  ultPressed: false,
+                  shopPressed: false,
+                }
+              : sampled,
+        };
+        for (const p of state.players) {
+          if (p.id === wsMgr.localPlayerId) continue;
+          const rem = wsMgr.getRemoteInput(p.id);
+          if (rem) allInputs[p.id] = rem;
+        }
+        stepSurvival(state, allInputs, FIXED_DT);
+        audio.playQueue(state.soundQueue);
+        checkPendingBuffModal();
+
+        const endedNow = state.status !== 'playing';
+        if (endedNow) {
+          state.shakeTimer = 0;
+          state.shakeIntensity = 0;
+          state.hitstopTimer = 0;
+          wsMgr.broadcastCompactSnapshot(state, state.soundQueue);
+          showResultIfNeeded();
+        } else {
+          snapshotAccum += FIXED_DT;
+          if (snapshotAccum >= 0.05) {
+            snapshotAccum = 0;
+            wsMgr.broadcastCompactSnapshot(state, state.soundQueue);
+          }
+        }
       } else if (!shopOpen && !buffModalOpen) {
+        // Offline Solo Mode
         if (state.mode === 'story') {
           stepStory(state, sampled, FIXED_DT);
         } else if (state.mode === 'survival') {
@@ -950,7 +997,10 @@ function frame(now: number): void {
   }
 
   renderGame(ctx, state);
-  hud.update(state, wsMgr.localPlayerId);
+  const perfText = wsMgr.connected
+    ? `${currentFps} FPS • ${wsMgr.pingMs}ms ${wsMgr.transportMode}`
+    : `${currentFps} FPS`;
+  hud.update(state, wsMgr.localPlayerId, perfText);
   requestAnimationFrame(frame);
 }
 

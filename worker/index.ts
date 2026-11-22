@@ -1,14 +1,5 @@
 import { DurableObject } from 'cloudflare:workers';
-import { FIXED_DT, PLAYER_PALETTES } from '../src/core/constants';
-import type { BuffId, GameState, PlayerInput, SoundEvent } from '../src/core/types';
-import {
-  applyPlayerBuff,
-  buyShopItem,
-  createSurvivalState,
-  skipIntermission,
-  stepSurvival,
-  type ShopItemId,
-} from '../src/modes/survival';
+import { PLAYER_PALETTES } from '../src/core/constants';
 
 export interface Env {
   GAME_ROOM: DurableObjectNamespace<GameRoom>;
@@ -29,31 +20,14 @@ interface ClientSession {
   customName: string;
   name: string;
   isHost: boolean;
-  input: PlayerInput;
 }
 
 type ClientMsg =
-  | { type: 'input'; input: PlayerInput }
   | { type: 'set_profile'; name: string; paletteIndex: number }
-  | { type: 'pick_buff'; buffId: BuffId }
   | { type: 'start' }
-  | { type: 'buy'; itemId: ShopItemId }
-  | { type: 'skip_intermission' };
-
-function makeIdleInput(): PlayerInput {
-  return {
-    up: false,
-    down: false,
-    left: false,
-    right: false,
-    jumpPressed: false,
-    dashPressed: false,
-    meleePressed: false,
-    projPressed: false,
-    ultPressed: false,
-    shopPressed: false,
-  };
-}
+  | { type: 'rtc_signal'; to: string; data: unknown }
+  | { type: 'relay'; to?: string; payload: unknown }
+  | { type: 'ping'; ts: number };
 
 function formatLobbyDisplayName(
   slotId: string,
@@ -63,101 +37,13 @@ function formatLobbyDisplayName(
 ): string {
   const pal = PLAYER_PALETTES[paletteIndex % PLAYER_PALETTES.length];
   const clean = customName.trim().slice(0, 14) || pal.name.split(' ')[1];
-  const slotLabel = slotId.toUpperCase();
-  return `${slotLabel} • ${clean}${isHost ? ' (HOST)' : ''}`;
-}
-
-function buildSlimSnapshot(state: GameState, pendingSounds: SoundEvent[]): GameState {
-  return {
-    ...state,
-    time: Math.round(state.time * 100) / 100,
-    cameraX: Math.round(state.cameraX),
-    shakeTimer: state.status === 'playing' ? Math.round(state.shakeTimer * 100) / 100 : 0,
-    shakeIntensity: state.status === 'playing' ? state.shakeIntensity : 0,
-    hitstopTimer: 0,
-    particles: [],
-    soundQueue: pendingSounds,
-    players: state.players.map((p) => ({
-      ...p,
-      x: Math.round(p.x),
-      y: Math.round(p.y),
-      z: Math.round(p.z),
-      vx: Math.round(p.vx),
-      vy: Math.round(p.vy),
-      vz: Math.round(p.vz),
-      hp: Math.ceil(p.hp),
-      ult: Math.floor(p.ult),
-      projCooldown: Math.round(p.projCooldown * 10) / 10,
-      ultActiveTimer: Math.round(p.ultActiveTimer * 100) / 100,
-      meleeTimer: Math.round(p.meleeTimer * 100) / 100,
-      scaleX: Math.round(p.scaleX * 100) / 100,
-      scaleY: Math.round(p.scaleY * 100) / 100,
-      animTime: Math.round(p.animTime * 10) / 10,
-      afterimages: [],
-    })),
-    enemies: state.enemies.map((e) => ({
-      ...e,
-      x: Math.round(e.x),
-      y: Math.round(e.y),
-      z: Math.round(e.z),
-      vx: Math.round(e.vx),
-      vy: Math.round(e.vy),
-      vz: Math.round(e.vz),
-      hp: Math.ceil(e.hp),
-      scaleX: Math.round(e.scaleX * 100) / 100,
-      scaleY: Math.round(e.scaleY * 100) / 100,
-      animTime: Math.round(e.animTime * 10) / 10,
-    })),
-    projectiles: state.projectiles.map((pr) => ({
-      ...pr,
-      x: Math.round(pr.x),
-      y: Math.round(pr.y),
-      vx: Math.round(pr.vx),
-      vy: Math.round(pr.vy),
-      angle: Math.round(pr.angle * 100) / 100,
-    })),
-    enemyProjectiles: state.enemyProjectiles.map((ep) => ({
-      ...ep,
-      x: Math.round(ep.x),
-      y: Math.round(ep.y),
-      vx: Math.round(ep.vx),
-      vy: Math.round(ep.vy),
-      angle: Math.round(ep.angle * 100) / 100,
-    })),
-    crates: state.crates.map((c) => ({
-      ...c,
-      x: Math.round(c.x),
-      y: Math.round(c.y),
-      z: Math.round(c.z),
-    })),
-    pickups: state.pickups.map((pk) => ({
-      ...pk,
-      x: Math.round(pk.x),
-      y: Math.round(pk.y),
-      z: Math.round(pk.z),
-      bobPhase: Math.round(pk.bobPhase * 10) / 10,
-    })),
-    slashes: state.slashes.map((sl) => ({
-      ...sl,
-      x: Math.round(sl.x),
-      y: Math.round(sl.y),
-      angle: Math.round(sl.angle * 100) / 100,
-    })),
-    floatingTexts: state.floatingTexts.map((ft) => ({
-      ...ft,
-      x: Math.round(ft.x),
-      y: Math.round(ft.y),
-    })),
-  };
+  return `${slotId.toUpperCase()} • ${clean}${isHost ? ' (HOST)' : ''}`;
 }
 
 export class GameRoom extends DurableObject<Env> {
   private roomCode = '';
   private sessions = new Map<WebSocket, ClientSession>();
-  private state: GameState | null = null;
-  private tickInterval: ReturnType<typeof setInterval> | null = null;
-  private tickCounter = 0;
-  private pendingSounds: SoundEvent[] = [];
+  private inMatch = false;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -174,7 +60,7 @@ export class GameRoom extends DurableObject<Env> {
       return Response.json({
         roomCode: this.roomCode,
         players: this.sessions.size,
-        inGame: this.state !== null && this.state.status === 'playing',
+        inGame: this.inMatch,
       });
     }
 
@@ -204,7 +90,6 @@ export class GameRoom extends DurableObject<Env> {
       customName,
       name: formatLobbyDisplayName(playerId, customName, paletteIndex, isHost),
       isHost,
-      input: makeIdleInput(),
     };
     this.sessions.set(serverWs, session);
 
@@ -221,15 +106,6 @@ export class GameRoom extends DurableObject<Env> {
     });
 
     this.broadcastLobby();
-
-    if (this.state && this.state.status === 'playing') {
-      this.safeSend(serverWs, { type: 'start_game' });
-      this.safeSend(serverWs, {
-        type: 'snapshot',
-        state: buildSlimSnapshot(this.state, []),
-      });
-    }
-
     return new Response(null, { status: 101, webSocket: clientWs });
   }
 
@@ -239,6 +115,11 @@ export class GameRoom extends DurableObject<Env> {
     try {
       msg = JSON.parse(raw) as ClientMsg;
     } catch {
+      return;
+    }
+
+    if (msg.type === 'ping') {
+      this.safeSend(session.ws, { type: 'pong', ts: msg.ts });
       return;
     }
 
@@ -252,76 +133,67 @@ export class GameRoom extends DurableObject<Env> {
       session.customName = cleanName;
       session.paletteIndex = palIdx;
       session.name = formatLobbyDisplayName(session.id, cleanName, palIdx, session.isHost);
-
-      if (this.state) {
-        const p = this.state.players.find((pl) => pl.id === session.id);
-        if (p) {
-          p.name = cleanName;
-          p.paletteIndex = palIdx;
-        }
-      }
       this.broadcastLobby();
       return;
     }
 
-    if (msg.type === 'input' && msg.input) {
-      const prev = session.input;
-      const next = msg.input;
-      session.input = {
-        up: Boolean(next.up),
-        down: Boolean(next.down),
-        left: Boolean(next.left),
-        right: Boolean(next.right),
-        moveX: typeof next.moveX === 'number' ? Math.max(-1, Math.min(1, next.moveX)) : undefined,
-        moveY: typeof next.moveY === 'number' ? Math.max(-1, Math.min(1, next.moveY)) : undefined,
-        jumpPressed: prev.jumpPressed || Boolean(next.jumpPressed),
-        dashPressed: prev.dashPressed || Boolean(next.dashPressed),
-        meleePressed: prev.meleePressed || Boolean(next.meleePressed),
-        projPressed: prev.projPressed || Boolean(next.projPressed),
-        ultPressed: prev.ultPressed || Boolean(next.ultPressed),
-        shopPressed: false,
-      };
-      return;
-    }
-
-    if (msg.type === 'pick_buff' && this.state && this.state.status === 'playing') {
-      const player = this.state.players.find((p) => p.id === session.id);
-      if (!player) return;
-      applyPlayerBuff(this.state, player, msg.buffId);
-      if (this.state.soundQueue.length > 0) {
-        this.pendingSounds.push(...this.state.soundQueue);
-        this.state.soundQueue.length = 0;
+    if (msg.type === 'rtc_signal') {
+      // Forward WebRTC SDP/ICE directly to target peer
+      for (const target of this.sessions.values()) {
+        if (target.id === msg.to) {
+          this.safeSend(target.ws, {
+            type: 'rtc_signal',
+            from: session.id,
+            data: msg.data,
+          });
+          break;
+        }
       }
-      this.broadcastSnapshotNow();
       return;
     }
 
-    if (msg.type === 'start') {
-      if (!session.isHost) return;
-      this.startMatch();
-      return;
-    }
-
-    if (msg.type === 'buy' && this.state && this.state.status === 'playing') {
-      const player = this.state.players.find((p) => p.id === session.id);
-      if (!player) return;
-      const res = buyShopItem(this.state, player, msg.itemId);
-      if (this.state.soundQueue.length > 0) {
-        this.pendingSounds.push(...this.state.soundQueue);
-        this.state.soundQueue.length = 0;
+    if (msg.type === 'relay') {
+      // WSS Fallback Relay (used only if WebRTC UDP DataChannel is blocked by strict NAT)
+      if (msg.to) {
+        for (const target of this.sessions.values()) {
+          if (target.id === msg.to) {
+            this.safeSend(target.ws, {
+              type: 'relay',
+              from: session.id,
+              payload: msg.payload,
+            });
+            break;
+          }
+        }
+      } else {
+        const out = JSON.stringify({
+          type: 'relay',
+          from: session.id,
+          payload: msg.payload,
+        });
+        for (const target of this.sessions.values()) {
+          if (target.id !== session.id && target.ws.readyState === WebSocket.OPEN) {
+            try {
+              target.ws.send(out);
+            } catch {
+              // Ignore closed socket
+            }
+          }
+        }
       }
-      this.safeSend(session.ws, {
-        type: 'shop_result',
-        ok: res.ok,
-        message: res.message,
-      });
-      this.broadcastSnapshotNow();
       return;
     }
 
-    if (msg.type === 'skip_intermission' && this.state && this.state.status === 'playing') {
-      skipIntermission(this.state);
-      this.broadcastSnapshotNow();
+    if (msg.type === 'start' && session.isHost) {
+      this.inMatch = true;
+      const out = JSON.stringify({ type: 'start_game' });
+      for (const s of this.sessions.values()) {
+        try {
+          s.ws.send(out);
+        } catch {
+          // Ignore
+        }
+      }
     }
   }
 
@@ -329,17 +201,8 @@ export class GameRoom extends DurableObject<Env> {
     if (!this.sessions.has(session.ws)) return;
     this.sessions.delete(session.ws);
 
-    if (this.state) {
-      this.state.players = this.state.players.filter((p) => p.id !== session.id);
-      if (this.state.players.length === 0) {
-        this.stopLoop();
-        this.state = null;
-      }
-    }
-
     if (this.sessions.size === 0) {
-      this.stopLoop();
-      this.state = null;
+      this.inMatch = false;
       return;
     }
 
@@ -356,73 +219,17 @@ export class GameRoom extends DurableObject<Env> {
       }
     }
 
-    this.broadcastLobby();
-  }
-
-  private startMatch(): void {
-    this.stopLoop();
-    const roster = [...this.sessions.values()].map((s) => ({
-      id: s.id,
-      paletteIndex: s.paletteIndex,
-      name: s.customName,
-    }));
-
-    this.state = createSurvivalState(roster[0]?.paletteIndex ?? 0, roster);
-    this.pendingSounds = [];
-    this.tickCounter = 0;
-
+    // Notify remaining peers that this player left
+    const leftMsg = JSON.stringify({ type: 'peer_left', id: session.id });
     for (const s of this.sessions.values()) {
-      s.input = makeIdleInput();
-      this.safeSend(s.ws, { type: 'start_game' });
+      try {
+        s.ws.send(leftMsg);
+      } catch {
+        // Ignore
+      }
     }
 
-    this.broadcastSnapshotNow();
-
-    this.tickInterval = setInterval(() => {
-      if (!this.state || this.state.status !== 'playing' || this.sessions.size === 0) {
-        this.stopLoop();
-        return;
-      }
-
-      const inputsMap: Record<string, PlayerInput> = {};
-      for (const s of this.sessions.values()) {
-        inputsMap[s.id] = { ...s.input };
-        s.input.jumpPressed = false;
-        s.input.dashPressed = false;
-        s.input.meleePressed = false;
-        s.input.projPressed = false;
-        s.input.ultPressed = false;
-        s.input.shopPressed = false;
-      }
-
-      stepSurvival(this.state, inputsMap, FIXED_DT);
-
-      if (this.state.soundQueue.length > 0) {
-        this.pendingSounds.push(...this.state.soundQueue);
-      }
-
-      const endedNow = this.state.status !== 'playing';
-      if (endedNow) {
-        this.state.shakeTimer = 0;
-        this.state.shakeIntensity = 0;
-        this.state.hitstopTimer = 0;
-        this.broadcastSnapshotNow();
-        this.stopLoop();
-        return;
-      }
-
-      this.tickCounter++;
-      if (this.tickCounter % 3 === 0) {
-        this.broadcastSnapshotNow();
-      }
-    }, 16);
-  }
-
-  private stopLoop(): void {
-    if (this.tickInterval !== null) {
-      clearInterval(this.tickInterval);
-      this.tickInterval = null;
-    }
+    this.broadcastLobby();
   }
 
   private broadcastLobby(): void {
@@ -442,20 +249,6 @@ export class GameRoom extends DurableObject<Env> {
         yourPlayerId: s.id,
         isHost: s.isHost,
       });
-    }
-  }
-
-  private broadcastSnapshotNow(): void {
-    if (!this.state) return;
-    const slim = buildSlimSnapshot(this.state, this.pendingSounds);
-    this.pendingSounds = [];
-    const payload = JSON.stringify({ type: 'snapshot', state: slim });
-    for (const s of this.sessions.values()) {
-      try {
-        s.ws.send(payload);
-      } catch {
-        // Ignore closed socket
-      }
     }
   }
 
@@ -487,7 +280,8 @@ export default {
         {
           ok: true,
           service: 'arek-sarungan-slayer-mp',
-          version: '1.2.0',
+          version: '1.3.0',
+          transport: 'webrtc-udp+wss-fallback',
         },
         { headers: CORS_HEADERS }
       );

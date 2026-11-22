@@ -48,6 +48,7 @@
           </div>
 
           <div class="hud-right">
+            <div class="score-pill" id="hud-perf">60 FPS</div>
             <div class="score-pill hidden" id="hud-coins">Rp 0</div>
             <div class="score-pill" id="hud-ko-count">KO: 0</div>
             <button id="btn-warung-hud" class="hud-btn warung-hud-btn hidden" title="Buka Warung [B]">
@@ -75,9 +76,9 @@
         <div id="menu-overlay" class="overlay-modal title-screen-bg">
           <div class="modal-card menu-card title-card-anim">
             <div class="title-top-meta">
-              <span class="version-badge">v1.2.1</span>
+              <span class="version-badge">v1.3.0</span>
               <span class="modal-eyebrow">SUROBOYO TOP-DOWN ACTION ARCADE</span>
-              <span class="version-badge p2p-badge">ONLINE + HOTSPOT</span>
+              <span class="version-badge p2p-badge">UDP P2P + WSS</span>
             </div>
 
             <div class="title-hero">
@@ -201,6 +202,17 @@
               <div class="changelog-box">
                 <div class="changelog-entry">
                   <div class="changelog-head">
+                    <span class="version-badge">v1.3.0</span>
+                    <strong>Realtime Anti-Lag (WebRTC UDP P2P + 0ms Prediksi + 100% Gratis)</strong>
+                  </div>
+                  <ul class="changelog-list">
+                    <li><b>Jalur Ganda WebRTC UDP + WSS Fallback:</b> Koneksi mabar otomatis memakai <b>UDP DataChannel langsung</b> (2–10ms di Hotspot/WiFi, 0 kuota server saat main!) dan otomatis fallback ke Cloudflare WSS jika diblokir NAT.</li>
+                    <li><b>Prediksi Aksi 0ms &amp; Non-Destructive Merge:</b> Kibas, Pecut, Dash &amp; Lompat langsung muncul instan 0ms di layar tanpa nunggu balasan jaringan.</li>
+                    <li><b>Paket Kompak 15x Lebih Ringan:</b> Snapshot dikompres dari ~6 KB menjadi ~400 byte + indikator <b>FPS &amp; Ping (ms)</b> live di HUD.</li>
+                  </ul>
+                </div>
+                <div class="changelog-entry">
+                  <div class="changelog-head">
                     <span class="version-badge">v1.2.1</span>
                     <strong>Perbaikan Lag FPS &amp; Sinkronisasi Mabar</strong>
                   </div>
@@ -240,7 +252,7 @@
 
             <div class="title-bottom-credit">
               <span>© 2026 Nabil Al-Ma'ruf • Arek Sarungan Slayer</span>
-              <span>v1.2.1</span>
+              <span>v1.3.0</span>
             </div>
           </div>
         </div>

@@ -9,6 +9,7 @@ export class HudController {
   private ultTextEl = document.getElementById('hud-ult-text')!;
   private projFillEl = document.getElementById('hud-proj-fill')!;
   private projTextEl = document.getElementById('hud-proj-text')!;
+  private perfEl = document.getElementById('hud-perf')!;
   private coinsEl = document.getElementById('hud-coins')!;
   private warungHudBtn = document.getElementById('btn-warung-hud')!;
   private koCountEl = document.getElementById('hud-ko-count')!;
@@ -30,10 +31,16 @@ export class HudController {
   private lastKoText = '';
   private lastCoinsText = '';
   private lastIsSurvival = false;
+  private lastPerfText = '';
 
-  public update(state: GameState, localPlayerId = 'p1'): void {
+  public update(state: GameState, localPlayerId = 'p1', perfText = '60 FPS'): void {
     const player = state.players.find((p) => p.id === localPlayerId) ?? state.players[0];
     if (!player) return;
+
+    if (this.lastPerfText !== perfText) {
+      this.lastPerfText = perfText;
+      this.perfEl.textContent = perfText;
+    }
 
     if (this.lastModeTitle !== state.stageTitle) {
       this.lastModeTitle = state.stageTitle;
