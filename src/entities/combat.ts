@@ -13,6 +13,7 @@ import {
 import { circlesOverlap } from '../core/physics';
 import type { EnemyState, GameState, PlayerState } from '../core/types';
 import { damageCrate } from './crate';
+import { explodePetasan } from './enemyFactory';
 import { damagePlayer } from './player';
 
 const SUROBOYO_KO_LINES = ['MANTAP REK!', 'KESABET!', 'KO CAK!', 'WUSSS!'];
@@ -178,11 +179,28 @@ export function resolveCombat(state: GameState, dt: number): void {
         proj.hitIds.push(enemy.id);
         proj.pierceLeft--;
         const speed = Math.hypot(proj.vx, proj.vy) || 1;
+
+        let projDmg = proj.damage;
+        // Buto Ijo is exceptionally weak to Pecut whip attacks!
+        if (enemy.kind === 'zombie_buto_ijo') {
+          projDmg = Math.round(projDmg * 1.45);
+          state.floatingTexts.push({
+            x: enemy.x,
+            y: enemy.y - 48,
+            vy: -40,
+            text: 'LEMAH PECUT! ⚡',
+            color: '#38bdf8',
+            scale: 0.95,
+            life: 0.7,
+            maxLife: 0.7,
+          });
+        }
+
         hitEnemy(
           state,
           enemy,
           owner,
-          proj.damage,
+          projDmg,
           (proj.vx / speed) * 230,
           (proj.vy / speed) * 230,
           Math.round(PROJ_ULT_GAIN * (owner?.ultGainMult ?? 1)),
@@ -212,7 +230,7 @@ export function resolveCombat(state: GameState, dt: number): void {
     }
   }
 
-  // 4. Enemy Projectiles (Sandal, Sarung Wave, Baja Wave)
+  // 4. Enemy Projectiles (Sandal, Sarung Wave, Baja Wave, Acid Spit)
   for (let i = state.enemyProjectiles.length - 1; i >= 0; i--) {
     const ep = state.enemyProjectiles[i];
     ep.life -= dt;
@@ -233,6 +251,23 @@ export function resolveCombat(state: GameState, dt: number): void {
       }
     }
 
+    // Acid Spit creates a sizzling toxic puddle on contact or expiration!
+    if (ep.kind === 'acid_spit' && (hit || ep.life <= 0)) {
+      state.hazards.push({
+        id: state.nextEntityId++,
+        kind: 'acid_puddle',
+        x: ep.x,
+        y: ep.y,
+        radius: 46,
+        delay: 0,
+        maxDelay: 3.5,
+        damage: 6,
+        detonated: true,
+        flashTimer: 3.5,
+      });
+      state.soundQueue.push('crate_hit');
+    }
+
     if (
       hit ||
       ep.life <= 0 ||
@@ -245,9 +280,59 @@ export function resolveCombat(state: GameState, dt: number): void {
     }
   }
 
-  // 5. Telegraphed Ground Hazards (Hujan Mercon Banting & Boss Jump Slam)
+  // 5. Telegraphed Ground Hazards (Hujan Mercon Banting, Boss Jump Slam & Acid Puddles)
   for (let i = state.hazards.length - 1; i >= 0; i--) {
     const hz = state.hazards[i];
+
+    // Acid puddles linger and deal continuous caustic damage & slime slow
+    if (hz.kind === 'acid_puddle') {
+      hz.flashTimer -= dt;
+      if (Math.random() < 0.35) {
+        state.particles.push({
+          x: hz.x + (Math.random() - 0.5) * (hz.radius * 1.4),
+          y: hz.y + (Math.random() - 0.5) * (hz.radius * 0.9),
+          z: 3,
+          vx: (Math.random() - 0.5) * 15,
+          vy: (Math.random() - 0.5) * 15,
+          vz: 15 + Math.random() * 20,
+          size: 2.5 + Math.random() * 2,
+          color: Math.random() < 0.5 ? '#22c55e' : '#84cc16',
+          alpha: 0.85,
+          life: 0.3,
+          maxLife: 0.3,
+          gravity: -20,
+        });
+      }
+
+      // Damage & slow players standing on acid
+      for (const player of state.players) {
+        if (player.knockedDown || player.z > 14) continue;
+        const d = Math.hypot(player.x - hz.x, player.y - hz.y);
+        if (d <= hz.radius + player.radius) {
+          damagePlayer(state, player, Math.round(hz.damage * dt * 3), 0, 0);
+          player.speedMult = Math.max(0.65, player.speedMult * 0.92);
+        }
+      }
+
+      // Damage barricades touching acid
+      if (state.survival) {
+        for (const bar of state.survival.barricades) {
+          if (bar.hp <= 0) continue;
+          const bx = bar.x + bar.w * 0.5;
+          const by = bar.y + bar.h * 0.5;
+          if (Math.hypot(hz.x - bx, hz.y - by) <= hz.radius + Math.max(bar.w, bar.h) * 0.5) {
+            bar.hp = Math.max(0, bar.hp - hz.damage * dt * 2.5);
+            bar.hitFlashTimer = 0.08;
+          }
+        }
+      }
+
+      if (hz.flashTimer <= 0) {
+        state.hazards.splice(i, 1);
+      }
+      continue;
+    }
+
     if (!hz.detonated) {
       hz.delay -= dt;
       if (hz.delay <= 0) {
@@ -361,18 +446,31 @@ function hitEnemy(
     state.koCount++;
     state.soundQueue.push('ko');
 
+    // Petasan detonates upon death if not already exploded!
+    if (enemy.kind === 'zombie_petasan') {
+      explodePetasan(state, enemy);
+    }
+
     // Award Uang Receh in Survival Mode (including Tower kills credited to all alive players!)
     if (state.mode === 'survival') {
       const baseReward =
-        enemy.kind === 'zombie_gendruwo'
-          ? 60
-          : enemy.kind === 'zombie_tuyul'
-            ? 50
-            : enemy.kind === 'zombie_pocong'
-              ? 35
-              : enemy.kind === 'zombie_bocil'
-                ? 25
-                : 20;
+        enemy.kind === 'zombie_dukun'
+          ? 90
+          : enemy.kind === 'zombie_buto_ijo'
+            ? 80
+            : enemy.kind === 'zombie_gendruwo'
+              ? 60
+              : enemy.kind === 'zombie_tuyul'
+                ? 50
+                : enemy.kind === 'zombie_kuntilanak'
+                  ? 40
+                  : enemy.kind === 'zombie_petasan'
+                    ? 35
+                    : enemy.kind === 'zombie_pocong'
+                      ? 35
+                      : enemy.kind === 'zombie_bocil'
+                        ? 25
+                        : 20;
       const recipient = attacker ?? state.players[0];
       if (recipient) {
         const reward = Math.round(baseReward * (recipient.coinMult ?? 1));

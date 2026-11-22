@@ -38,7 +38,11 @@ export type EnemyKind =
   | 'zombie_bocil'
   | 'zombie_pocong'
   | 'zombie_gendruwo'
-  | 'zombie_tuyul';
+  | 'zombie_tuyul'
+  | 'zombie_kuntilanak'
+  | 'zombie_petasan'
+  | 'zombie_buto_ijo'
+  | 'zombie_dukun';
 
 export interface Obstacle {
   x: number;
@@ -169,7 +173,7 @@ export interface ProjectileState {
 
 export interface EnemyProjectile {
   id: number;
-  kind: 'sandal' | 'sarung_wave' | 'baja_wave';
+  kind: 'sandal' | 'sarung_wave' | 'baja_wave' | 'acid_spit';
   x: number;
   y: number;
   vx: number;
@@ -185,7 +189,7 @@ export interface EnemyProjectile {
 
 export interface HazardZone {
   id: number;
-  kind: 'mercon' | 'slam';
+  kind: 'mercon' | 'slam' | 'acid_puddle';
   x: number;
   y: number;
   radius: number;

@@ -563,9 +563,13 @@ export function skipIntermission(state: GameState): void {
 
 function pickZombieKindForWave(wave: number): EnemyKind {
   const pool: EnemyKind[] = ['zombie_warga', 'zombie_bocil'];
-  if (wave >= 5) pool.push('zombie_pocong');
+  if (wave >= 4) pool.push('zombie_pocong');
+  if (wave >= 6) pool.push('zombie_kuntilanak');
+  if (wave >= 8) pool.push('zombie_petasan');
   if (wave >= 11) pool.push('zombie_gendruwo');
-  if (wave >= 21) pool.push('zombie_tuyul');
+  if (wave >= 13) pool.push('zombie_buto_ijo');
+  if (wave >= 15) pool.push('zombie_dukun');
+  if (wave >= 18) pool.push('zombie_tuyul');
 
   return pool[Math.floor(Math.random() * pool.length)];
 }

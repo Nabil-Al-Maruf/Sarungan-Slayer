@@ -494,6 +494,29 @@ function drawHazardZone(ctx: CanvasRenderingContext2D, hz: HazardZone): void {
   ctx.translate(hz.x, hz.y);
   ctx.scale(1, 0.72);
 
+  if (hz.kind === 'acid_puddle') {
+    const alpha = Math.min(1, hz.flashTimer / 0.5);
+    ctx.globalAlpha = alpha * 0.75;
+    // Outer green puddle edge
+    ctx.fillStyle = '#15803d';
+    ctx.beginPath();
+    ctx.arc(0, 0, hz.radius, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Inner bright bubbling green core
+    ctx.fillStyle = '#22c55e';
+    ctx.beginPath();
+    ctx.arc(0, 0, hz.radius * 0.75, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = '#84cc16';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+
+    ctx.restore();
+    return;
+  }
+
   if (!hz.detonated) {
     const progress = 1 - Math.max(0, hz.delay / hz.maxDelay);
     ctx.fillStyle = 'rgba(239, 68, 68, 0.22)';
@@ -616,6 +639,20 @@ function drawEnemyProjectile(ctx: CanvasRenderingContext2D, ep: EnemyProjectile)
     ctx.lineTo(4, 0);
     ctx.lineTo(-4, 3);
     ctx.stroke();
+  } else if (ep.kind === 'acid_spit') {
+    ctx.fillStyle = '#22c55e';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 13, 9, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#84cc16';
+    ctx.lineWidth = 2.4;
+    ctx.stroke();
+
+    // Dripping slime droplets
+    ctx.fillStyle = '#4ade80';
+    ctx.beginPath();
+    ctx.arc(-5, 0, 4, 0, Math.PI * 2);
+    ctx.fill();
   } else {
     ctx.fillStyle = ep.color;
     ctx.beginPath();

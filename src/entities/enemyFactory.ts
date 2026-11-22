@@ -125,6 +125,38 @@ const ENEMY_SPECS: Record<EnemyKind, EnemySpec> = {
     shirtColor: '#a3e635',
     sarungColor: '#facc15',
   },
+  zombie_kuntilanak: {
+    name: 'Kuntilanak Terbang',
+    hp: 85,
+    radius: 15,
+    isBoss: false,
+    shirtColor: '#f8fafc',
+    sarungColor: '#e2e8f0',
+  },
+  zombie_petasan: {
+    name: 'Bocil Petasan',
+    hp: 55,
+    radius: 13,
+    isBoss: false,
+    shirtColor: '#dc2626',
+    sarungColor: '#991b1b',
+  },
+  zombie_buto_ijo: {
+    name: 'Buto Ijo Lendir',
+    hp: 300,
+    radius: 23,
+    isBoss: false,
+    shirtColor: '#15803d',
+    sarungColor: '#4c1d95',
+  },
+  zombie_dukun: {
+    name: 'Mbah Dukun Santet',
+    hp: 135,
+    radius: 16,
+    isBoss: false,
+    shirtColor: '#1e1b4b',
+    sarungColor: '#78350f',
+  },
 };
 
 export function spawnEnemy(
@@ -209,15 +241,25 @@ export function updateEnemies(state: GameState, dt: number): void {
             targetPlayer.radius
           )
         ) {
+          // Petasan detonates upon contact!
+          if (enemy.kind === 'zombie_petasan') {
+            explodePetasan(state, enemy);
+            break;
+          }
+
           enemy.attackCooldown = enemy.isBoss ? 0.95 : 1.15;
           const dmg =
             enemy.isBoss
               ? 16
-              : enemy.kind === 'zombie_gendruwo'
-                ? 18
-                : enemy.kind === 'elite'
-                  ? 14
-                  : 10;
+              : enemy.kind === 'zombie_buto_ijo'
+                ? 22
+                : enemy.kind === 'zombie_gendruwo'
+                  ? 18
+                  : enemy.kind === 'zombie_kuntilanak'
+                    ? 14
+                    : enemy.kind === 'elite'
+                      ? 14
+                      : 10;
           const dx = targetPlayer.x - enemy.x;
           const dy = targetPlayer.y - enemy.y;
           const d = Math.hypot(dx, dy) || 1;
@@ -555,6 +597,105 @@ function fireWaveSpread(
   }
 }
 
+export function explodePetasan(state: GameState, petasan: EnemyState): void {
+  if (petasan.hp <= 0 && petasan.aiState === 'jump_slam') return;
+  petasan.hp = 0;
+  petasan.aiState = 'jump_slam';
+
+  const ex = petasan.x;
+  const ey = petasan.y;
+  const radius = 68;
+  const damage = 34;
+
+  state.soundQueue.push('crate_break');
+  state.shakeTimer = Math.max(state.shakeTimer, 0.22);
+  state.shakeIntensity = Math.max(state.shakeIntensity, 6);
+
+  state.floatingTexts.push({
+    x: ex,
+    y: ey - 32,
+    vy: -55,
+    text: 'DORRR! 💥',
+    color: '#ef4444',
+    scale: 1.35,
+    life: 1.0,
+    maxLife: 1.0,
+  });
+
+  // Fiery explosion particles
+  for (let k = 0; k < 18; k++) {
+    const a = Math.random() * Math.PI * 2;
+    const spd = 70 + Math.random() * 210;
+    state.particles.push({
+      x: ex,
+      y: ey,
+      z: 10,
+      vx: Math.cos(a) * spd,
+      vy: Math.sin(a) * spd * 0.75,
+      vz: 80 + Math.random() * 180,
+      size: 4 + Math.random() * 4,
+      color: k % 3 === 0 ? '#ef4444' : k % 3 === 1 ? '#f97316' : '#fde047',
+      alpha: 1,
+      life: 0.35 + Math.random() * 0.2,
+      maxLife: 0.55,
+      gravity: 520,
+    });
+  }
+
+  // Damage players caught in blast
+  for (const player of state.players) {
+    if (player.knockedDown || player.z >= 24) continue;
+    const d = Math.hypot(player.x - ex, player.y - ey);
+    if (d <= radius + player.radius) {
+      const nx = d > 1 ? (player.x - ex) / d : 1;
+      const ny = d > 1 ? (player.y - ey) / d : 0;
+      damagePlayer(state, player, damage, nx, ny);
+    }
+  }
+
+  // Damage barricades caught in blast (+50% blast damage)
+  if (state.survival) {
+    for (const bar of state.survival.barricades) {
+      if (bar.hp <= 0) continue;
+      const bx = bar.x + bar.w * 0.5;
+      const by = bar.y + bar.h * 0.5;
+      if (Math.hypot(ex - bx, ey - by) <= radius + Math.max(bar.w, bar.h) * 0.5) {
+        bar.hp = Math.max(0, bar.hp - damage * 1.5);
+        bar.hitFlashTimer = 0.18;
+      }
+    }
+    // Damage Core
+    const coreCx = state.survival.core.x + state.survival.core.w * 0.5;
+    const coreCy = state.survival.core.y + state.survival.core.h * 0.5;
+    if (Math.hypot(ex - coreCx, ey - coreCy) <= radius + 55) {
+      if (state.survival.core.shieldActive && state.survival.core.shieldHp > 0) {
+        state.survival.core.shieldHp = Math.max(0, state.survival.core.shieldHp - damage);
+        state.survival.core.hitFlashTimer = 0.15;
+      } else {
+        state.survival.core.hp = Math.max(0, state.survival.core.hp - damage);
+        state.survival.core.hitFlashTimer = 0.15;
+      }
+    }
+  }
+
+  // Chain reaction: damage OTHER zombies in blast radius!
+  for (const other of state.enemies) {
+    if (other === petasan || other.hp <= 0) continue;
+    const d = Math.hypot(other.x - ex, other.y - ey);
+    if (d <= radius + other.radius) {
+      const nx = d > 1 ? (other.x - ex) / d : 1;
+      const ny = d > 1 ? (other.y - ey) / d : 0;
+      other.hp = Math.max(0, other.hp - 28);
+      other.hitFlashTimer = 0.18;
+      other.vx += nx * 220;
+      other.vy += ny * 220;
+      if (other.kind === 'zombie_petasan' && other.hp <= 0) {
+        explodePetasan(state, other);
+      }
+    }
+  }
+}
+
 function updateZombieSurvivalAI(state: GameState, zombie: EnemyState, dt: number): void {
   const surv = state.survival;
   if (!surv) return;
@@ -562,15 +703,240 @@ function updateZombieSurvivalAI(state: GameState, zombie: EnemyState, dt: number
   const coreCx = surv.core.x + surv.core.w * 0.5;
   const coreCy = surv.core.y + surv.core.h * 0.5;
 
-  // Pocong hops rhythmically in Z and can leap right over Level 1 (Kardus) barricades!
-  if (zombie.kind === 'zombie_pocong' && zombie.z === 0 && zombie.specialTimer <= 0) {
-    zombie.vz = 330;
-    zombie.specialTimer = 0.72;
+  // 1. Unique Zombie Inherent Movement & Physics
+  if (zombie.kind === 'zombie_pocong') {
+    // Pocong hops rhythmically in Z
+    if (zombie.z === 0 && zombie.specialTimer <= 0) {
+      zombie.vz = 330;
+      zombie.specialTimer = 0.72;
+    }
+  } else if (zombie.kind === 'zombie_kuntilanak') {
+    // Kuntilanak floats continuously above ground!
+    zombie.z = 22 + Math.sin(state.time * 5 + zombie.id) * 5;
+    if (Math.random() < 0.25) {
+      state.particles.push({
+        x: zombie.x + (Math.random() - 0.5) * 12,
+        y: zombie.y + (Math.random() - 0.5) * 8,
+        z: 6,
+        vx: (Math.random() - 0.5) * 20,
+        vy: (Math.random() - 0.5) * 15,
+        vz: 10,
+        size: 3,
+        color: '#bae6fd',
+        alpha: 0.6,
+        life: 0.35,
+        maxLife: 0.35,
+        gravity: 0,
+      });
+    }
+
+    // Teleport Shriek ("HIHIHIHI! 👻") every 3.8s if target is far
+    zombie.specialTimer -= dt;
+    const distToCoreEarly = Math.hypot(coreCx - zombie.x, coreCy - zombie.y);
+    if (zombie.specialTimer <= 0 && distToCoreEarly > 110) {
+      zombie.specialTimer = 3.6 + Math.random() * 0.8;
+      state.soundQueue.push('kibas');
+      state.floatingTexts.push({
+        x: zombie.x,
+        y: zombie.y - 48,
+        vy: -40,
+        text: 'HIHIHIHI! 👻',
+        color: '#e0f2fe',
+        scale: 1.1,
+        life: 0.9,
+        maxLife: 0.9,
+      });
+      // Teleport forward along movement direction
+      zombie.x += zombie.dirX * 95;
+      zombie.y += zombie.dirY * 95;
+      for (let k = 0; k < 8; k++) {
+        state.particles.push({
+          x: zombie.x,
+          y: zombie.y,
+          z: 18,
+          vx: (Math.random() - 0.5) * 60,
+          vy: (Math.random() - 0.5) * 60,
+          vz: 30,
+          size: 3.5,
+          color: '#ffffff',
+          alpha: 0.8,
+          life: 0.3,
+          maxLife: 0.3,
+          gravity: 0,
+        });
+      }
+    }
+
+    // Scream slow wave every 4.5s against nearby players
+    zombie.aiTimer -= dt;
+    if (zombie.aiTimer <= 0) {
+      for (const p of state.players) {
+        if (!p.knockedDown && Math.hypot(p.x - zombie.x, p.y - zombie.y) < 130) {
+          zombie.aiTimer = 4.5;
+          state.soundQueue.push('ult_start');
+          state.floatingTexts.push({
+            x: zombie.x,
+            y: zombie.y - 50,
+            vy: -40,
+            text: 'JERITAN KUNTI! 😱',
+            color: '#38bdf8',
+            scale: 1.05,
+            life: 1.0,
+            maxLife: 1.0,
+          });
+          const pdx = p.x - zombie.x;
+          const pdy = p.y - zombie.y;
+          const pd = Math.hypot(pdx, pdy) || 1;
+          p.vx += (pdx / pd) * 220;
+          p.vy += (pdy / pd) * 220;
+          p.hitFlashTimer = 0.15;
+          break;
+        }
+      }
+    }
+  } else if (zombie.kind === 'zombie_petasan') {
+    // Sputtering fuse spark particles
+    if (Math.random() < 0.45) {
+      state.particles.push({
+        x: zombie.x + (Math.random() - 0.5) * 8,
+        y: zombie.y - 28,
+        z: 14,
+        vx: (Math.random() - 0.5) * 60,
+        vy: (Math.random() - 0.5) * 60,
+        vz: 40 + Math.random() * 50,
+        size: 2.5,
+        color: Math.random() < 0.5 ? '#facc15' : '#ef4444',
+        alpha: 1,
+        life: 0.25,
+        maxLife: 0.25,
+        gravity: 300,
+      });
+    }
+  } else if (zombie.kind === 'zombie_buto_ijo') {
+    // Ranged toxic acid spit
+    zombie.specialTimer -= dt;
+    const dCore = Math.hypot(coreCx - zombie.x, coreCy - zombie.y);
+    if (zombie.specialTimer <= 0 && dCore >= 110 && dCore <= 320) {
+      zombie.specialTimer = 3.4 + Math.random() * 0.8;
+      state.soundQueue.push('kibas');
+      state.floatingTexts.push({
+        x: zombie.x,
+        y: zombie.y - 54,
+        vy: -35,
+        text: 'SEMBURAN ASAM! 🧪',
+        color: '#4ade80',
+        scale: 0.95,
+        life: 0.8,
+        maxLife: 0.8,
+      });
+      state.enemyProjectiles.push({
+        id: state.nextEntityId++,
+        kind: 'acid_spit',
+        x: zombie.x + zombie.dirX * 20,
+        y: zombie.y + zombie.dirY * 16,
+        vx: zombie.dirX * 240,
+        vy: zombie.dirY * 240,
+        angle: Math.atan2(zombie.dirY, zombie.dirX),
+        spin: 6,
+        radius: 13,
+        damage: 16,
+        life: 1.25,
+        maxLife: 1.25,
+        color: '#22c55e',
+      });
+    }
+  } else if (zombie.kind === 'zombie_dukun') {
+    // Shaman Frenzy Mantra & Necromancy
+    zombie.specialTimer -= dt;
+    if (zombie.specialTimer <= 0) {
+      zombie.specialTimer = 5.0 + Math.random() * 1.0;
+      state.soundQueue.push('ult_tick');
+      state.floatingTexts.push({
+        x: zombie.x,
+        y: zombie.y - 50,
+        vy: -40,
+        text: 'MANTRA SANTET! 🔮',
+        color: '#c084fc',
+        scale: 1.1,
+        life: 1.0,
+        maxLife: 1.0,
+      });
+
+      // Purple expanding mystical ring
+      for (let a = 0; a < 8; a++) {
+        const ang = (a / 8) * Math.PI * 2;
+        state.particles.push({
+          x: zombie.x + Math.cos(ang) * 16,
+          y: zombie.y + Math.sin(ang) * 12,
+          z: 14,
+          vx: Math.cos(ang) * 90,
+          vy: Math.sin(ang) * 60,
+          vz: 20,
+          size: 4,
+          color: '#c084fc',
+          alpha: 0.9,
+          life: 0.45,
+          maxLife: 0.45,
+          gravity: 0,
+        });
+      }
+
+      // Buff all nearby zombies (Heal +25 HP)
+      for (const other of state.enemies) {
+        if (other.hp > 0 && Math.hypot(other.x - zombie.x, other.y - zombie.y) < 190) {
+          other.hp = Math.min(other.maxHp, other.hp + 25);
+          other.hitFlashTimer = 0.15;
+          other.scaleX = 1.2;
+          other.scaleY = 0.8;
+        }
+      }
+    }
+
+    // Bangkit Kubur (Resurrect minion)
+    zombie.aiTimer -= dt;
+    if (zombie.aiTimer <= 0) {
+      zombie.aiTimer = 8.5 + Math.random() * 2.0;
+      if (state.enemies.length < 24) {
+        const minionKind = Math.random() < 0.5 ? 'zombie_warga' : 'zombie_bocil';
+        const mx = zombie.x + (Math.random() - 0.5) * 50;
+        const my = zombie.y + (Math.random() - 0.5) * 50;
+        spawnEnemy(state, minionKind, mx, my);
+        state.soundQueue.push('crate_break');
+        state.floatingTexts.push({
+          x: mx,
+          y: my - 30,
+          vy: -35,
+          text: 'BANGKIT REK! ⚰️',
+          color: '#a855f7',
+          scale: 0.95,
+          life: 0.9,
+          maxLife: 0.9,
+        });
+        for (let k = 0; k < 6; k++) {
+          state.particles.push({
+            x: mx,
+            y: my,
+            z: 5,
+            vx: (Math.random() - 0.5) * 60,
+            vy: (Math.random() - 0.5) * 60,
+            vz: 60 + Math.random() * 60,
+            size: 3,
+            color: '#78350f',
+            alpha: 1,
+            life: 0.4,
+            maxLife: 0.4,
+            gravity: 400,
+          });
+        }
+      }
+    }
   }
 
-  // Check if an active barricade is blocking this zombie
+  // 2. Barricade Interactions
   for (const bar of surv.barricades) {
     if (bar.hp <= 0) continue;
+    // Kuntilanak floats freely over all ground barricades!
+    if (zombie.kind === 'zombie_kuntilanak') continue;
     // Pocong leaps over Level 1 cardboard barricade!
     if (zombie.kind === 'zombie_pocong' && bar.level === 1 && zombie.z > 8) {
       continue;
@@ -580,19 +946,32 @@ function updateZombieSurvivalAI(state: GameState, zombie: EnemyState, dt: number
     const by = bar.y + bar.h * 0.5;
     const distToBar = Math.hypot(zombie.x - bx, zombie.y - by);
     if (distToBar < Math.max(bar.w, bar.h) * 0.62 + zombie.radius) {
+      // Petasan explodes immediately on reaching barricades!
+      if (zombie.kind === 'zombie_petasan') {
+        explodePetasan(state, zombie);
+        return;
+      }
+
       zombie.dirX = (bx - zombie.x) / (distToBar || 1);
       zombie.dirY = (by - zombie.y) / (distToBar || 1);
       zombie.vx *= Math.pow(0.04, dt);
       zombie.vy *= Math.pow(0.04, dt);
 
       if (zombie.attackCooldown <= 0) {
-        zombie.attackCooldown = zombie.kind === 'zombie_gendruwo' ? 0.9 : 1.1;
+        zombie.attackCooldown =
+          zombie.kind === 'zombie_buto_ijo'
+            ? 1.2
+            : zombie.kind === 'zombie_gendruwo'
+              ? 0.9
+              : 1.1;
         const barDmg =
-          zombie.kind === 'zombie_gendruwo'
-            ? 34
-            : zombie.kind === 'zombie_pocong'
-              ? 16
-              : 12;
+          zombie.kind === 'zombie_buto_ijo'
+            ? 40
+            : zombie.kind === 'zombie_gendruwo'
+              ? 34
+              : zombie.kind === 'zombie_pocong'
+                ? 16
+                : 12;
         bar.hp = Math.max(0, bar.hp - barDmg);
         bar.hitFlashTimer = 0.14;
         zombie.scaleX = 1.2;
@@ -654,9 +1033,15 @@ function updateZombieSurvivalAI(state: GameState, zombie: EnemyState, dt: number
     }
   }
 
-  // Check if zombie reached the Central Core Pos Ronda
+  // 3. Central Pos Warkop Core Interactions
   const distToCore = Math.hypot(zombie.x - coreCx, zombie.y - coreCy);
   if (distToCore < 58 + zombie.radius) {
+    // Petasan detonates upon reaching core!
+    if (zombie.kind === 'zombie_petasan') {
+      explodePetasan(state, zombie);
+      return;
+    }
+
     zombie.dirX = (coreCx - zombie.x) / (distToCore || 1);
     zombie.dirY = (coreCy - zombie.y) / (distToCore || 1);
     zombie.vx *= Math.pow(0.04, dt);
@@ -665,11 +1050,15 @@ function updateZombieSurvivalAI(state: GameState, zombie: EnemyState, dt: number
     if (zombie.attackCooldown <= 0) {
       zombie.attackCooldown = 1.05;
       const coreDmg =
-        zombie.kind === 'zombie_gendruwo'
-          ? 28
-          : zombie.kind === 'zombie_tuyul'
-            ? 18
-            : 12;
+        zombie.kind === 'zombie_buto_ijo'
+          ? 32
+          : zombie.kind === 'zombie_gendruwo'
+            ? 28
+            : zombie.kind === 'zombie_tuyul'
+              ? 18
+              : zombie.kind === 'zombie_kuntilanak'
+                ? 16
+                : 12;
 
       // 1-Wave Energy Shield (Tameng Gaib) absorbs damage & deals contact damage to zombies
       if (surv.core.shieldActive && surv.core.shieldHp > 0) {
@@ -746,12 +1135,17 @@ function updateZombieSurvivalAI(state: GameState, zombie: EnemyState, dt: number
     return;
   }
 
-  // Otherwise march toward Core (or chase a very close player if non-tuyul)
+  // 4. Target Acquisition & Pathfinding
   let targetX = coreCx;
   let targetY = coreCy;
-  if (zombie.kind !== 'zombie_tuyul') {
+
+  // Dukun stays at support distance (~220px)
+  if (zombie.kind === 'zombie_dukun' && distToCore < 220) {
+    targetX = zombie.x - (coreCx - zombie.x);
+    targetY = zombie.y - (coreCy - zombie.y);
+  } else if (zombie.kind !== 'zombie_tuyul') {
     const alivePlayer = state.players.find(
-      (p) => !p.knockedDown && Math.hypot(p.x - zombie.x, p.y - zombie.y) < 125
+      (p) => !p.knockedDown && Math.hypot(p.x - zombie.x, p.y - zombie.y) < 130
     );
     if (alivePlayer) {
       targetX = alivePlayer.x;
@@ -770,6 +1164,10 @@ function updateZombieSurvivalAI(state: GameState, zombie: EnemyState, dt: number
   else if (zombie.kind === 'zombie_pocong') speed = zombie.z > 0 ? 128 : 28;
   else if (zombie.kind === 'zombie_gendruwo') speed = 64;
   else if (zombie.kind === 'zombie_tuyul') speed = 168;
+  else if (zombie.kind === 'zombie_petasan') speed = 165;
+  else if (zombie.kind === 'zombie_kuntilanak') speed = 92;
+  else if (zombie.kind === 'zombie_buto_ijo') speed = 56;
+  else if (zombie.kind === 'zombie_dukun') speed = 72;
 
   // Slight speed scaling per wave
   const waveMult = 1 + Math.min(0.45, (surv.wave - 1) * 0.02);

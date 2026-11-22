@@ -229,11 +229,13 @@ export function drawEnemy(ctx: CanvasRenderingContext2D, enemy: EnemyState, time
   const shadowScale = Math.max(0.55, 1 - enemy.z / 160);
   const sizeScale = enemy.isBoss
     ? 1.48
-    : enemy.kind === 'zombie_gendruwo'
-      ? 1.32
-      : enemy.kind === 'zombie_tuyul' || enemy.kind === 'zombie_bocil'
-        ? 0.84
-        : 1;
+    : enemy.kind === 'zombie_buto_ijo'
+      ? 1.42
+      : enemy.kind === 'zombie_gendruwo'
+        ? 1.32
+        : enemy.kind === 'zombie_tuyul' || enemy.kind === 'zombie_bocil' || enemy.kind === 'zombie_petasan'
+          ? 0.84
+          : 1;
 
   // Phase 2 glowing aura on Raja Sarung Baja Suramadu
   if (enemy.isBoss && enemy.phase === 2) {
@@ -325,6 +327,238 @@ export function drawEnemy(ctx: CanvasRenderingContext2D, enemy: EnemyState, time
     ctx.beginPath();
     ctx.arc(-1, -33, 1.8, 0, Math.PI * 2);
     ctx.arc(4, -33, 1.8, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (enemy.kind === 'zombie_kuntilanak') {
+    // Mbak Kunti: Floating pale apparition with flowing ragged gown & wild long black hair
+    const floatY = Math.sin(time * 5 + enemy.id) * 3;
+    // Flowing ragged gown
+    ctx.fillStyle = enemy.hitFlashTimer > 0 ? '#ffffff' : '#f8fafc';
+    ctx.beginPath();
+    ctx.moveTo(-9, -28 + floatY);
+    ctx.lineTo(9, -28 + floatY);
+    ctx.lineTo(14, 2 + floatY);
+    ctx.lineTo(8, -2 + floatY);
+    ctx.lineTo(0, 3 + floatY);
+    ctx.lineTo(-7, -2 + floatY);
+    ctx.lineTo(-14, 2 + floatY);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Red bloodstain on dress
+    ctx.fillStyle = '#dc2626';
+    ctx.beginPath();
+    ctx.arc(2, -14 + floatY, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Pale ghost face
+    ctx.fillStyle = enemy.hitFlashTimer > 0 ? '#ffffff' : '#f1f5f9';
+    ctx.beginPath();
+    ctx.arc(0, -33 + floatY, 9.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Long wild black hair draped over shoulders
+    ctx.fillStyle = '#090c14';
+    ctx.beginPath();
+    ctx.moveTo(-10, -33 + floatY);
+    ctx.quadraticCurveTo(-14, -18 + floatY, -12, -4 + floatY);
+    ctx.lineTo(-7, -4 + floatY);
+    ctx.quadraticCurveTo(-8, -20 + floatY, -5, -38 + floatY);
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(10, -33 + floatY);
+    ctx.quadraticCurveTo(14, -18 + floatY, 12, -4 + floatY);
+    ctx.lineTo(7, -4 + floatY);
+    ctx.quadraticCurveTo(8, -20 + floatY, 5, -38 + floatY);
+    ctx.fill();
+
+    // Forehead bangs
+    ctx.beginPath();
+    ctx.arc(0, -36 + floatY, 9.5, Math.PI * 1.1, Math.PI * 1.9);
+    ctx.fill();
+
+    // Piercing glowing blood-red eyes
+    ctx.fillStyle = '#ef4444';
+    ctx.beginPath();
+    ctx.arc(-2, -32 + floatY, 2, 0, Math.PI * 2);
+    ctx.arc(4, -32 + floatY, 2, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (enemy.kind === 'zombie_petasan') {
+    // Bocil Petasan Kamikaze: Red firecracker tubes on back with glowing fuse spark!
+    const hop = Math.abs(Math.sin(enemy.animTime)) * -3.5;
+    // Red petasan bundle on back
+    ctx.fillStyle = '#ef4444';
+    ctx.fillRect(-13, -24 + hop, 7, 15);
+    ctx.strokeRect(-13, -24 + hop, 7, 15);
+    ctx.fillStyle = '#fde047';
+    ctx.fillRect(-13, -18 + hop, 7, 3);
+
+    // Running legs
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(-6, -8, 4, 8);
+    ctx.strokeRect(-6, -8, 4, 8);
+    ctx.fillRect(2, -8, 4, 8);
+    ctx.strokeRect(2, -8, 4, 8);
+
+    // Torso & Sarung
+    ctx.fillStyle = enemy.hitFlashTimer > 0 ? '#ffffff' : enemy.shirtColor;
+    ctx.beginPath();
+    ctx.roundRect(-9, -22 + hop, 18, 15, 4);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = enemy.sarungColor;
+    ctx.fillRect(-8, -12 + hop, 16, 5);
+    ctx.strokeRect(-8, -12 + hop, 16, 5);
+
+    // Head
+    ctx.fillStyle = enemy.hitFlashTimer > 0 ? '#ffffff' : '#86efac';
+    ctx.beginPath();
+    ctx.arc(0, -29 + hop, 8.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Spark fuse on head
+    ctx.strokeStyle = '#78350f';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, -37 + hop);
+    ctx.quadraticCurveTo(4, -43 + hop, 2, -47 + hop);
+    ctx.stroke();
+
+    // Burning spark tip
+    ctx.fillStyle = Math.floor(time * 25) % 2 === 0 ? '#fde047' : '#f97316';
+    ctx.beginPath();
+    ctx.arc(2, -47 + hop, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Crazy eyes
+    ctx.fillStyle = '#dc2626';
+    ctx.beginPath();
+    ctx.arc(-2, -29 + hop, 1.8, 0, Math.PI * 2);
+    ctx.arc(4, -29 + hop, 1.8, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (enemy.kind === 'zombie_buto_ijo') {
+    // Buto Ijo: Massive muscular ogre with tusks and acid drool
+    const hop = Math.abs(Math.sin(enemy.animTime)) * -2;
+    // Heavy green legs
+    ctx.fillStyle = '#14532d';
+    ctx.fillRect(-9, -10, 7, 10);
+    ctx.strokeRect(-9, -10, 7, 10);
+    ctx.fillRect(2, -10, 7, 10);
+    ctx.strokeRect(2, -10, 7, 10);
+
+    // Muscular green torso
+    ctx.fillStyle = enemy.hitFlashTimer > 0 ? '#ffffff' : '#16a34a';
+    ctx.beginPath();
+    ctx.roundRect(-15, -32 + hop, 30, 24, 7);
+    ctx.fill();
+    ctx.stroke();
+
+    // Dark purple loincloth / sarung
+    ctx.fillStyle = '#581c87';
+    ctx.fillRect(-14, -16 + hop, 28, 8);
+    ctx.strokeRect(-14, -16 + hop, 28, 8);
+
+    // Giant ogre head
+    ctx.fillStyle = enemy.hitFlashTimer > 0 ? '#ffffff' : '#22c55e';
+    ctx.beginPath();
+    ctx.arc(0, -42 + hop, 14, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Glowing yellow eyes
+    ctx.fillStyle = '#facc15';
+    ctx.beginPath();
+    ctx.arc(-4, -42 + hop, 2.5, 0, Math.PI * 2);
+    ctx.arc(6, -42 + hop, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Upward ivory tusks
+    ctx.fillStyle = '#fef08a';
+    ctx.strokeStyle = '#090c14';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-7, -35 + hop);
+    ctx.lineTo(-8, -44 + hop);
+    ctx.lineTo(-4, -36 + hop);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(7, -35 + hop);
+    ctx.lineTo(8, -44 + hop);
+    ctx.lineTo(4, -36 + hop);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Green acid drool from jaw
+    ctx.fillStyle = '#84cc16';
+    ctx.beginPath();
+    ctx.arc(1, -33 + hop, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (enemy.kind === 'zombie_dukun') {
+    // Mbah Dukun Santet: Blangkon, batik sarung, pedupaan kemenyan
+    const hop = Math.abs(Math.sin(enemy.animTime)) * -2.5;
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(-7, -9, 5, 9);
+    ctx.strokeRect(-7, -9, 5, 9);
+    ctx.fillRect(2, -9, 5, 9);
+    ctx.strokeRect(2, -9, 5, 9);
+
+    // Midnight purple shirt & batik sarung
+    ctx.fillStyle = enemy.hitFlashTimer > 0 ? '#ffffff' : '#1e1b4b';
+    ctx.beginPath();
+    ctx.roundRect(-11, -26 + hop, 22, 18, 5);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#78350f';
+    ctx.fillRect(-10, -14 + hop, 20, 6);
+    ctx.strokeRect(-10, -14 + hop, 20, 6);
+
+    // Pale greenish head
+    ctx.fillStyle = enemy.hitFlashTimer > 0 ? '#ffffff' : '#a7f3d0';
+    ctx.beginPath();
+    ctx.arc(0, -34 + hop, 10, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Traditional Javanese Blangkon
+    ctx.fillStyle = '#451a03';
+    ctx.beginPath();
+    ctx.ellipse(0, -41 + hop, 11, 6, 0, Math.PI, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    // Mondholan (back knot)
+    ctx.beginPath();
+    ctx.arc(-11, -38 + hop, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Glowing purple occult eyes
+    ctx.fillStyle = '#c084fc';
+    ctx.beginPath();
+    ctx.arc(-2, -33 + hop, 2.2, 0, Math.PI * 2);
+    ctx.arc(5, -33 + hop, 2.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Smoking pedupaan kemenyan held in hand
+    ctx.fillStyle = '#b45309';
+    ctx.beginPath();
+    ctx.roundRect(11, -22 + hop, 8, 9, 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Rising purple smoke spiral
+    ctx.fillStyle = 'rgba(192, 132, 252, 0.7)';
+    ctx.beginPath();
+    ctx.arc(15, -27 + hop + Math.sin(time * 8) * 2, 3, 0, Math.PI * 2);
+    ctx.arc(17, -33 + hop + Math.cos(time * 8) * 3, 4, 0, Math.PI * 2);
     ctx.fill();
   } else {
     const hop = Math.abs(Math.sin(enemy.animTime)) * -3;

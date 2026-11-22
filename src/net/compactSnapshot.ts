@@ -82,6 +82,10 @@ const ENEMY_COLORS: Partial<Record<EnemyKind, { shirt: string; sarung: string; r
   zombie_pocong: { shirt: '#e2e8f0', sarung: '#cbd5e1', r: 15, name: 'Zombie Pocong' },
   zombie_gendruwo: { shirt: '#581c87', sarung: '#7f1d1d', r: 22, name: 'Zombie Gendruwo' },
   zombie_tuyul: { shirt: '#a3e635', sarung: '#facc15', r: 12, name: 'Zombie Tuyul' },
+  zombie_kuntilanak: { shirt: '#f8fafc', sarung: '#e2e8f0', r: 15, name: 'Kuntilanak' },
+  zombie_petasan: { shirt: '#dc2626', sarung: '#991b1b', r: 13, name: 'Bocil Petasan' },
+  zombie_buto_ijo: { shirt: '#15803d', sarung: '#4c1d95', r: 23, name: 'Buto Ijo' },
+  zombie_dukun: { shirt: '#1e1b4b', sarung: '#78350f', r: 16, name: 'Dukun Santet' },
 };
 
 export function packCompactSnapshot(state: GameState, sounds: SoundEvent[]): CompactSnapshot {
