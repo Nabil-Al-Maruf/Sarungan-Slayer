@@ -812,6 +812,13 @@ export function stepSurvival(
         });
       }
 
+      // Every 10 Waves (Wave 10, 20, 30, 40...), grant Ultimate Jurus selection modal!
+      if (surv.wave % 10 === 0) {
+        for (const p of state.players) {
+          p.pendingUltChoice = true;
+        }
+      }
+
       // Every 2 Waves (Wave 2, 4, 6, 8, ...), grant 3 random Buff choices (Player picks 1!)
       if (surv.wave % 2 === 0) {
         for (const p of state.players) {
@@ -819,7 +826,11 @@ export function stepSurvival(
         }
       }
 
-      if ((surv.wave + 1) % 5 === 0) {
+      if (surv.wave % 10 === 0) {
+        surv.mapBannerText = `🔥 WAVE ${surv.wave} TEMBUS! PILIH JURUS ULTIMATE TAHAP BARU! 🔥`;
+        surv.mapBannerTimer = 4.5;
+        state.soundQueue.push('ult_start');
+      } else if ((surv.wave + 1) % 5 === 0) {
         surv.mapBannerText = `⚠️ SIAP-SIAP! WAVE ${surv.wave + 1} BOSS INVASION! ⚠️`;
         surv.mapBannerTimer = 4.5;
         state.soundQueue.push('ult_start');
@@ -838,6 +849,9 @@ export function stepSurvival(
       for (const p of state.players) {
         if (p.pendingBuffChoices.length > 0) {
           applyPlayerBuff(state, p, p.pendingBuffChoices[0]);
+        }
+        if (p.pendingUltChoice) {
+          p.pendingUltChoice = false;
         }
       }
 

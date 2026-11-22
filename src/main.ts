@@ -1,6 +1,6 @@
 import './style.css';
 import { ProceduralAudio } from './audio/sfx';
-import { FIXED_DT, PLAYER_PALETTES, VIRTUAL_HEIGHT, VIRTUAL_WIDTH } from './core/constants';
+import { FIXED_DT, PLAYER_PALETTES, ULT_DEFS, VIRTUAL_HEIGHT, VIRTUAL_WIDTH } from './core/constants';
 import { InputManager } from './core/input';
 import type { BuffId, GameState, PlayerInput, UltType } from './core/types';
 import { createSandboxState, stepSandbox } from './modes/sandbox';
@@ -43,7 +43,7 @@ import {
 } from './ui/fullscreen';
 import { HudController } from './ui/hud';
 import { buildInviteUrl, renderQrCodeToCanvas } from './ui/qrHelper';
-import { bindTouchControls } from './ui/touchControls';
+import { bindTouchControls, type TouchDisplayMode } from './ui/touchControls';
 
 const NAME_STORAGE_KEY = 'arek_slayer_player_name_v1';
 const SKIN_STORAGE_KEY = 'arek_slayer_player_skin_v1';
@@ -64,6 +64,7 @@ let menuOpen = true;
 let lobbyOpen = false;
 let shopOpen = false;
 let buffModalOpen = false;
+let ultModalOpen = false;
 let pauseOpen = false;
 let storyDialogueOpen = false;
 let storyQueue: StoryLine[] = [];
@@ -86,10 +87,14 @@ const lobbyOverlay = document.getElementById('lobby-overlay') as HTMLDivElement;
 const shopOverlay = document.getElementById('shop-overlay') as HTMLDivElement;
 const buffOverlay = document.getElementById('buff-overlay') as HTMLDivElement;
 const buffChoicesGrid = document.getElementById('buff-choices-grid') as HTMLDivElement;
+const ultOverlay = document.getElementById('ult-overlay') as HTMLDivElement;
+const sandboxSkillsBar = document.getElementById('sandbox-skills-bar') as HTMLDivElement | null;
 const pauseOverlay = document.getElementById('pause-overlay') as HTMLDivElement;
 const pauseEyebrow = document.getElementById('pause-eyebrow') as HTMLDivElement;
 const pauseSub = document.getElementById('pause-sub') as HTMLParagraphElement;
 const btnPauseResume = document.getElementById('btn-pause-resume') as HTMLButtonElement;
+const btnPauseToggleTouch = document.getElementById('btn-pause-toggle-touch') as HTMLButtonElement | null;
+const pauseTouchStateText = document.getElementById('pause-touch-state-text') as HTMLSpanElement | null;
 const btnPauseRestart = document.getElementById('btn-pause-restart') as HTMLButtonElement;
 const btnPauseQuit = document.getElementById('btn-pause-quit') as HTMLButtonElement;
 const storyDialogueOverlay = document.getElementById('story-dialogue-overlay') as HTMLDivElement;
@@ -411,6 +416,7 @@ const wsMgr = new WsManager({
       refreshShopUI();
     }
     checkPendingBuffModal();
+    checkPendingUltModal();
     showResultIfNeeded();
   },
   onRemoteBuy(playerId, itemId) {
@@ -736,16 +742,85 @@ function refreshShopUI(): void {
     shieldCost.textContent = shieldActive ? 'AKTIF ✓' : '150 Receh';
   }
 
-  // Active Ultimate Jurus Selection buttons
+  // Active Ultimate Jurus display card
   const curUlt = player.ultType ?? 'gasing';
-  const allUlts: UltType[] = ['gasing', 'petir', 'mercon', 'naga'];
-  for (const u of allUlts) {
-    const uBtn = document.getElementById(`shop-ult-${u}`) as HTMLButtonElement | null;
-    const badge = document.getElementById(`shop-ult-badge-${u}`);
-    const isActive = curUlt === u;
-    if (uBtn) uBtn.classList.toggle('active', isActive);
-    if (badge) badge.textContent = isActive ? 'AKTIF ✓' : 'PILIH';
+  const ultDef = ULT_DEFS[curUlt];
+  const iconEl = document.getElementById('shop-ult-active-icon');
+  const titleEl = document.getElementById('shop-ult-active-title');
+  const descEl = document.getElementById('shop-ult-active-desc');
+  if (iconEl && ultDef) iconEl.textContent = ultDef.icon;
+  if (titleEl && ultDef) titleEl.textContent = ultDef.title;
+  if (descEl && ultDef) descEl.textContent = ultDef.desc;
+}
+
+/**
+ * Checks if the local player has a pending every-10-wave Jurus Ultimate choice
+ * and displays the 4 Jurus cards modal.
+ */
+function checkPendingUltModal(): void {
+  if (
+    state.mode !== 'survival' ||
+    state.status !== 'playing' ||
+    menuOpen ||
+    lobbyOpen ||
+    wsMgr.isMonitor
+  ) {
+    if (ultModalOpen) {
+      ultModalOpen = false;
+      ultOverlay.classList.add('hidden');
+    }
+    return;
   }
+
+  const player = getLocalPlayer();
+  if (!player || !player.pendingUltChoice) {
+    if (ultModalOpen) {
+      ultModalOpen = false;
+      ultOverlay.classList.add('hidden');
+    }
+    return;
+  }
+
+  if (ultModalOpen) return;
+  ultModalOpen = true;
+
+  // Highlight current active jurus
+  const ultCards = ultOverlay.querySelectorAll<HTMLButtonElement>('.ult-card-btn');
+  for (const card of ultCards) {
+    const uType = card.dataset.ult as UltType;
+    card.classList.toggle('active-current', player.ultType === uType);
+  }
+
+  ultOverlay.classList.remove('hidden');
+}
+
+function pickUltChoice(ultType: UltType): void {
+  const player = getLocalPlayer();
+  if (!player) return;
+
+  player.ultType = ultType;
+  player.ult = player.maxUlt; // Instant 100% Ult milestone reward!
+  player.pendingUltChoice = false;
+
+  const def = ULT_DEFS[ultType];
+  state.soundQueue.push('pickup_kopi');
+  state.floatingTexts.push({
+    x: player.x,
+    y: player.y - player.z - 58,
+    vy: -50,
+    text: `JURUS: ${def.title.toUpperCase()}! ${def.icon}`,
+    color: '#facc15',
+    scale: 1.25,
+    life: 1.5,
+    maxLife: 1.5,
+  });
+
+  if (wsMgr.connected && !wsMgr.isHost) {
+    wsMgr.sendBuy(('ult_' + ultType) as ShopItemId);
+  }
+
+  ultModalOpen = false;
+  ultOverlay.classList.add('hidden');
 }
 
 /**
@@ -1150,9 +1225,34 @@ window.addEventListener('keydown', (e) => {
     if (shopOpen) {
       shopOpen = false;
       shopOverlay.classList.add('hidden');
-    } else if (!buffModalOpen) {
+    } else if (!buffModalOpen && !ultModalOpen) {
       if (pauseOpen) closePauseMenu();
       else openPauseMenu();
+    }
+  }
+  if (state.mode === 'sandbox' && (e.key === '1' || e.key === '2' || e.key === '3' || e.key === '4')) {
+    const ults: UltType[] = ['gasing', 'petir', 'mercon', 'naga'];
+    const idx = parseInt(e.key, 10) - 1;
+    const chosen = ults[idx];
+    const player = getLocalPlayer();
+    if (player && chosen) {
+      player.ultType = chosen;
+      player.ult = player.maxUlt;
+      const def = ULT_DEFS[chosen];
+      sandboxSkillsBar?.querySelectorAll('.sandbox-skill-btn[data-ult]').forEach((b) => {
+        b.classList.toggle('active', (b as HTMLElement).dataset.ult === chosen);
+      });
+      state.soundQueue.push('pickup_kopi');
+      state.floatingTexts.push({
+        x: player.x,
+        y: player.y - player.z - 58,
+        vy: -50,
+        text: `JURUS: ${def.title.toUpperCase()}! ${def.icon}`,
+        color: '#facc15',
+        scale: 1.2,
+        life: 1.3,
+        maxLife: 1.3,
+      });
     }
   }
 });
@@ -1168,6 +1268,7 @@ function openMenu(): void {
   lobbyOpen = false;
   shopOpen = false;
   buffModalOpen = false;
+  ultModalOpen = false;
   pauseOpen = false;
   storyDialogueOpen = false;
   resultShown = false;
@@ -1176,6 +1277,8 @@ function openMenu(): void {
   lobbyOverlay.classList.add('hidden');
   shopOverlay.classList.add('hidden');
   buffOverlay.classList.add('hidden');
+  ultOverlay.classList.add('hidden');
+  sandboxSkillsBar?.classList.add('hidden');
   pauseOverlay.classList.add('hidden');
   storyDialogueOverlay.classList.add('hidden');
   resultOverlay.classList.add('hidden');
@@ -1188,10 +1291,13 @@ function openLobby(): void {
   lobbyOpen = true;
   shopOpen = false;
   buffModalOpen = false;
+  ultModalOpen = false;
   resultShown = false;
   menuOverlay.classList.add('hidden');
   shopOverlay.classList.add('hidden');
   buffOverlay.classList.add('hidden');
+  ultOverlay.classList.add('hidden');
+  sandboxSkillsBar?.classList.add('hidden');
   resultOverlay.classList.add('hidden');
   lobbyOverlay.classList.remove('hidden');
   renderLobbyRoster(wsMgr.roomCode, wsMgr.lobbyPlayers, wsMgr.localPlayerId, wsMgr.isHost);
@@ -1206,6 +1312,7 @@ function startStoryStage(stage: 1 | 2 | 3): void {
   lobbyOpen = false;
   shopOpen = false;
   buffModalOpen = false;
+  ultModalOpen = false;
   pauseOpen = false;
   storyBossShown = false;
   storyOutroDone = false;
@@ -1214,6 +1321,8 @@ function startStoryStage(stage: 1 | 2 | 3): void {
   lobbyOverlay.classList.add('hidden');
   shopOverlay.classList.add('hidden');
   buffOverlay.classList.add('hidden');
+  ultOverlay.classList.add('hidden');
+  sandboxSkillsBar?.classList.add('hidden');
   pauseOverlay.classList.add('hidden');
   resultOverlay.classList.add('hidden');
   openStoryCutscene('intro');
@@ -1228,12 +1337,15 @@ function startSoloSurvival(): void {
   lobbyOpen = false;
   shopOpen = false;
   buffModalOpen = false;
+  ultModalOpen = false;
   lastBuffSig = '';
   resultShown = false;
   menuOverlay.classList.add('hidden');
   lobbyOverlay.classList.add('hidden');
   shopOverlay.classList.add('hidden');
   buffOverlay.classList.add('hidden');
+  ultOverlay.classList.add('hidden');
+  sandboxSkillsBar?.classList.add('hidden');
   resultOverlay.classList.add('hidden');
 }
 
@@ -1242,15 +1354,22 @@ function startSandbox(): void {
   triggerAutoFullscreenIfEnabled();
   wsMgr.disconnect(true);
   state = createSandboxState(selectedPalette, playerName);
+  const p0 = state.players[0];
+  if (p0) {
+    p0.ult = p0.maxUlt; // Ready to test instantly!
+  }
   menuOpen = false;
   lobbyOpen = false;
   shopOpen = false;
   buffModalOpen = false;
+  ultModalOpen = false;
   resultShown = false;
   menuOverlay.classList.add('hidden');
   lobbyOverlay.classList.add('hidden');
   shopOverlay.classList.add('hidden');
   buffOverlay.classList.add('hidden');
+  ultOverlay.classList.add('hidden');
+  sandboxSkillsBar?.classList.remove('hidden');
   resultOverlay.classList.add('hidden');
 }
 
@@ -1423,7 +1542,7 @@ btnRetryStage.addEventListener('click', () => {
 
 btnBackMenu.addEventListener('click', () => openMenu());
 
-const { toggleTouchOverlay } = bindTouchControls(
+const touchHandle = bindTouchControls(
   input,
   () => {
     if (state.mode === 'survival') {
@@ -1448,6 +1567,99 @@ const { toggleTouchOverlay } = bindTouchControls(
     void requestScreenWakeLock();
   }
 );
+
+// Settings & Pause Touch Mode Sync
+const setTouchGroup = document.getElementById('set-touch-group');
+function syncTouchModeUI(mode: TouchDisplayMode) {
+  if (setTouchGroup) {
+    setTouchGroup.querySelectorAll<HTMLButtonElement>('.seg-btn').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.touch === mode);
+    });
+  }
+  if (pauseTouchStateText) {
+    pauseTouchStateText.textContent =
+      mode === 'auto' ? 'OTOMATIS' : mode === 'on' ? 'SELALU TAMPIL' : 'SEMBUNYIKAN';
+  }
+  if (btnTouch) {
+    btnTouch.classList.toggle('muted', !touchHandle.isTouchActive());
+  }
+}
+
+setTouchGroup?.querySelectorAll<HTMLButtonElement>('.seg-btn').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const mode = btn.dataset.touch as TouchDisplayMode;
+    if (mode) {
+      touchHandle.setTouchMode(mode);
+      syncTouchModeUI(mode);
+    }
+  });
+});
+
+btnPauseToggleTouch?.addEventListener('click', () => {
+  const current = touchHandle.getTouchMode();
+  const next: TouchDisplayMode = current === 'auto' ? 'on' : current === 'on' ? 'off' : 'auto';
+  touchHandle.setTouchMode(next);
+  syncTouchModeUI(next);
+});
+
+// 10-Wave Jurus Ultimate Picker Modal Buttons
+ultOverlay.querySelectorAll<HTMLButtonElement>('.ult-card-btn').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    audio.unlock();
+    const uType = btn.dataset.ult as UltType;
+    if (uType) {
+      pickUltChoice(uType);
+    }
+  });
+});
+
+// Camp Latihan (Sandbox) Jurus Tester Dock
+if (sandboxSkillsBar) {
+  sandboxSkillsBar.querySelectorAll<HTMLButtonElement>('.sandbox-skill-btn[data-ult]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      audio.unlock();
+      const uType = btn.dataset.ult as UltType;
+      const player = getLocalPlayer();
+      if (player && uType) {
+        player.ultType = uType;
+        player.ult = player.maxUlt; // Ready instantly!
+        sandboxSkillsBar.querySelectorAll('.sandbox-skill-btn[data-ult]').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        const def = ULT_DEFS[uType];
+        state.soundQueue.push('pickup_kopi');
+        state.floatingTexts.push({
+          x: player.x,
+          y: player.y - player.z - 58,
+          vy: -50,
+          text: `JURUS: ${def.title.toUpperCase()}! ${def.icon}`,
+          color: '#facc15',
+          scale: 1.2,
+          life: 1.3,
+          maxLife: 1.3,
+        });
+      }
+    });
+  });
+
+  document.getElementById('btn-sandbox-refill')?.addEventListener('click', () => {
+    audio.unlock();
+    const player = getLocalPlayer();
+    if (player) {
+      player.ult = player.maxUlt;
+      state.soundQueue.push('pickup_kopi');
+      state.floatingTexts.push({
+        x: player.x,
+        y: player.y - player.z - 54,
+        vy: -40,
+        text: '🔥 BAR ULTIMATE 100%!',
+        color: '#fde047',
+        scale: 1.1,
+        life: 1.1,
+        maxLife: 1.1,
+      });
+    }
+  });
+}
 
 // HUD Quick Buttons
 const btnWarungHud = document.getElementById('btn-warung-hud') as HTMLButtonElement;
@@ -1491,9 +1703,12 @@ btnPalette?.addEventListener('click', () => {
 
 btnTouch?.addEventListener('click', () => {
   audio.unlock();
-  const active = toggleTouchOverlay();
+  const active = touchHandle.toggleTouchOverlay();
   btnTouch?.classList.toggle('muted', !active);
+  syncTouchModeUI(touchHandle.getTouchMode());
 });
+
+syncTouchModeUI(touchHandle.getTouchMode());
 
 btnSfx?.addEventListener('click', () => {
   audio.unlock();
@@ -1723,6 +1938,7 @@ function frame(now: number): void {
         stepSurvival(state, allInputs, FIXED_DT);
         audio.playQueue(state.soundQueue);
         checkPendingBuffModal();
+        checkPendingUltModal();
 
         const endedNow = state.status !== 'playing';
         if (endedNow) {
@@ -1751,7 +1967,7 @@ function frame(now: number): void {
             wsMgr.broadcastCompactSnapshot(state, state.soundQueue);
           }
         }
-      } else if (!shopOpen && !buffModalOpen && !pauseOpen && !storyDialogueOpen) {
+      } else if (!shopOpen && !buffModalOpen && !ultModalOpen && !pauseOpen && !storyDialogueOpen) {
         // Offline Solo Mode
         if (state.mode === 'story') {
           stepStory(state, sampled, FIXED_DT);
@@ -1768,6 +1984,7 @@ function frame(now: number): void {
         } else if (state.mode === 'survival') {
           stepSurvival(state, sampled, FIXED_DT);
           checkPendingBuffModal();
+          checkPendingUltModal();
         } else {
           stepSandbox(state, sampled, FIXED_DT);
         }

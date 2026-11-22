@@ -95,6 +95,7 @@ export interface PlayerState {
   ultGainMult: number;
   coinMult: number;
   pendingBuffChoices: BuffId[];
+  pendingUltChoice?: boolean;
   buffCount: number;
 
   // Dash
@@ -160,6 +161,7 @@ export interface EnemyState {
 export interface ProjectileState {
   id: number;
   ownerId: string;
+  kind?: 'slash' | 'mercon' | 'naga';
   x: number;
   y: number;
   vx: number;
@@ -192,7 +194,8 @@ export interface EnemyProjectile {
 
 export interface HazardZone {
   id: number;
-  kind: 'mercon' | 'slam' | 'acid_puddle';
+  kind: 'mercon' | 'slam' | 'acid_puddle' | 'fire_crater' | 'naga_flame';
+  ownerId?: string;
   x: number;
   y: number;
   radius: number;

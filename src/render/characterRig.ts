@@ -191,78 +191,17 @@ export function drawPlayer(
     drawTopDownArekRig(ctx, player, palette, time);
   }
 
-  // 3. Clear, Unmistakable Player Indicator & Nametag Above Head
+  // 3. Clean Nametag Above Head (No bulky beacon above head, Cincin Aura Neon below feet identifies player!)
   ctx.save();
-  const bobY = Math.sin(time * 6) * 3;
-  const tagY = player.y - player.z - 64;
-
-  if (isLocalPlayer && !isMonitor) {
-    // Prominent "▼ KAMU" Beacon Pill — Eliminates all confusion of who is who!
-    const pillW = 54;
-    const pillH = 17;
-    const px = player.x - pillW * 0.5;
-    const py = tagY - 14 + bobY;
-
-    ctx.fillStyle = '#0284c7';
-    ctx.strokeStyle = '#38bdf8';
-    ctx.lineWidth = 2.2;
-    ctx.beginPath();
-    ctx.roundRect(px, py, pillW, pillH, 8);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '900 10px "Segoe UI", system-ui, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('▼ KAMU', player.x, py + 12);
-
-    // Player Nickname underneath
-    if (player.name) {
-      ctx.font = '800 10px "Segoe UI", system-ui, sans-serif';
-      ctx.lineWidth = 2.5;
-      ctx.strokeStyle = '#090c14';
-      ctx.strokeText(player.name, player.x, tagY + 14);
-      ctx.fillStyle = '#fde047';
-      ctx.fillText(player.name, player.x, tagY + 14);
-    }
-  } else if (isMonitor) {
-    // Monitor Mode: Distinct color-coded badge for each player
-    const monLabel = `▼ ${palette.label}`;
-    ctx.font = '900 11px "Segoe UI", system-ui, sans-serif';
-    const textW = ctx.measureText(monLabel).width + 16;
-    const px = player.x - textW * 0.5;
-    const py = tagY - 14 + bobY;
-
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
-    ctx.strokeStyle = palette.accent;
-    ctx.lineWidth = 2.4;
-    ctx.beginPath();
-    ctx.roundRect(px, py, textW, 18, 8);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.fillStyle = palette.accent;
-    ctx.textAlign = 'center';
-    ctx.fillText(monLabel, player.x, py + 13);
-
-    // Name underneath
-    ctx.font = '800 10px "Segoe UI", system-ui, sans-serif';
-    ctx.lineWidth = 2.5;
-    ctx.strokeStyle = '#090c14';
-    ctx.strokeText(player.name || palette.name.split(' (')[0], player.x, tagY + 14);
-    ctx.fillStyle = '#f8fafc';
-    ctx.fillText(player.name || palette.name.split(' (')[0], player.x, tagY + 14);
-  } else {
-    // Teammate badge in multiplayer
-    const teamLabel = `${palette.label} • ${player.name}`;
-    ctx.font = '900 10px "Segoe UI", system-ui, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = '#090c14';
-    ctx.strokeText(teamLabel, player.x, tagY);
-    ctx.fillStyle = palette.accent;
-    ctx.fillText(teamLabel, player.x, tagY);
-  }
+  const tagY = player.y - player.z - 60;
+  const displayName = player.name ? `${palette.label} • ${player.name}` : palette.label;
+  ctx.font = '900 10px "Segoe UI", system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = '#090c14';
+  ctx.strokeText(displayName, player.x, tagY);
+  ctx.fillStyle = isLocalPlayer && !isMonitor ? '#38bdf8' : palette.accent;
+  ctx.fillText(displayName, player.x, tagY);
   ctx.restore();
 }
 

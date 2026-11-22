@@ -55,6 +55,7 @@
             <button id="btn-warung-hud" class="hud-btn warung-hud-btn hidden" title="Buka Warung [B]">
               WARUNG
             </button>
+            <button id="btn-touch-toggle" class="hud-btn" title="Tombol Kontrol Layar Sentuh (On/Off/Auto)">🎮</button>
             <button id="btn-fullscreen-toggle" class="hud-btn" title="Layar Penuh / Fullscreen">⛶</button>
             <button id="btn-menu" class="hud-btn hud-pause-btn" title="Jeda / Pause [Esc]">⏸</button>
           </div>
@@ -68,6 +69,16 @@
           <span><b>J/Z</b> Kibas</span>
           <span><b>K/X</b> Pecut</span>
           <span><b>U/C</b> Ultimate</span>
+        </div>
+
+        <!-- Camp Latihan (Sandbox Mode) Live Jurus Tester Dock -->
+        <div id="sandbox-skills-bar" class="sandbox-skills-bar hidden">
+          <span class="sandbox-skills-label">🥋 UJI JURUS:</span>
+          <button class="sandbox-skill-btn active" data-ult="gasing" title="Badai Gasing Suroboyo [1]">🌀 GASING</button>
+          <button class="sandbox-skill-btn" data-ult="petir" title="Petir Halilintar Kenjeran [2]">⚡ PETIR</button>
+          <button class="sandbox-skill-btn" data-ult="mercon" title="Meriam Bazooka Karbit [3]">💥 BAZOOKA</button>
+          <button class="sandbox-skill-btn" data-ult="naga" title="Naga Barong Api [4]">🐉 NAGA BARONG</button>
+          <button class="sandbox-skill-btn refill-btn" id="btn-sandbox-refill" title="Isi 100% Bar Ult">🔥 100% ULT</button>
         </div>
 
         <!-- Animated Title Screen / Main Menu Overlay (Cartoon Scenic Style) -->
@@ -223,6 +234,14 @@
                     <button class="seg-btn" data-gfx="low">RENDAH</button>
                     <button class="seg-btn active" data-gfx="med">SEDANG</button>
                     <button class="seg-btn" data-gfx="high">TINGGI</button>
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <span class="setting-label">🎮 Tombol Layar Sentuh (HUD)</span>
+                  <div class="setting-seg" id="set-touch-group">
+                    <button class="seg-btn active" data-touch="auto">OTOMATIS</button>
+                    <button class="seg-btn" data-touch="on">SELALU TAMPIL</button>
+                    <button class="seg-btn" data-touch="off">SEMBUNYIKAN</button>
                   </div>
                 </div>
                 <div class="setting-row">
@@ -694,41 +713,22 @@
             </div>
 
             <div class="shop-section-divider">
-              <span>⚡ PILIH JURUS ULTIMATE (BEBAS GANTI) ⚡</span>
+              <span>⚡ STATUS JURUS ULTIMATE AKTIF ⚡</span>
             </div>
-            <div class="shop-ult-grid">
-              <button class="shop-ult-btn" data-item="ult_gasing" id="shop-ult-gasing">
-                <span class="shop-ult-icon">🌀</span>
-                <div class="shop-ult-info">
-                  <strong>Badai Gasing (Klasik)</strong>
-                  <small>Berputar tornado kebal damage & sedot musuh</small>
+            <div class="shop-ult-status-card" id="shop-ult-status-card">
+              <div class="shop-ult-status-inner">
+                <span class="shop-ult-current-icon" id="shop-ult-active-icon">🌀</span>
+                <div class="shop-ult-current-info">
+                  <div class="shop-ult-status-badge">JURUS AKTIF SAAT INI</div>
+                  <strong class="shop-ult-status-title" id="shop-ult-active-title">Badai Gasing Suroboyo</strong>
+                  <p class="shop-ult-status-desc" id="shop-ult-active-desc">
+                    Pusaran angin tornado kebal 3 detik menyedot musuh ke tengah, lalu meledakkan gelombang kejut dahsyat!
+                  </p>
                 </div>
-                <span class="shop-ult-badge" id="shop-ult-badge-gasing">PILIH</span>
-              </button>
-              <button class="shop-ult-btn" data-item="ult_petir" id="shop-ult-petir">
-                <span class="shop-ult-icon">⚡</span>
-                <div class="shop-ult-info">
-                  <strong>Petir Halilintar</strong>
-                  <small>14 Sambaran petir massal membakar seisi layar</small>
-                </div>
-                <span class="shop-ult-badge" id="shop-ult-badge-petir">PILIH</span>
-              </button>
-              <button class="shop-ult-btn" data-item="ult_mercon" id="shop-ult-mercon">
-                <span class="shop-ult-icon">💥</span>
-                <div class="shop-ult-info">
-                  <strong>Meriam Bazooka</strong>
-                  <small>3 Roket mercon karbit ledakan berdaya hancur luas</small>
-                </div>
-                <span class="shop-ult-badge" id="shop-ult-badge-mercon">PILIH</span>
-              </button>
-              <button class="shop-ult-btn" data-item="ult_naga" id="shop-ult-naga">
-                <span class="shop-ult-icon">🐉</span>
-                <div class="shop-ult-info">
-                  <strong>Naga Api Sutra</strong>
-                  <small>Semburan naga api menembus musuh & bakar jalan</small>
-                </div>
-                <span class="shop-ult-badge" id="shop-ult-badge-naga">PILIH</span>
-              </button>
+              </div>
+              <div class="shop-ult-wave-hint">
+                🔒 <em>Jurus baru / upgrade dapat dipilih otomatis tiap tembus 10 Wave (Wave 10, 20, 30...)!</em>
+              </div>
             </div>
 
             <div class="result-actions">
@@ -747,6 +747,51 @@
             <h2 class="modal-title">PILIH 1 BUFF ATRIBUT</h2>
             <p class="modal-sub">Tingkatkan kekuatan Arek Suroboyo untuk menghadapi wave berikutnya!</p>
             <div id="buff-choices-grid" class="buff-grid"></div>
+          </div>
+        </div>
+
+        <!-- Every-10-Wave Jurus Ultimate Picker Modal (Player picks 1 of 4 Ultimates!) -->
+        <div id="ult-overlay" class="overlay-modal hidden">
+          <div class="modal-card ult-modal-card">
+            <div class="modal-eyebrow">⚡ MILESTONE 10 WAVE • JURUS PAMUNGKAS AREK ⚡</div>
+            <h2 class="modal-title" id="ult-modal-title">PILIH JURUS ULTIMATE TAHAP INI</h2>
+            <p class="modal-sub">
+              Tembus Wave kelipatan 10! Kuasai atau ganti jurus pamungkas sakti Arek Suroboyo (Langsung 100% Bar Ult):
+            </p>
+            <div class="ult-choices-grid">
+              <button class="ult-card-btn" data-ult="gasing">
+                <span class="ult-card-icon">🌀</span>
+                <div class="ult-card-body">
+                  <strong>Badai Gasing Suroboyo</strong>
+                  <small>Pusaran angin tornado kebal 3 detik menyedot musuh ke tengah, lalu meledakkan gelombang kejut dahsyat!</small>
+                </div>
+                <span class="ult-card-tag">PILIH JURUS INI</span>
+              </button>
+              <button class="ult-card-btn" data-ult="petir">
+                <span class="ult-card-icon">⚡</span>
+                <div class="ult-card-body">
+                  <strong>Petir Halilintar Kenjeran</strong>
+                  <small>Sambaran 16 kilat langit massal + setrum lumpuh (stun listrik 2.4s) & lompatan petir berantai antar musuh!</small>
+                </div>
+                <span class="ult-card-tag">PILIH JURUS INI</span>
+              </button>
+              <button class="ult-card-btn" data-ult="mercon">
+                <span class="ult-card-icon">💥</span>
+                <div class="ult-card-body">
+                  <strong>Meriam Bazooka Karbit</strong>
+                  <small>Tembakkan 3 roket artileri karbit berdaya ledak masif + kawah api membara di tanah selama 3.5 detik!</small>
+                </div>
+                <span class="ult-card-tag">PILIH JURUS INI</span>
+              </button>
+              <button class="ult-card-btn" data-ult="naga">
+                <span class="ult-card-icon">🐉</span>
+                <div class="ult-card-body">
+                  <strong>Naga Barong Api Suroboyo</strong>
+                  <small>Panggil arwah Naga Barong menerjang 550px menyeret musuh menembus barikade & ciptakan lautan api!</small>
+                </div>
+                <span class="ult-card-tag">PILIH JURUS INI</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -780,6 +825,7 @@
             </p>
             <div class="pause-actions">
               <button id="btn-pause-resume" class="primary-btn">▶ LANJUTKAN MAIN</button>
+              <button id="btn-pause-toggle-touch" class="ghost-btn">🎮 TOMBOL SENTUH: <span id="pause-touch-state-text">OTOMATIS</span></button>
               <button id="btn-pause-restart" class="secondary-btn">🔄 ULANGI STAGE / WAVE</button>
               <button id="btn-pause-quit" class="danger-btn">🚪 KELUAR KE MENU UTAMA</button>
             </div>

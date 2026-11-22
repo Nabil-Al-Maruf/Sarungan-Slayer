@@ -95,6 +95,19 @@ export function resolveCombat(state: GameState, dt: number): void {
       if (uType === 'gasing') {
         player.ultTickTimer -= dt;
 
+        // Suction Vacuum: Whirlwind pulls nearby enemies towards the center!
+        for (const enemy of state.enemies) {
+          if (enemy.hp <= 0) continue;
+          const dx = enemy.x - player.x;
+          const dy = enemy.y - player.y;
+          const d = Math.hypot(dx, dy);
+          if (d > 18 && d <= ULT_RADIUS + 95) {
+            const pullForce = (1 - d / (ULT_RADIUS + 95)) * 260;
+            enemy.x -= (dx / d) * pullForce * dt;
+            enemy.y -= (dy / d) * pullForce * dt;
+          }
+        }
+
         const angle = state.time * 18 + Math.random() * Math.PI * 2;
         const dist = 28 + Math.random() * (ULT_RADIUS - 24);
         state.particles.push({
@@ -147,6 +160,33 @@ export function resolveCombat(state: GameState, dt: number): void {
             }
           }
         }
+
+        // Final Tornado Burst Release when duration expires!
+        if (player.ultActiveTimer <= 0) {
+          state.soundQueue.push('crate_break');
+          state.shakeTimer = 0.35;
+          state.shakeIntensity = 8;
+          for (const enemy of state.enemies) {
+            if (enemy.hp <= 0) continue;
+            const dx = enemy.x - player.x;
+            const dy = enemy.y - player.y;
+            const d = Math.hypot(dx, dy);
+            if (d <= ULT_RADIUS + 60) {
+              const nx = d > 0.1 ? dx / d : 1;
+              const ny = d > 0.1 ? dy / d : 0;
+              hitEnemy(
+                state,
+                enemy,
+                player,
+                Math.round(65 * player.dmgMult),
+                nx * 420,
+                ny * 420,
+                160,
+                false
+              );
+            }
+          }
+        }
       }
     }
   }
@@ -167,7 +207,7 @@ export function resolveCombat(state: GameState, dt: number): void {
         vy: -proj.vy * 0.14,
         vz: 10,
         size: 3 + Math.random() * 3,
-        color: '#bae6fd',
+        color: proj.kind === 'mercon' ? '#f97316' : proj.kind === 'naga' ? '#ef4444' : '#bae6fd',
         alpha: 0.75,
         life: 0.18,
         maxLife: 0.18,
@@ -201,13 +241,17 @@ export function resolveCombat(state: GameState, dt: number): void {
           });
         }
 
+        // Naga Barong pushes and sweeps enemies forward with its flight trajectory!
+        const knockX = proj.kind === 'naga' ? (proj.vx / speed) * 380 : (proj.vx / speed) * 230;
+        const knockY = proj.kind === 'naga' ? (proj.vy / speed) * 380 : (proj.vy / speed) * 230;
+
         hitEnemy(
           state,
           enemy,
           owner,
           projDmg,
-          (proj.vx / speed) * 230,
-          (proj.vy / speed) * 230,
+          knockX,
+          knockY,
           isTower ? 0 : Math.round(PROJ_ULT_GAIN * (owner?.ultGainMult ?? 1)),
           false,
           isTower ? 'tower' : undefined
@@ -224,14 +268,63 @@ export function resolveCombat(state: GameState, dt: number): void {
       }
     }
 
-    if (
+    const expired =
       proj.life <= 0 ||
       proj.pierceLeft <= 0 ||
       proj.x < state.cameraX - 80 ||
       proj.x > state.cameraX + 1040 ||
       proj.y < -60 ||
-      proj.y > state.arenaHeight + 60
-    ) {
+      proj.y > state.arenaHeight + 60;
+
+    if (expired) {
+      if (proj.kind === 'mercon') {
+        state.soundQueue.push('crate_break');
+        state.shakeTimer = Math.max(state.shakeTimer, 0.4);
+        state.shakeIntensity = Math.max(state.shakeIntensity, 9);
+        // Explosion fireball damage to all enemies within 85px
+        for (const e of state.enemies) {
+          if (e.hp <= 0) continue;
+          const d = Math.hypot(e.x - proj.x, e.y - proj.y);
+          if (d <= 85 + e.radius) {
+            const nx = d > 0.1 ? (e.x - proj.x) / d : 1;
+            const ny = d > 0.1 ? (e.y - proj.y) / d : 0;
+            hitEnemy(state, e, owner, proj.damage, nx * 350, ny * 350, 20, false);
+          }
+        }
+        // Spawn lingering fire crater hazard (burns for 3.5s)
+        state.hazards.push({
+          id: state.nextEntityId++,
+          kind: 'fire_crater',
+          ownerId: proj.ownerId,
+          x: proj.x,
+          y: proj.y,
+          radius: 75,
+          delay: 0,
+          maxDelay: 0,
+          damage: Math.round(40 * (owner?.dmgMult ?? 1)),
+          detonated: true,
+          flashTimer: 3.5,
+        });
+        // Fiery explosion particles
+        for (let k = 0; k < 18; k++) {
+          const a = Math.random() * Math.PI * 2;
+          const spd = 70 + Math.random() * 180;
+          state.particles.push({
+            x: proj.x,
+            y: proj.y,
+            z: 10,
+            vx: Math.cos(a) * spd,
+            vy: Math.sin(a) * spd * 0.7,
+            vz: 120 + Math.random() * 140,
+            size: 5 + Math.random() * 4,
+            color: k % 2 === 0 ? '#f97316' : '#fef08a',
+            alpha: 1,
+            life: 0.45,
+            maxLife: 0.45,
+            gravity: 550,
+          });
+        }
+      }
       state.projectiles.splice(i, 1);
     }
   }
@@ -289,6 +382,64 @@ export function resolveCombat(state: GameState, dt: number): void {
   // 5. Telegraphed Ground Hazards (Hujan Mercon Banting, Boss Jump Slam & Acid Puddles)
   for (let i = state.hazards.length - 1; i >= 0; i--) {
     const hz = state.hazards[i];
+
+    // Player Fire Hazards (Fire Crater & Naga Flame) burn and incinerate ENEMIES!
+    if (hz.kind === 'fire_crater' || hz.kind === 'naga_flame') {
+      hz.flashTimer -= dt;
+      if (Math.random() < 0.45) {
+        state.particles.push({
+          x: hz.x + (Math.random() - 0.5) * (hz.radius * 1.4),
+          y: hz.y + (Math.random() - 0.5) * (hz.radius * 0.9),
+          z: 4,
+          vx: (Math.random() - 0.5) * 20,
+          vy: (Math.random() - 0.5) * 20,
+          vz: 35 + Math.random() * 45,
+          size: 3 + Math.random() * 3,
+          color: Math.random() < 0.5 ? '#f97316' : '#facc15',
+          alpha: 0.9,
+          life: 0.35,
+          maxLife: 0.35,
+          gravity: -20,
+        });
+      }
+
+      const pOwner = state.players.find((p) => p.id === hz.ownerId) ?? state.players[0];
+      for (const enemy of state.enemies) {
+        if (enemy.hp <= 0) continue;
+        const d = Math.hypot(enemy.x - hz.x, enemy.y - hz.y);
+        if (d <= hz.radius + enemy.radius) {
+          const burnDmg = Math.round(hz.damage * dt * 2.8);
+          if (burnDmg > 0) {
+            enemy.hp = Math.max(0, enemy.hp - burnDmg);
+            enemy.hitFlashTimer = 0.1;
+            if (Math.random() < 0.1) {
+              state.floatingTexts.push({
+                x: enemy.x,
+                y: enemy.y - enemy.z - 35,
+                vy: -35,
+                text: '🔥',
+                color: '#f97316',
+                scale: 0.85,
+                life: 0.6,
+                maxLife: 0.6,
+              });
+            }
+            if (enemy.hp <= 0) {
+              state.soundQueue.push('ko');
+              if (state.mode === 'survival' && pOwner) {
+                const reward = Math.round(20 * (pOwner.coinMult ?? 1));
+                pOwner.coins += reward;
+              }
+            }
+          }
+        }
+      }
+
+      if (hz.flashTimer <= 0) {
+        state.hazards.splice(i, 1);
+      }
+      continue;
+    }
 
     // Acid puddles linger and deal continuous caustic damage & slime slow
     if (hz.kind === 'acid_puddle') {
@@ -368,13 +519,15 @@ export function resolveCombat(state: GameState, dt: number): void {
           });
         }
 
-        // Damage players inside radius (jumping high can dodge slam!)
-        for (const player of state.players) {
-          const d = Math.hypot(player.x - hz.x, player.y - hz.y);
-          if (d <= hz.radius + player.radius && (hz.kind === 'mercon' || player.z < 28)) {
-            const nx = d > 1 ? (player.x - hz.x) / d : 1;
-            const ny = d > 1 ? (player.y - hz.y) / d : 0;
-            damagePlayer(state, player, hz.damage, nx, ny);
+        // Damage players inside radius (jumping high can dodge slam; player hazards don't hurt players!)
+        if (!hz.ownerId || !hz.ownerId.startsWith('p')) {
+          for (const player of state.players) {
+            const d = Math.hypot(player.x - hz.x, player.y - hz.y);
+            if (d <= hz.radius + player.radius && (hz.kind === 'mercon' || player.z < 28)) {
+              const nx = d > 1 ? (player.x - hz.x) / d : 1;
+              const ny = d > 1 ? (player.y - hz.y) / d : 0;
+              damagePlayer(state, player, hz.damage, nx, ny);
+            }
           }
         }
 

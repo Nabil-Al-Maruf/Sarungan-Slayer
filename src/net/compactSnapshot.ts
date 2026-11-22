@@ -38,7 +38,7 @@ export interface CompactSnapshot {
     number?, // shieldHp
     number?, // shieldMaxHp
   ];
-  // Players: [id, name, pal, x, y, z, dx, dy, hp, maxHp, ult, coins, rev, kd, dmgM, cdM, spdM, buffs, pCd, ultT, ultType?]
+  // Players: [id, name, pal, x, y, z, dx, dy, hp, maxHp, ult, coins, rev, kd, dmgM, cdM, spdM, buffs, pCd, ultT, ultType?, pendingUlt?]
   pl: Array<
     [
       string,
@@ -62,6 +62,7 @@ export interface CompactSnapshot {
       number,
       number,
       UltType?,
+      number?,
     ]
   >;
   // Enemies: [id, kind, x, y, z, dx, dy, hp, maxHp, flash]
@@ -148,6 +149,7 @@ export function packCompactSnapshot(state: GameState, sounds: SoundEvent[]): Com
       Math.round(p.projCooldown * 10) / 10,
       Math.round(p.ultActiveTimer * 100) / 100,
       p.ultType ?? 'gasing',
+      p.pendingUltChoice ? 1 : 0,
     ]),
     en: state.enemies.map((e) => [
       e.id,
@@ -251,6 +253,7 @@ export function packStickSnapshot(state: GameState, targetPlayerId: string): Com
             Math.round(p.projCooldown * 10) / 10,
             Math.round(p.ultActiveTimer * 10) / 10,
             p.ultType ?? 'gasing',
+            p.pendingUltChoice ? 1 : 0,
           ],
         ]
       : [],
@@ -367,6 +370,7 @@ export function mergeCompactSnapshot(
       pCd,
       ultT,
       ultType,
+      pendingUlt,
     ] = row;
 
     playerTargets.set(id, { x: sx, y: sy, z: sz });
@@ -389,6 +393,7 @@ export function mergeCompactSnapshot(
     existing.pendingBuffChoices = buffs;
     existing.ultActiveTimer = ultT;
     if (ultType) existing.ultType = ultType;
+    if (pendingUlt !== undefined) existing.pendingUltChoice = pendingUlt === 1;
 
     // For remote players, update facing & cooldown; for local player, keep local prediction!
     if (id !== localPlayerId) {

@@ -61,25 +61,25 @@ export const ULT_DEFS: Record<UltType, UltDef> = {
     id: 'gasing',
     title: 'Badai Gasing Suroboyo',
     icon: '🌀',
-    desc: 'Berputar badai sarung tornado (immune 3 detik), tebas & sedot kerumunan musuh',
+    desc: 'Pusaran angin tornado kebal 3 detik menyedot musuh ke tengah, lalu meledakkan gelombang kejut dahsyat!',
   },
   petir: {
     id: 'petir',
     title: 'Petir Halilintar Kenjeran',
     icon: '⚡',
-    desc: 'Hantam tanah panggil 14 petir dahsyat ke seluruh layar, ledakkan musuh seketika',
+    desc: 'Sambaran 16 kilat langit massal + setrum lumpuh (stun listrik 2.4s) & lompatan petir berantai antar musuh!',
   },
   mercon: {
     id: 'mercon',
     title: 'Meriam Bazooka Karbit',
     icon: '💥',
-    desc: 'Tembakkan 3 roket mercon bumbung berdaya ledak raksasa membantai gerombolan',
+    desc: 'Tembakkan 3 roket artileri karbit berdaya ledak masif + kawah api membara di tanah selama 3.5 detik!',
   },
   naga: {
     id: 'naga',
-    title: 'Naga Api Sarung Sutra',
+    title: 'Naga Barong Api Suroboyo',
     icon: '🐉',
-    desc: 'Semburkan gelombang naga api membara menembus musuh & membakar tanah',
+    desc: 'Panggil arwah Naga Barong menerjang 550px menyeret musuh menembus barikade & ciptakan lautan api!',
   },
 };
 

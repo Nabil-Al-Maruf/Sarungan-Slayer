@@ -1,23 +1,65 @@
 import type { InputManager, VirtualAction } from '../core/input';
 
+export type TouchDisplayMode = 'auto' | 'on' | 'off';
+export const TOUCH_MODE_STORAGE_KEY = 'arek_slayer_touch_mode_v1';
+
+export interface TouchControlsHandle {
+  getTouchMode: () => TouchDisplayMode;
+  setTouchMode: (mode: TouchDisplayMode) => boolean;
+  toggleTouchOverlay: () => boolean;
+  isTouchActive: () => boolean;
+}
+
+export function getStoredTouchMode(): TouchDisplayMode {
+  try {
+    const v = localStorage.getItem(TOUCH_MODE_STORAGE_KEY);
+    if (v === 'on' || v === 'off' || v === 'auto') return v;
+  } catch {
+    // Ignore storage error
+  }
+  return 'auto';
+}
+
 /**
  * Ergonomic Mobile Touch Controller:
  * - Left Zone: Smooth 360° Virtual Analog Thumbstick (#joystick-zone) with multi-touch pointer tracking
  * - Right Zone: Arc-arranged Action Buttons with hold-to-attack support & multi-touch pointer tracking
+ * - Explicit setting support: OTOMATIS (Deteksi) | SELALU TAMPIL | SEMBUNYIKAN
  */
 export function bindTouchControls(
   input: InputManager,
   onShopClick?: () => void,
   onTouchActive?: () => void
-): { toggleTouchOverlay: () => boolean } {
+): TouchControlsHandle {
   const appEl = document.getElementById('app')!;
-  const isTouchDevice =
-    'ontouchstart' in window ||
-    navigator.maxTouchPoints > 0 ||
-    window.matchMedia('(pointer: coarse)').matches;
+  let currentMode = getStoredTouchMode();
 
-  let touchOverlayForced = isTouchDevice;
-  appEl.classList.toggle('touch-active', touchOverlayForced);
+  const applyTouchState = (mode: TouchDisplayMode): boolean => {
+    currentMode = mode;
+    try {
+      localStorage.setItem(TOUCH_MODE_STORAGE_KEY, mode);
+    } catch {
+      // Ignore
+    }
+
+    let active = false;
+    if (mode === 'on') {
+      active = true;
+    } else if (mode === 'off') {
+      active = false;
+    } else {
+      // 'auto': On wide screens (laptops, PCs, TVs, monitor tablets > 1024px),
+      // default to OFF to keep the screen uncluttered. On mobile phones/tablets <= 1024px with touch, default ON.
+      const isCoarse = window.matchMedia('(pointer: coarse)').matches;
+      const isNarrow = window.innerWidth <= 1024 || window.innerHeight <= 600;
+      active = isCoarse && isNarrow;
+    }
+
+    appEl.classList.toggle('touch-active', active);
+    return active;
+  };
+
+  applyTouchState(currentMode);
 
   // 1. Bind 360° Analog Thumbstick
   const joyZone = document.getElementById('joystick-zone');
@@ -135,10 +177,13 @@ export function bindTouchControls(
   }
 
   return {
+    getTouchMode: () => currentMode,
+    setTouchMode: (mode: TouchDisplayMode) => applyTouchState(mode),
     toggleTouchOverlay: () => {
-      touchOverlayForced = !touchOverlayForced;
-      appEl.classList.toggle('touch-active', touchOverlayForced);
-      return touchOverlayForced;
+      const isCurrentlyActive = appEl.classList.contains('touch-active');
+      const nextMode = isCurrentlyActive ? 'off' : 'on';
+      return applyTouchState(nextMode);
     },
+    isTouchActive: () => appEl.classList.contains('touch-active'),
   };
 }

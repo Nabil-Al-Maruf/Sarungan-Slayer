@@ -522,6 +522,40 @@ function drawHazardZone(ctx: CanvasRenderingContext2D, hz: HazardZone): void {
     return;
   }
 
+  // Player Fire Hazards (Fire Crater & Naga Flame)
+  if (hz.kind === 'fire_crater' || hz.kind === 'naga_flame') {
+    const alpha = Math.min(1, hz.flashTimer / 0.5);
+    ctx.globalAlpha = alpha;
+
+    // Scorched dark crater ground
+    ctx.fillStyle = 'rgba(26, 12, 6, 0.65)';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, hz.radius, hz.radius * 0.65, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Outer blazing flame ring
+    const flameFlicker = Math.sin(Date.now() * 0.015 + hz.id) * 3;
+    ctx.fillStyle = 'rgba(239, 68, 68, 0.4)';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, hz.radius + flameFlicker, (hz.radius + flameFlicker) * 0.65, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Inner fiery core
+    ctx.fillStyle = 'rgba(249, 115, 22, 0.6)';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, hz.radius * 0.65, hz.radius * 0.42, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Bright yellow flame tongue
+    ctx.fillStyle = '#fde047';
+    ctx.beginPath();
+    ctx.ellipse(0, -2, hz.radius * 0.35, hz.radius * 0.22, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+    return;
+  }
+
   if (!hz.detonated) {
     const progress = 1 - Math.max(0, hz.delay / hz.maxDelay);
     ctx.fillStyle = 'rgba(239, 68, 68, 0.22)';
@@ -581,7 +615,7 @@ function drawProjectile(ctx: CanvasRenderingContext2D, proj: ProjectileState): v
   ctx.save();
   ctx.fillStyle = 'rgba(9, 12, 20, 0.22)';
   ctx.beginPath();
-  ctx.ellipse(proj.x, proj.y + 4, 16, 7, 0, 0, Math.PI * 2);
+  ctx.ellipse(proj.x, proj.y + 4, proj.radius * 0.8, proj.radius * 0.35, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 
@@ -589,6 +623,129 @@ function drawProjectile(ctx: CanvasRenderingContext2D, proj: ProjectileState): v
   ctx.translate(proj.x, proj.y - 18);
   ctx.rotate(proj.angle);
 
+  if (proj.kind === 'mercon') {
+    // Meriam Bambu Karbit Bazooka Artillery Shell
+    // Rocket exhaust flame behind
+    ctx.fillStyle = '#f97316';
+    ctx.beginPath();
+    ctx.moveTo(-18, 0);
+    ctx.lineTo(-28, -8);
+    ctx.lineTo(-24, 0);
+    ctx.lineTo(-28, 8);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = '#fef08a';
+    ctx.beginPath();
+    ctx.arc(-18, 0, 5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Bamboo cannon rocket cylinder
+    ctx.fillStyle = '#15803d';
+    ctx.strokeStyle = '#090c14';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.roundRect(-16, -11, 26, 22, 4);
+    ctx.fill();
+    ctx.stroke();
+
+    // Brass bands
+    ctx.fillStyle = '#facc15';
+    ctx.fillRect(-8, -11, 4, 22);
+    ctx.fillRect(2, -11, 4, 22);
+
+    // Red explosive nose cone
+    ctx.fillStyle = '#ef4444';
+    ctx.beginPath();
+    ctx.moveTo(10, -11);
+    ctx.lineTo(24, 0);
+    ctx.lineTo(10, 11);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.restore();
+    return;
+  }
+
+  if (proj.kind === 'naga') {
+    // Naga Barong Api Suroboyo Spirit
+    // Blazing outer spirit aura
+    ctx.fillStyle = 'rgba(239, 68, 68, 0.35)';
+    ctx.beginPath();
+    ctx.arc(0, 0, 48, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = 'rgba(251, 146, 60, 0.55)';
+    ctx.beginPath();
+    ctx.arc(0, 0, 36, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Sinuous flaming dragon body behind
+    ctx.fillStyle = '#dc2626';
+    ctx.strokeStyle = '#facc15';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.ellipse(-26, 0, 24, 18, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Mythical Barong Dragon Mask Head
+    ctx.fillStyle = '#b91c1c';
+    ctx.strokeStyle = '#090c14';
+    ctx.lineWidth = 2.8;
+    ctx.beginPath();
+    ctx.ellipse(4, 0, 26, 22, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Golden Dragon Horns & Crest
+    ctx.fillStyle = '#eab308';
+    ctx.beginPath();
+    ctx.moveTo(8, -20);
+    ctx.lineTo(18, -32);
+    ctx.lineTo(14, -16);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(8, 20);
+    ctx.lineTo(18, 32);
+    ctx.lineTo(14, 16);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Glowing Ruby Eyes
+    ctx.fillStyle = '#fef08a';
+    ctx.beginPath();
+    ctx.arc(12, -8, 5, 0, Math.PI * 2);
+    ctx.arc(12, 8, 5, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#090c14';
+    ctx.beginPath();
+    ctx.arc(14, -8, 2.5, 0, Math.PI * 2);
+    ctx.arc(14, 8, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // White Sharp Fangs
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(22, -6);
+    ctx.lineTo(28, -3);
+    ctx.lineTo(22, 0);
+    ctx.lineTo(28, 3);
+    ctx.lineTo(22, 6);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.restore();
+    return;
+  }
+
+  // Classic Crescent Wind Slash (Pecut)
   ctx.fillStyle = 'rgba(56, 189, 248, 0.34)';
   ctx.beginPath();
   ctx.ellipse(-4, 0, 24, 22, 0, 0, Math.PI * 2);

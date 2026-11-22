@@ -72,6 +72,10 @@ export function stepSandbox(state: GameState, input: PlayerInput, dt: number): v
   const player = state.players[0];
   if (player) {
     updatePlayer(state, player, input, dt);
+    // In Sandbox / Camp Latihan: Instant Ult refill so players can freely spam & test all skills!
+    if (player.ultActiveTimer <= 0 && player.ult < player.maxUlt) {
+      player.ult = player.maxUlt;
+    }
   }
 
   resolveCombat(state, dt);

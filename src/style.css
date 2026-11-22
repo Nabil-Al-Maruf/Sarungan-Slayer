@@ -2873,3 +2873,217 @@ body {
   40% { transform: rotate(-90deg); }
   100% { transform: rotate(-90deg); }
 }
+
+/* ===== CAMP LATIHAN (SANDBOX) JURUS TESTER DOCK ===== */
+.sandbox-skills-bar {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(15, 23, 42, 0.92);
+  border: 2px solid #38bdf8;
+  border-radius: 999px;
+  padding: 6px 14px;
+  z-index: 22;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 16px rgba(56, 189, 248, 0.35);
+  pointer-events: auto;
+}
+
+.sandbox-skills-label {
+  font-size: 11px;
+  font-weight: 900;
+  color: #38bdf8;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.sandbox-skill-btn {
+  background: #1e293b;
+  border: 1.5px solid #475569;
+  color: #f8fafc;
+  font-size: 11px;
+  font-weight: 800;
+  border-radius: 20px;
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.sandbox-skill-btn:hover {
+  border-color: #38bdf8;
+  background: #0f172a;
+  transform: translateY(-1px);
+}
+
+.sandbox-skill-btn.active {
+  background: #0284c7;
+  border-color: #38bdf8;
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+}
+
+.sandbox-skill-btn.refill-btn {
+  background: #b91c1c;
+  border-color: #ef4444;
+  color: #fef08a;
+}
+.sandbox-skill-btn.refill-btn:hover {
+  background: #dc2626;
+}
+
+/* ===== WARUNG JURUS STATUS CARD ===== */
+.shop-ult-status-card {
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.92), rgba(15, 23, 42, 0.95));
+  border: 2px solid #38bdf8;
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.shop-ult-status-inner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.shop-ult-current-icon {
+  font-size: 34px;
+  background: rgba(56, 189, 248, 0.15);
+  border: 2px solid #38bdf8;
+  border-radius: 12px;
+  width: 52px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.shop-ult-current-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.shop-ult-status-badge {
+  font-size: 9px;
+  font-weight: 900;
+  color: #38bdf8;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.shop-ult-status-title {
+  font-size: 15px;
+  font-weight: 900;
+  color: #fde047;
+}
+
+.shop-ult-status-desc {
+  font-size: 11px;
+  color: #cbd5e1;
+  margin: 0;
+  line-height: 1.35;
+}
+
+.shop-ult-wave-hint {
+  font-size: 11px;
+  color: #94a3b8;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 6px 10px;
+  border-radius: 6px;
+  border-left: 3px solid #facc15;
+}
+
+/* ===== 10-WAVE JURUS ULTIMATE MODAL ===== */
+.ult-modal-card {
+  max-width: 560px;
+  width: 90%;
+  background: linear-gradient(180deg, #182238 0%, #0d1322 100%);
+  border: 3px solid #38bdf8;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.7), 0 0 32px rgba(56, 189, 248, 0.25);
+}
+
+.ult-choices-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.ult-card-btn {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: rgba(30, 41, 59, 0.85);
+  border: 2px solid #334155;
+  border-radius: 12px;
+  padding: 12px 14px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.16s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.ult-card-btn:hover {
+  border-color: #38bdf8;
+  background: rgba(2, 132, 199, 0.25);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(56, 189, 248, 0.25);
+}
+
+.ult-card-btn.active-current {
+  border-color: #facc15;
+  background: rgba(234, 179, 8, 0.15);
+}
+
+.ult-card-icon {
+  font-size: 30px;
+  width: 46px;
+  height: 46px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1.5px solid #475569;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ult-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.ult-card-body strong {
+  font-size: 13.5px;
+  font-weight: 900;
+  color: #f8fafc;
+}
+
+.ult-card-body small {
+  font-size: 11px;
+  color: #94a3b8;
+  line-height: 1.35;
+}
+
+.ult-card-tag {
+  font-size: 10px;
+  font-weight: 900;
+  color: #38bdf8;
+  background: rgba(2, 132, 199, 0.3);
+  border: 1px solid #38bdf8;
+  padding: 4px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+}

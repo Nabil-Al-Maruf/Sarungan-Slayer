@@ -134,59 +134,92 @@ export function updatePlayer(
     const uType = player.ultType ?? 'gasing';
 
     if (uType === 'petir') {
-      player.ultActiveTimer = 0.8;
-      player.invulnTimer = Math.max(player.invulnTimer, 1.0);
+      player.ultActiveTimer = 0.55;
+      player.invulnTimer = Math.max(player.invulnTimer, 1.4);
       player.scaleX = 1.35;
-      player.scaleY = 0.72;
-      player.vz = 90;
+      player.scaleY = 0.7;
+      player.vz = 95;
       state.soundQueue.push('ult_start');
-      state.shakeTimer = Math.max(state.shakeTimer, 0.6);
-      state.shakeIntensity = Math.max(state.shakeIntensity, 12);
+      state.shakeTimer = Math.max(state.shakeTimer, 0.7);
+      state.shakeIntensity = Math.max(state.shakeIntensity, 14);
       state.floatingTexts.push({
         x: player.x,
         y: player.y - player.z - 65,
         vy: -55,
-        text: 'PETIR HALILINTAR KENJERAN! ⚡',
+        text: '⚡ PETIR HALILINTAR KENJERAN! ⚡',
         color: '#38bdf8',
-        scale: 1.35,
-        life: 1.4,
-        maxLife: 1.4,
+        scale: 1.4,
+        life: 1.5,
+        maxLife: 1.5,
       });
 
-      // Strike all visible enemies with lightning
-      for (const e of state.enemies) {
-        if (e.hp <= 0) continue;
-        const dmg = Math.round((e.isBoss ? 230 : 180) * player.dmgMult);
+      // Strike all visible enemies with high-voltage lightning & electric stun!
+      const activeEnemies = state.enemies.filter((e) => e.hp > 0);
+      for (const e of activeEnemies) {
+        const dmg = Math.round((e.isBoss ? 290 : 210) * player.dmgMult);
         e.hp = Math.max(0, e.hp - dmg);
-        e.hitFlashTimer = 0.22;
-        e.vz = 140; // electrical launch
+        e.hitFlashTimer = 0.35;
+        e.stunTimer = Math.max(e.stunTimer, 2.4); // 2.4s Complete Electric Paralysis!
+        e.vz = 160; // Electrical launch into the air
+
         state.floatingTexts.push({
           x: e.x,
           y: e.y - e.z - 45,
           vy: -60,
-          text: `⚡ -${dmg}`,
+          text: `⚡ -${dmg} (STUN!)`,
           color: '#38bdf8',
           scale: 1.15,
-          life: 0.9,
-          maxLife: 0.9,
+          life: 1.1,
+          maxLife: 1.1,
         });
-        // Lightning bolt vertical particles
-        for (let k = 0; k < 6; k++) {
+
+        // Vertical lightning strike particles falling from sky
+        for (let k = 0; k < 10; k++) {
           state.particles.push({
-            x: e.x + (Math.random() - 0.5) * 20,
-            y: e.y + (Math.random() - 0.5) * 16,
-            z: k * 30,
-            vx: (Math.random() - 0.5) * 40,
-            vy: (Math.random() - 0.5) * 40,
-            vz: 20,
-            size: 5,
-            color: k % 2 === 0 ? '#38bdf8' : '#fde047',
+            x: e.x + (Math.random() - 0.5) * 24,
+            y: e.y + (Math.random() - 0.5) * 18,
+            z: k * 35,
+            vx: (Math.random() - 0.5) * 45,
+            vy: (Math.random() - 0.5) * 45,
+            vz: -30,
+            size: 4 + Math.random() * 3,
+            color: k % 2 === 0 ? '#38bdf8' : '#fef08a',
             alpha: 1,
-            life: 0.35,
-            maxLife: 0.35,
+            life: 0.4,
+            maxLife: 0.4,
             gravity: 0,
           });
         }
+
+        // Chain Lightning: Jump to nearest second enemy within 140px!
+        const chainTarget = activeEnemies.find(
+          (other) => other !== e && other.hp > 0 && Math.hypot(other.x - e.x, other.y - e.y) <= 140
+        );
+        if (chainTarget) {
+          const chainDmg = Math.round(85 * player.dmgMult);
+          chainTarget.hp = Math.max(0, chainTarget.hp - chainDmg);
+          chainTarget.hitFlashTimer = 0.25;
+          chainTarget.stunTimer = Math.max(chainTarget.stunTimer, 1.6);
+          // Sparks connecting the two enemies
+          for (let s = 0; s < 5; s++) {
+            const ratio = s / 5;
+            state.particles.push({
+              x: e.x + (chainTarget.x - e.x) * ratio,
+              y: e.y + (chainTarget.y - e.y) * ratio,
+              z: 18,
+              vx: (Math.random() - 0.5) * 30,
+              vy: (Math.random() - 0.5) * 30,
+              vz: 10,
+              size: 4,
+              color: '#38bdf8',
+              alpha: 1,
+              life: 0.3,
+              maxLife: 0.3,
+              gravity: 0,
+            });
+          }
+        }
+
         if (e.hp <= 0) {
           state.soundQueue.push('ko');
           if (state.mode === 'survival') {
@@ -206,18 +239,21 @@ export function updatePlayer(
         }
       }
     } else if (uType === 'mercon') {
-      player.ultActiveTimer = 0.45;
-      player.invulnTimer = Math.max(player.invulnTimer, 0.7);
-      player.scaleX = 1.35;
-      player.scaleY = 0.72;
+      player.ultActiveTimer = 0.5;
+      player.invulnTimer = Math.max(player.invulnTimer, 0.8);
+      player.scaleX = 1.38;
+      player.scaleY = 0.68;
+      // Cannon recoil knockback on player!
+      player.vx -= player.dirX * 150;
+      player.vy -= player.dirY * 150;
       state.soundQueue.push('tower_shoot');
-      state.shakeTimer = Math.max(state.shakeTimer, 0.45);
-      state.shakeIntensity = Math.max(state.shakeIntensity, 9);
+      state.shakeTimer = Math.max(state.shakeTimer, 0.55);
+      state.shakeIntensity = Math.max(state.shakeIntensity, 11);
       state.floatingTexts.push({
         x: player.x,
         y: player.y - player.z - 65,
         vy: -55,
-        text: 'MERIAM BAZOOKA KARBIT! 💥',
+        text: '💥 MERIAM BAMBU KARBIT BAZOOKA! 💥',
         color: '#f97316',
         scale: 1.35,
         life: 1.4,
@@ -230,69 +266,73 @@ export function updatePlayer(
         state.projectiles.push({
           id: state.nextEntityId++,
           ownerId: player.id,
-          x: player.x + Math.cos(ang) * 24,
+          kind: 'mercon',
+          x: player.x + Math.cos(ang) * 26,
           y: player.y + Math.sin(ang) * 20,
           vx: Math.cos(ang) * (PROJ_SPEED * 1.35),
           vy: Math.sin(ang) * (PROJ_SPEED * 1.35),
           angle: ang,
-          radius: 20,
-          damage: Math.round(160 * player.dmgMult),
-          pierceLeft: 2,
+          radius: 24,
+          damage: Math.round(180 * player.dmgMult),
+          pierceLeft: 1, // Explodes on hit or end of life
           hitIds: [],
-          life: 0.7,
-          maxLife: 0.7,
-          color: '#fb923c',
+          life: 0.65,
+          maxLife: 0.65,
+          color: '#f97316',
         });
       }
     } else if (uType === 'naga') {
       player.ultActiveTimer = 1.6;
       player.invulnTimer = Math.max(player.invulnTimer, 1.8);
-      player.scaleX = 1.32;
-      player.scaleY = 0.76;
+      player.scaleX = 1.35;
+      player.scaleY = 0.72;
       state.soundQueue.push('ult_start');
-      state.shakeTimer = Math.max(state.shakeTimer, 0.4);
-      state.shakeIntensity = Math.max(state.shakeIntensity, 8);
+      state.shakeTimer = Math.max(state.shakeTimer, 0.5);
+      state.shakeIntensity = Math.max(state.shakeIntensity, 10);
       state.floatingTexts.push({
         x: player.x,
         y: player.y - player.z - 65,
         vy: -55,
-        text: 'NAGA API SARUNG SUTRA! 🐉',
+        text: '🐉 NAGA BARONG API SUROBOYO! 🐉',
         color: '#ef4444',
-        scale: 1.35,
-        life: 1.4,
-        maxLife: 1.4,
+        scale: 1.4,
+        life: 1.5,
+        maxLife: 1.5,
       });
 
       const nagaAngle = Math.atan2(player.dirY, player.dirX);
       state.projectiles.push({
         id: state.nextEntityId++,
         ownerId: player.id,
-        x: player.x + Math.cos(nagaAngle) * 30,
-        y: player.y + Math.sin(nagaAngle) * 22,
-        vx: Math.cos(nagaAngle) * (PROJ_SPEED * 0.9),
-        vy: Math.sin(nagaAngle) * (PROJ_SPEED * 0.9),
+        kind: 'naga',
+        x: player.x + Math.cos(nagaAngle) * 36,
+        y: player.y + Math.sin(nagaAngle) * 26,
+        vx: Math.cos(nagaAngle) * (PROJ_SPEED * 1.05),
+        vy: Math.sin(nagaAngle) * (PROJ_SPEED * 1.05),
         angle: nagaAngle,
-        radius: 34,
-        damage: Math.round(210 * player.dmgMult),
-        pierceLeft: 99,
+        radius: 54,
+        damage: Math.round(240 * player.dmgMult),
+        pierceLeft: 999, // Unstoppable Piercing Rush!
         hitIds: [],
-        life: 0.9,
-        maxLife: 0.9,
+        life: 1.25,
+        maxLife: 1.25,
         color: '#ef4444',
       });
 
-      for (let s = 1; s <= 3; s++) {
+      // Ground Inferno path
+      for (let s = 1; s <= 4; s++) {
         state.hazards.push({
           id: state.nextEntityId++,
-          kind: 'mercon',
+          kind: 'naga_flame',
+          ownerId: player.id,
           x: player.x + Math.cos(nagaAngle) * (s * 75),
           y: player.y + Math.sin(nagaAngle) * (s * 55),
-          radius: 46,
+          radius: 50,
           delay: 0,
           maxDelay: 0,
-          damage: Math.round(45 * player.dmgMult),
+          damage: Math.round(55 * player.dmgMult),
           detonated: true,
-          flashTimer: 2.5,
+          flashTimer: 3.2,
         });
       }
     } else {
