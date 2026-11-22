@@ -60,6 +60,7 @@ let snapshotAccum = 0;
 // Overlay DOM references
 const menuOverlay = document.getElementById('menu-overlay') as HTMLDivElement;
 const menuHomeView = document.getElementById('menu-home-view') as HTMLDivElement;
+const menuPlayView = document.getElementById('menu-play-view') as HTMLDivElement;
 const menuStoryView = document.getElementById('menu-story-view') as HTMLDivElement;
 const menuCreditsView = document.getElementById('menu-credits-view') as HTMLDivElement;
 const menuChangelogView = document.getElementById('menu-changelog-view') as HTMLDivElement;
@@ -695,12 +696,36 @@ function toggleWarung(): void {
   shopOverlay.classList.remove('hidden');
 }
 
-function showMenuView(view: 'home' | 'story' | 'credits' | 'changelog'): void {
+function showMenuView(view: 'home' | 'play' | 'story' | 'credits' | 'changelog'): void {
   menuHomeView.classList.toggle('hidden', view !== 'home');
+  menuPlayView.classList.toggle('hidden', view !== 'play');
   menuStoryView.classList.toggle('hidden', view !== 'story');
   menuCreditsView.classList.toggle('hidden', view !== 'credits');
   menuChangelogView.classList.toggle('hidden', view !== 'changelog');
 }
+
+document.getElementById('btn-open-play')?.addEventListener('click', () => {
+  audio.unlock();
+  refreshMenuProgress();
+  showMenuView('play');
+});
+
+document.getElementById('btn-back-home-play')?.addEventListener('click', () => {
+  audio.unlock();
+  showMenuView('home');
+});
+
+document.getElementById('btn-quick-survival')?.addEventListener('click', () => {
+  audio.unlock();
+  startSoloSurvival();
+});
+
+document.getElementById('btn-quick-profile')?.addEventListener('click', () => {
+  audio.unlock();
+  refreshMenuProgress();
+  showMenuView('play');
+  inputPlayerName.focus();
+});
 
 function openPauseMenu(): void {
   if (menuOpen || lobbyOpen || resultShown) return;

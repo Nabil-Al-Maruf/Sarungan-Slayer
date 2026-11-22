@@ -1991,3 +1991,284 @@ body {
     font-size: clamp(8px, 2.2vw, 10px);
   }
 }
+
+/* ===== CARTOON SCENIC MAIN MENU (REFERENCE-INSPIRED) ===== */
+#menu-overlay.title-screen-bg {
+  position: fixed;
+  inset: 0;
+  padding: 0;
+  background: #55c4d6;
+  overflow: hidden;
+  z-index: 45;
+}
+
+.title-scenic-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.scenic-cloud {
+  animation: cloudDrift 16s ease-in-out infinite alternate;
+}
+
+.scenic-cloud.cloud-b {
+  animation-duration: 21s;
+  animation-direction: alternate-reverse;
+}
+
+@keyframes cloudDrift {
+  0% {
+    transform: translateX(-18px);
+  }
+  100% {
+    transform: translateX(22px);
+  }
+}
+
+.menu-scenic-stage {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(10px, 2.6vh, 22px);
+  padding: max(14px, env(safe-area-inset-top)) 16px max(14px, env(safe-area-inset-bottom)) 16px;
+}
+
+.scenic-hero {
+  margin: 0;
+  text-align: center;
+  animation: logoFloat 3.2s ease-in-out infinite;
+}
+
+@keyframes logoFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+.scenic-logo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 0.94;
+  margin: 0;
+  font-family: 'Trebuchet MS', 'Arial Rounded MT Bold', system-ui, sans-serif;
+  font-weight: 900;
+  letter-spacing: 1.5px;
+}
+
+.scenic-logo .logo-line-1 {
+  font-size: clamp(22px, 5vw, 44px);
+  color: #ffffff;
+  -webkit-text-stroke: clamp(3px, 0.55vw, 5px) #3d1d12;
+  paint-order: stroke fill;
+  text-shadow: 0 4px 0 #3d1d12;
+}
+
+.scenic-logo .logo-accent-letter {
+  color: #ffd43b;
+}
+
+.scenic-logo .logo-line-2 {
+  font-size: clamp(42px, 9.2vw, 84px);
+  background: linear-gradient(180deg, #fff176 0%, #ffc107 52%, #f59e0b 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: #ffd43b;
+  -webkit-text-stroke: clamp(4px, 0.85vw, 8px) #3d1d12;
+  paint-order: stroke fill;
+  filter: drop-shadow(0 6px 0 #3d1d12);
+}
+
+.scenic-home-view {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.cartoon-pill-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(10px, 2.2vh, 16px);
+  width: min(290px, 74vw);
+}
+
+.cartoon-pill-btn {
+  position: relative;
+  width: 100%;
+  padding: clamp(11px, 2vh, 16px) 24px;
+  border-radius: 999px;
+  border: 4px solid #3d1d12;
+  background: linear-gradient(180deg, #ffdd4a 0%, #ff9d00 54%, #e85d04 100%);
+  box-shadow:
+    inset 0 -5px 0 rgba(180, 48, 0, 0.55),
+    inset 0 4px 0 rgba(255, 246, 179, 0.72),
+    0 6px 0 #3d1d12,
+    0 10px 18px rgba(34, 24, 12, 0.28);
+  cursor: pointer;
+  overflow: hidden;
+  transition: transform 0.08s ease, filter 0.1s ease, box-shadow 0.08s ease;
+}
+
+.cartoon-pill-btn:hover {
+  filter: brightness(1.06);
+  transform: translateY(-2px) scale(1.02);
+}
+
+.cartoon-pill-btn:active {
+  transform: translateY(4px) scale(0.98);
+  box-shadow:
+    inset 0 -3px 0 rgba(180, 48, 0, 0.55),
+    inset 0 3px 0 rgba(255, 246, 179, 0.65),
+    0 2px 0 #3d1d12;
+}
+
+.cartoon-pill-btn .pill-gloss {
+  position: absolute;
+  top: 5px;
+  left: 16px;
+  right: 16px;
+  height: 36%;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.62) 0%, rgba(255, 255, 255, 0.08) 100%);
+  pointer-events: none;
+}
+
+.cartoon-pill-btn .pill-label {
+  position: relative;
+  z-index: 1;
+  font-family: 'Trebuchet MS', 'Arial Rounded MT Bold', system-ui, sans-serif;
+  font-size: clamp(20px, 4.2vw, 30px);
+  font-weight: 900;
+  letter-spacing: 1.5px;
+  color: #ffffff;
+  -webkit-text-stroke: 2.5px #3d1d12;
+  paint-order: stroke fill;
+  text-shadow: 0 3px 0 #3d1d12;
+}
+
+/* Right-Side Translucent Icon Dock (matches reference) */
+.menu-side-dock {
+  position: fixed;
+  right: max(0px, env(safe-area-inset-right));
+  bottom: max(18px, env(safe-area-inset-bottom));
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 10px 12px 12px;
+  background: rgba(15, 23, 42, 0.34);
+  backdrop-filter: blur(6px);
+  border-radius: 22px 0 0 22px;
+  border: 2px solid rgba(255, 255, 255, 0.22);
+  border-right: none;
+}
+
+.dock-icon-btn {
+  width: clamp(46px, 9.5vmin, 58px);
+  height: clamp(46px, 9.5vmin, 58px);
+  border-radius: 16px;
+  border: 3px solid #3d1d12;
+  background: linear-gradient(180deg, #ffffff 0%, #e2e8f0 100%);
+  box-shadow: 0 4px 0 #3d1d12;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: transform 0.08s ease, filter 0.1s ease;
+}
+
+.dock-icon-btn.dock-red {
+  background: linear-gradient(180deg, #ff8577 0%, #ef4444 100%);
+}
+
+.dock-icon-btn.dock-gold {
+  background: linear-gradient(180deg, #ffe266 0%, #f59e0b 100%);
+}
+
+.dock-icon-btn.dock-blue {
+  background: linear-gradient(180deg, #93c5fd 0%, #3b82f6 100%);
+}
+
+.dock-icon-btn:hover {
+  transform: scale(1.07);
+  filter: brightness(1.08);
+}
+
+.dock-icon-btn:active {
+  transform: translateY(3px) scale(0.95);
+  box-shadow: 0 1px 0 #3d1d12;
+}
+
+.dock-emoji {
+  font-size: clamp(22px, 4.8vmin, 28px);
+  line-height: 1;
+  filter: drop-shadow(0 2px 0 rgba(61, 29, 18, 0.6));
+}
+
+/* Sub-views (Play Mode Picker / Story / Credits / Info Update) over scenic sky */
+.scenic-subpanel {
+  width: min(560px, 92vw);
+  max-height: 68dvh;
+  overflow-y: auto;
+  background: rgba(15, 23, 42, 0.92);
+  border: 4px solid #3d1d12;
+  border-radius: 18px;
+  padding: 14px 16px;
+  box-shadow: 0 8px 0 rgba(61, 29, 18, 0.65), 0 16px 32px rgba(0, 0, 0, 0.35);
+}
+
+.scenic-footer-credit {
+  position: fixed;
+  left: max(12px, env(safe-area-inset-left));
+  bottom: max(8px, env(safe-area-inset-bottom));
+  z-index: 4;
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 900;
+  color: #ffffff;
+  text-shadow: 0 2px 0 #3d1d12, 1px 0 0 #3d1d12, -1px 0 0 #3d1d12;
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+@media (orientation: landscape) and (max-height: 460px) {
+  .menu-scenic-stage {
+    gap: 8px;
+  }
+
+  .scenic-logo .logo-line-1 {
+    font-size: 20px;
+  }
+
+  .scenic-logo .logo-line-2 {
+    font-size: 38px;
+  }
+
+  .cartoon-pill-stack {
+    gap: 8px;
+    width: min(230px, 46vw);
+  }
+
+  .cartoon-pill-btn {
+    padding: 8px 18px;
+  }
+
+  .cartoon-pill-btn .pill-label {
+    font-size: 18px;
+  }
+}
