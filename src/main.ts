@@ -205,6 +205,34 @@ document.querySelectorAll<HTMLButtonElement>('#lobby-skin-picker .skin-swatch').
   });
 });
 
+let wakeLockSentinel: { release: () => Promise<void> } | null = null;
+
+async function requestScreenWakeLock(): Promise<void> {
+  try {
+    const nav = navigator as Navigator & {
+      wakeLock?: { request: (type: 'screen') => Promise<{ release: () => Promise<void> }> };
+    };
+    if (nav.wakeLock && !wakeLockSentinel) {
+      wakeLockSentinel = await nav.wakeLock.request('screen');
+    }
+  } catch {
+    // Ignore unsupported or denied wake lock
+  }
+}
+
+function releaseScreenWakeLock(): void {
+  if (wakeLockSentinel) {
+    wakeLockSentinel.release().catch(() => {});
+    wakeLockSentinel = null;
+  }
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && wsMgr.connected) {
+    void requestScreenWakeLock();
+  }
+});
+
 function setStickMode(active: boolean): void {
   appShellEl.classList.toggle('stick-controller-mode', active);
   stickHudBar.classList.toggle('hidden', !active);
@@ -281,6 +309,7 @@ const wsMgr = new WsManager({
 
     setStickMode(wsMgr.isStickClient);
     updateStickHud();
+    void requestScreenWakeLock();
 
     if (wsMgr.isHost) {
       wsMgr.broadcastCompactSnapshot(state, []);
@@ -326,6 +355,7 @@ const wsMgr = new WsManager({
   },
   onDisconnect(reason) {
     setStickMode(false);
+    releaseScreenWakeLock();
     state.shakeTimer = 0;
     state.shakeIntensity = 0;
     state.hitstopTimer = 0;
@@ -734,6 +764,7 @@ window.addEventListener('keydown', (e) => {
 
 function openMenu(): void {
   setStickMode(false);
+  releaseScreenWakeLock();
   wsMgr.disconnect(true);
   state.shakeTimer = 0;
   state.shakeIntensity = 0;

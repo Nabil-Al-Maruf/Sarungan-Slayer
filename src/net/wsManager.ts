@@ -128,6 +128,16 @@ export class WsManager {
   private ws: WebSocket | null = null;
   private connectTimeout: number | null = null;
   private pingTimer: number | null = null;
+  private wsKeepaliveTimer: number | null = null;
+  private reconnectTimer: number | null = null;
+  private reconnectAttempts = 0;
+  private intentionalDisconnect = false;
+  private lastConnectParams: {
+    code: string;
+    paletteIndex: number;
+    playerName: string;
+    role: 'player' | 'monitor';
+  } | null = null;
   private lastSentHeld = '';
   private lastMoveSendTs = 0;
   private callbacks: WsCallbacks;
@@ -177,6 +187,14 @@ export class WsManager {
       window.clearInterval(this.pingTimer);
       this.pingTimer = null;
     }
+    if (this.wsKeepaliveTimer !== null) {
+      window.clearInterval(this.wsKeepaliveTimer);
+      this.wsKeepaliveTimer = null;
+    }
+    if (this.reconnectTimer !== null) {
+      window.clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
   }
 
   private closeAllRtc(): void {
@@ -200,6 +218,9 @@ export class WsManager {
   }
 
   public disconnect(silent = true): void {
+    this.intentionalDisconnect = true;
+    this.reconnectAttempts = 0;
+    this.lastConnectParams = null;
     this.clearTimers();
     this.closeAllRtc();
     const prevWs = this.ws;
@@ -257,24 +278,60 @@ export class WsManager {
     code: string,
     paletteIndex: number,
     playerName: string,
-    role: 'player' | 'monitor' = 'player'
+    role: 'player' | 'monitor' = 'player',
+    isReconnect = false
   ): void {
-    this.disconnect(true);
+    if (!isReconnect) {
+      this.disconnect(true);
+      this.reconnectAttempts = 0;
+    } else {
+      if (this.connectTimeout !== null) {
+        window.clearTimeout(this.connectTimeout);
+        this.connectTimeout = null;
+      }
+      if (this.wsKeepaliveTimer !== null) {
+        window.clearInterval(this.wsKeepaliveTimer);
+        this.wsKeepaliveTimer = null;
+      }
+      if (this.ws) {
+        try {
+          this.ws.close();
+        } catch {
+          // Ignore
+        }
+        this.ws = null;
+      }
+    }
+
+    this.intentionalDisconnect = false;
+    this.lastConnectParams = { code, paletteIndex, playerName, role };
     this.roomCode = code;
     const baseUrl = this.getWsBaseUrl();
     const encodedName = encodeURIComponent(playerName.trim().slice(0, 14) || 'Arek');
     const roleQuery = role === 'monitor' ? '&role=monitor' : '';
-    const wsUrl = `${baseUrl}/room/${code}?palette=${paletteIndex}&name=${encodedName}${roleQuery}`;
+    const slotQuery = isReconnect && this.localPlayerId ? `&slot=${encodeURIComponent(this.localPlayerId)}` : '';
+    const wsUrl = `${baseUrl}/room/${code}?palette=${paletteIndex}&name=${encodedName}${roleQuery}${slotQuery}`;
 
-    const modeLabel =
-      this.connectionMode === 'hotspot' ? 'Local Room' : 'Cloudflare Server Room';
-    this.callbacks.onStatus(`Menghubungkan ke ${modeLabel} (${code})...`);
+    if (!isReconnect) {
+      const modeLabel =
+        this.connectionMode === 'hotspot' ? 'Local Room' : 'Cloudflare Server Room';
+      this.callbacks.onStatus(`Menghubungkan ke ${modeLabel} (${code})...`);
+    }
 
     const ws = new WebSocket(wsUrl);
     this.ws = ws;
 
     this.connectTimeout = window.setTimeout(() => {
       if (this.ws === ws && ws.readyState !== WebSocket.OPEN) {
+        if (this.hasOpenUdp()) {
+          // Keep playing over live WebRTC UDP even if signaling WS timed out
+          this.scheduleReconnect();
+          return;
+        }
+        if (isReconnect && this.reconnectAttempts < 3) {
+          this.scheduleReconnect();
+          return;
+        }
         this.callbacks.onStatus(
           this.connectionMode === 'hotspot'
             ? `Gagal terhubung ke Local Room ${code}. Pastikan berada di 1 jaringan yang sama & cek koneksi!`
@@ -282,14 +339,34 @@ export class WsManager {
           true
         );
         this.disconnect(true);
+        if (isReconnect) {
+          this.callbacks.onDisconnect('Koneksi ke room terputus.');
+        }
       }
     }, 10000);
 
     ws.onopen = () => {
-      this.clearTimers();
+      if (this.connectTimeout !== null) {
+        window.clearTimeout(this.connectTimeout);
+        this.connectTimeout = null;
+      }
+      this.reconnectAttempts = 0;
       this.connected = true;
-      this.callbacks.onStatus(`Terhubung ke Room ${code}!`);
-      this.pingTimer = window.setInterval(() => this.measurePing(), 2000);
+      if (!isReconnect) {
+        this.callbacks.onStatus(`Terhubung ke Room ${code}!`);
+      }
+      if (this.pingTimer === null) {
+        this.pingTimer = window.setInterval(() => this.measurePing(), 2000);
+      }
+      // Dedicated WS keepalive every 15s so Cloudflare (100s idle limit) & 4G NAT never drop WS!
+      if (this.wsKeepaliveTimer !== null) {
+        window.clearInterval(this.wsKeepaliveTimer);
+      }
+      this.wsKeepaliveTimer = window.setInterval(() => {
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+          this.sendWs({ type: 'ping', ts: performance.now() });
+        }
+      }, 15000);
       this.measurePing();
     };
 
@@ -343,20 +420,53 @@ export class WsManager {
     };
 
     ws.onclose = () => {
-      this.clearTimers();
       if (this.ws !== ws) return;
-      const wasConnected = this.connected;
-      this.disconnect(true);
-      if (wasConnected) {
-        this.callbacks.onDisconnect('Koneksi ke room terputus.');
+      if (this.wsKeepaliveTimer !== null) {
+        window.clearInterval(this.wsKeepaliveTimer);
+        this.wsKeepaliveTimer = null;
       }
+      if (this.intentionalDisconnect || !this.connected) return;
+
+      // Never kick player out if WebRTC UDP is still alive — silently reconnect signaling WS!
+      if (this.hasOpenUdp()) {
+        this.scheduleReconnect();
+        return;
+      }
+
+      // On WSS, try 3 quick silent reconnects before disconnecting (handles 4G signal flicker)
+      if (this.reconnectAttempts < 3 && this.lastConnectParams) {
+        this.callbacks.onStatus('Sinyal goyang, menyambung ulang...', false);
+        this.scheduleReconnect();
+        return;
+      }
+
+      this.disconnect(true);
+      this.callbacks.onDisconnect('Koneksi ke room terputus.');
     };
 
     ws.onerror = () => {
-      this.clearTimers();
       if (this.ws !== ws) return;
-      this.callbacks.onStatus('Gagal terhubung ke Room Server.', true);
+      if (!this.hasOpenUdp() && !this.connected) {
+        this.callbacks.onStatus('Gagal terhubung ke Room Server.', true);
+      }
     };
+  }
+
+  private hasOpenUdp(): boolean {
+    return [...this.dcs.values()].some((dc) => dc.readyState === 'open');
+  }
+
+  private scheduleReconnect(): void {
+    if (this.intentionalDisconnect || !this.lastConnectParams) return;
+    if (this.reconnectTimer !== null) return;
+    this.reconnectAttempts++;
+    const delayMs = Math.min(5000, 1200 * this.reconnectAttempts);
+    const params = this.lastConnectParams;
+    this.reconnectTimer = window.setTimeout(() => {
+      this.reconnectTimer = null;
+      if (this.intentionalDisconnect || !this.lastConnectParams) return;
+      this.connectToRoom(params.code, params.paletteIndex, params.playerName, params.role, true);
+    }, delayMs);
   }
 
   private cleanupPeer(peerId: string): void {
