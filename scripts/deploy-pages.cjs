@@ -32,12 +32,14 @@ async function main() {
   }
 
   const files = walk('dist');
+  // Exclude _worker.js and _routes.json from static assets manifest (they are uploaded as multipart parts on deployment)
+  const staticFiles = files.filter(f => !f.path.startsWith('/_worker') && !f.path.startsWith('/_routes'));
 
   const manifest = {};
   const uploadPayload = [];
   const allHashes = [];
 
-  for (const item of files) {
+  for (const item of staticFiles) {
     const content = fs.readFileSync(item.file);
     const hash = crypto.createHash('md5').update(content).digest('hex');
     manifest[item.path] = hash;
