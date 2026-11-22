@@ -433,7 +433,7 @@ export default {
         {
           ok: true,
           service: 'arek-sarungan-slayer-mp',
-          version: '1.5.0',
+          version: '1.6.1',
           transport: 'webrtc-udp+wss-fallback',
         },
         { headers: CORS_HEADERS }
