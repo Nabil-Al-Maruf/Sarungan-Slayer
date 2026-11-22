@@ -55,6 +55,7 @@
             <button id="btn-warung-hud" class="hud-btn warung-hud-btn hidden" title="Buka Warung [B]">
               WARUNG
             </button>
+            <button id="btn-fullscreen-toggle" class="hud-btn" title="Layar Penuh / Fullscreen">⛶</button>
             <button id="btn-menu" class="hud-btn hud-pause-btn" title="Jeda / Pause [Esc]">⏸</button>
             <button id="btn-palette" class="hud-btn" title="Ganti Skin Arek (P1-P5)">P1</button>
             <button id="btn-touch-toggle" class="hud-btn" title="Tampilkan Kontrol Sentuh">PAD</button>
@@ -232,6 +233,10 @@
                   <span class="setting-label">📶 Jaringan Mabar</span>
                   <button id="set-lowbw-btn" class="setting-toggle">NORMAL (UDP+WSS)</button>
                 </div>
+                <div class="setting-row">
+                  <span class="setting-label">⛶ Auto Fullscreen Saat Main</span>
+                  <button id="set-autofs-btn" class="setting-toggle active">NYALA</button>
+                </div>
               </div>
               <div class="menu-footer-actions">
                 <button id="btn-back-home-settings" class="primary-btn">← SIMPAN &amp; KEMBALI</button>
@@ -334,7 +339,7 @@
                 </div>
                 <div class="credit-row">
                   <span class="credit-role">VERSI RILIS</span>
-                  <strong>v1.6.1 — Controller Warung Fix, Auto-Disconnect Monitor, Jeda 20 Detik &amp; Optimasi 1 Mbps</strong>
+                  <strong>v1.7.0 — Monitor QR Code Scan &amp; Auto-Join + Auto Fullscreen Browser</strong>
                 </div>
               </div>
               <div class="menu-footer-actions">
@@ -345,6 +350,19 @@
             <!-- View 4: Info Update / Changelog -->
             <div id="menu-changelog-view" class="menu-view scenic-subpanel hidden">
               <div class="changelog-box">
+                <div class="changelog-entry">
+                  <div class="changelog-head">
+                    <span class="version-badge">v1.7.0</span>
+                    <strong>Monitor QR Code Scan &amp; Auto-Join + Auto Fullscreen Browser</strong>
+                  </div>
+                  <ul class="changelog-list">
+                    <li><b>Scan QR Code di Layar Monitor:</b> Teman yang ingin mabar jadi Stick Controller cukup scan QR code di layar monitor menggunakan kamera HP atau Google Lens. HP langsung membuka game dan otomatis bergabung (Auto-Join) ke room tanpa perlu mengetik!</li>
+                    <li><b>Input Kode Manual Tetap Tersedia:</b> Fitur input 4 digit kode room tetap aktif bagi pemain yang lebih suka mengetik manual.</li>
+                    <li><b>Auto Fullscreen Browser:</b> Saat bermain atau membuat room monitor, layar browser otomatis masuk ke mode Fullscreen (Layar Penuh) agar lega tanpa gangguan address bar atau tab browser. Opsi ini dapat diatur di menu Pengaturan.</li>
+                    <li><b>Tombol Fullscreen Cepat (⛶):</b> Disediakan tombol toggle Fullscreen di pojok kanan atas HUD dan di panel Lobi Mabar untuk kemudahan akses sewaktu-waktu.</li>
+                    <li><b>Modal QR Ukuran Besar (🔍 PERBESAR):</b> Host monitor bisa memperbesar tampilan QR Code ke tengah layar agar mudah discan dari sofa atau jarak jauh.</li>
+                  </ul>
+                </div>
                 <div class="changelog-entry">
                   <div class="changelog-head">
                     <span class="version-badge">v1.6.1</span>
@@ -435,13 +453,13 @@
 
             <div class="title-bottom-credit scenic-footer-credit">
               <span>© 2026 Nabil Al-Ma'ruf • Arek Sarungan Slayer</span>
-              <span>v1.6.1</span>
+              <span>v1.7.0</span>
             </div>
           </div>
 
           <!-- Right-Side Translucent Cartoon Icon Dock (matches reference) -->
           <div class="menu-side-dock" aria-label="Menu Cepat">
-            <button id="btn-open-changelog" class="dock-icon-btn dock-red" title="Info Update v1.6.1">
+            <button id="btn-open-changelog" class="dock-icon-btn dock-red" title="Info Update v1.7.0">
               <span class="dock-emoji">📰</span>
             </button>
             <button id="btn-quick-survival" class="dock-icon-btn dock-gold" title="Survival Solo & Rekor Wave">
@@ -457,7 +475,10 @@
         <div id="lobby-overlay" class="overlay-modal hidden">
           <div class="modal-card lobby-card">
             <div class="modal-eyebrow">MABAR SURVIVAL 2–5 PEMAIN</div>
-            <h2 class="modal-title">LOBI MABAR SUROBOYO</h2>
+            <div class="lobby-title-row">
+              <h2 class="modal-title">LOBI MABAR SUROBOYO</h2>
+              <button id="btn-lobby-fullscreen" class="lobby-fs-btn" title="Layar Penuh Monitor">⛶ FULLSCREEN</button>
+            </div>
 
             <!-- Connection Mode Switcher: Online vs Local Hotspot / Bluetooth -->
             <div class="conn-mode-tabs">
@@ -538,8 +559,21 @@
                 <span class="lobby-box-title" id="label-host-mode">JADI HOST</span>
                 <button id="btn-create-room" class="primary-btn">BUAT ROOM BARU</button>
                 <div id="host-code-wrap" class="host-code-wrap hidden">
-                  <div class="room-code-display" id="lobby-room-code">----</div>
-                  <button id="btn-copy-link" class="secondary-btn">SALIN LINK UNDANGAN</button>
+                  <div class="qr-host-container">
+                    <div class="qr-frame-box" id="btn-enlarge-qr" title="Klik untuk perbesar QR">
+                      <canvas id="qr-code-canvas" class="qr-code-canvas"></canvas>
+                      <div class="qr-scan-badge">📷 SCAN QR HP</div>
+                    </div>
+                    <div class="host-code-details">
+                      <span class="qr-code-tag">KODE ROOM</span>
+                      <div class="room-code-display" id="lobby-room-code">----</div>
+                      <small class="qr-code-note">Teman bisa scan QR di samping pakai kamera HP, atau ketik kode di kolom samping!</small>
+                      <div class="qr-btn-group">
+                        <button id="btn-copy-link" class="secondary-btn">📋 SALIN LINK</button>
+                        <button id="btn-open-big-qr" class="secondary-btn" title="Tampilkan QR Besar di Monitor">🔍 PERBESAR</button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -574,6 +608,27 @@
                 MULAI MABAR SURVIVAL ➔
               </button>
               <button id="btn-close-lobby" class="ghost-btn">KEMBALI KE MENU</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Big Screen QR Code Overlay (Scan from sofa / across the room) -->
+        <div id="qr-modal-overlay" class="overlay-modal hidden">
+          <div class="modal-card qr-modal-card">
+            <div class="modal-eyebrow">SCAN QR DENGAN KAMERA HP</div>
+            <h2 class="modal-title" id="qr-modal-title">GABUNG JADI STICK GAMEPAD</h2>
+            <div class="qr-modal-frame">
+              <canvas id="qr-modal-canvas" class="qr-modal-canvas"></canvas>
+            </div>
+            <p class="modal-sub">
+              Arahkan Kamera HP / Google Lens ke kode QR ini untuk langsung mabar jadi Stick HP!
+            </p>
+            <div class="qr-modal-code-banner">
+              <span>ATAU KETIK KODE MANUAL:</span>
+              <strong id="qr-modal-code-val">----</strong>
+            </div>
+            <div class="result-actions">
+              <button id="btn-close-qr-modal" class="primary-btn">TUTUP [ESC]</button>
             </div>
           </div>
         </div>

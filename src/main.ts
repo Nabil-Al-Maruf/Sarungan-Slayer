@@ -31,7 +31,15 @@ import {
   type LocalPlayStyle,
 } from './net/wsManager';
 import { renderGame } from './render/renderer';
+import {
+  isAutoFullscreenEnabled,
+  isFullscreen,
+  setAutoFullscreenEnabled,
+  toggleFullscreen,
+  triggerAutoFullscreenIfEnabled,
+} from './ui/fullscreen';
 import { HudController } from './ui/hud';
+import { buildInviteUrl, renderQrCodeToCanvas } from './ui/qrHelper';
 import { bindTouchControls } from './ui/touchControls';
 
 const NAME_STORAGE_KEY = 'arek_slayer_player_name_v1';
@@ -148,6 +156,20 @@ function showStickToast(msg: string): void {
     stickToastTimer = null;
   }, 2200);
 }
+
+// QR Code & Fullscreen Elements
+const qrCodeCanvas = document.getElementById('qr-code-canvas') as HTMLCanvasElement;
+const btnEnlargeQr = document.getElementById('btn-enlarge-qr') as HTMLDivElement;
+const btnOpenBigQr = document.getElementById('btn-open-big-qr') as HTMLButtonElement;
+const qrModalOverlay = document.getElementById('qr-modal-overlay') as HTMLDivElement;
+const qrModalTitle = document.getElementById('qr-modal-title') as HTMLHeadingElement;
+const qrModalCanvas = document.getElementById('qr-modal-canvas') as HTMLCanvasElement;
+const qrModalCodeVal = document.getElementById('qr-modal-code-val') as HTMLElement;
+const btnCloseQrModal = document.getElementById('btn-close-qr-modal') as HTMLButtonElement;
+
+const btnFullscreenToggle = document.getElementById('btn-fullscreen-toggle') as HTMLButtonElement;
+const btnLobbyFullscreen = document.getElementById('btn-lobby-fullscreen') as HTMLButtonElement;
+const setAutoFsBtn = document.getElementById('set-autofs-btn') as HTMLButtonElement;
 
 // Shop DOM references
 const shopCoinsEl = document.getElementById('shop-coins') as HTMLElement;
@@ -529,6 +551,17 @@ function renderLobbyRoster(
   if (roomCode && players.length > 0) {
     hostCodeWrap.classList.remove('hidden');
     lobbyRoomCodeEl.textContent = roomCode;
+    qrModalCodeVal.textContent = roomCode;
+    qrModalTitle.textContent = `ROOM ${roomCode}`;
+
+    const inviteUrl = buildInviteUrl(roomCode, wsMgr.connectionMode, true);
+    if (qrCodeCanvas) {
+      void renderQrCodeToCanvas(qrCodeCanvas, inviteUrl, { width: 96 });
+    }
+    if (qrModalCanvas) {
+      void renderQrCodeToCanvas(qrModalCanvas, inviteUrl, { width: 240 });
+    }
+
     const isMonitorHost = me?.role === 'monitor';
     btnStartMabar.classList.toggle('hidden', !isHost);
     btnStartMabar.disabled = isMonitorHost && fighters.length === 0;
@@ -766,6 +799,11 @@ function refreshSettingsUI(): void {
   setHapticBtn.classList.toggle('active', hapticEnabled);
   setLowBwBtn.textContent = wsMgr.lowBandwidthMode ? 'HEMAT 1 MBPS (10Hz)' : 'NORMAL (UDP+WSS)';
   setLowBwBtn.classList.toggle('active', wsMgr.lowBandwidthMode);
+  if (setAutoFsBtn) {
+    const autofs = isAutoFullscreenEnabled();
+    setAutoFsBtn.textContent = autofs ? 'AKTIF (LEGA)' : 'NONAKTIF';
+    setAutoFsBtn.classList.toggle('active', autofs);
+  }
   document.querySelectorAll<HTMLButtonElement>('#set-gfx-group .seg-btn').forEach((b) => {
     b.classList.toggle('active', b.dataset.gfx === gfxQuality);
   });
@@ -852,6 +890,38 @@ setLowBwBtn.addEventListener('click', () => {
     // Ignore
   }
   refreshSettingsUI();
+});
+
+setAutoFsBtn?.addEventListener('click', () => {
+  audio.unlock();
+  const next = !isAutoFullscreenEnabled();
+  setAutoFullscreenEnabled(next);
+  refreshSettingsUI();
+  if (next && !isFullscreen()) {
+    void toggleFullscreen();
+  }
+});
+
+btnFullscreenToggle?.addEventListener('click', () => {
+  audio.unlock();
+  void toggleFullscreen();
+});
+
+btnLobbyFullscreen?.addEventListener('click', () => {
+  audio.unlock();
+  void toggleFullscreen();
+});
+
+document.addEventListener('fullscreenchange', () => {
+  const fs = isFullscreen();
+  if (btnFullscreenToggle) {
+    btnFullscreenToggle.textContent = fs ? '🗗' : '⛶';
+    btnFullscreenToggle.title = fs ? 'Keluar Layar Penuh [Esc]' : 'Layar Penuh / Fullscreen [F11]';
+  }
+  if (btnLobbyFullscreen) {
+    btnLobbyFullscreen.textContent = fs ? '🗗 KELUAR FULLSCREEN' : '⛶ FULLSCREEN';
+  }
+  setTimeout(resizeCanvas, 80);
 });
 
 function openPauseMenu(): void {
@@ -959,6 +1029,11 @@ btnStorySkip.addEventListener('click', () => {
 });
 
 window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && qrModalOverlay && !qrModalOverlay.classList.contains('hidden')) {
+    e.preventDefault();
+    qrModalOverlay.classList.add('hidden');
+    return;
+  }
   if (storyDialogueOpen) {
     if (e.code === 'Space' || e.code === 'Enter' || e.code === 'KeyJ' || e.code === 'KeyZ') {
       e.preventDefault();
@@ -1024,6 +1099,7 @@ function openLobby(): void {
 
 function startStoryStage(stage: 1 | 2 | 3): void {
   audio.unlock();
+  triggerAutoFullscreenIfEnabled();
   wsMgr.disconnect(true);
   state = createStoryState(stage, selectedPalette, playerName);
   menuOpen = false;
@@ -1045,6 +1121,7 @@ function startStoryStage(stage: 1 | 2 | 3): void {
 
 function startSoloSurvival(): void {
   audio.unlock();
+  triggerAutoFullscreenIfEnabled();
   wsMgr.disconnect(true);
   state = createSurvivalState(selectedPalette, undefined, playerName);
   menuOpen = false;
@@ -1062,6 +1139,7 @@ function startSoloSurvival(): void {
 
 function startSandbox(): void {
   audio.unlock();
+  triggerAutoFullscreenIfEnabled();
   wsMgr.disconnect(true);
   state = createSandboxState(selectedPalette, playerName);
   menuOpen = false;
@@ -1117,20 +1195,41 @@ document.getElementById('btn-unlock-all')!.addEventListener('click', () => {
 // Lobby Buttons
 btnCreateRoom.addEventListener('click', () => {
   audio.unlock();
+  triggerAutoFullscreenIfEnabled();
   wsMgr.createRoom(selectedPalette, playerName);
 });
 
 document.getElementById('btn-copy-link')!.addEventListener('click', () => {
   if (!wsMgr.roomCode) return;
-  const modeParam = wsMgr.connectionMode === 'hotspot' ? '&mode=hotspot' : '';
-  const url = `${window.location.origin}${window.location.pathname}?room=${wsMgr.roomCode}${modeParam}`;
+  const url = buildInviteUrl(wsMgr.roomCode, wsMgr.connectionMode, false);
   navigator.clipboard?.writeText(url).catch(() => {});
   lobbyStatusEl.textContent = `Link undangan disalin: ${url}`;
   lobbyStatusEl.style.color = '#4ade80';
 });
 
+btnEnlargeQr?.addEventListener('click', () => {
+  audio.unlock();
+  qrModalOverlay.classList.remove('hidden');
+});
+
+btnOpenBigQr?.addEventListener('click', () => {
+  audio.unlock();
+  qrModalOverlay.classList.remove('hidden');
+});
+
+btnCloseQrModal?.addEventListener('click', () => {
+  qrModalOverlay.classList.add('hidden');
+});
+
+qrModalOverlay?.addEventListener('click', (e) => {
+  if (e.target === qrModalOverlay) {
+    qrModalOverlay.classList.add('hidden');
+  }
+});
+
 document.getElementById('btn-join-room')!.addEventListener('click', () => {
   audio.unlock();
+  triggerAutoFullscreenIfEnabled();
   wsMgr.joinRoom(inputRoomCode.value, selectedPalette, playerName);
 });
 
@@ -1142,12 +1241,14 @@ inputRoomCode.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') {
     e.preventDefault();
     audio.unlock();
+    triggerAutoFullscreenIfEnabled();
     wsMgr.joinRoom(inputRoomCode.value, selectedPalette, playerName);
   }
 });
 
 btnStartMabar.addEventListener('click', () => {
   if (!wsMgr.isHost) return;
+  triggerAutoFullscreenIfEnabled();
   wsMgr.sendStartGame();
 });
 
@@ -1391,6 +1492,8 @@ refreshMenuProgress();
 const urlParams = new URLSearchParams(window.location.search);
 const inviteRoom = urlParams.get('room');
 const inviteMode = urlParams.get('mode');
+const autoJoin = urlParams.get('autojoin') === '1';
+
 if (inviteRoom && inviteRoom.trim().length === 4) {
   const code = inviteRoom.trim().toUpperCase();
   if (inviteMode === 'hotspot' || code.startsWith('H')) {
@@ -1398,8 +1501,19 @@ if (inviteRoom && inviteRoom.trim().length === 4) {
   }
   inputRoomCode.value = code;
   openLobby();
-  lobbyStatusEl.textContent = `Kode undangan ${code} terdeteksi! Klik GABUNG untuk masuk.`;
-  lobbyStatusEl.style.color = '#4ade80';
+
+  if (autoJoin) {
+    lobbyStatusEl.textContent = `⚡ Scan QR terdeteksi! Menggabungkan ke Room ${code}...`;
+    lobbyStatusEl.style.color = '#38bdf8';
+    setTimeout(() => {
+      audio.unlock();
+      triggerAutoFullscreenIfEnabled();
+      void wsMgr.joinRoom(code, selectedPalette, playerName);
+    }, 350);
+  } else {
+    lobbyStatusEl.textContent = `Kode undangan ${code} terdeteksi! Klik GABUNG untuk masuk.`;
+    lobbyStatusEl.style.color = '#4ade80';
+  }
 }
 
 // Fixed-timestep 60Hz Loop + Live FPS & Ping Meter
