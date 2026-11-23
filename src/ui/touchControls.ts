@@ -158,36 +158,49 @@ export function bindTouchControls(
       onTouchActive?.();
       if (activePointerId !== null) return;
       activePointerId = e.pointerId;
-      joyZone.setPointerCapture(e.pointerId);
+      try {
+        joyZone.setPointerCapture(e.pointerId);
+      } catch {
+        // Safe: ignore if pointer cannot be captured
+      }
       joyZone.classList.add('active');
       haptic.stick();
 
       const rect = joyBase.getBoundingClientRect();
       centerX = rect.left + rect.width * 0.5;
       centerY = rect.top + rect.height * 0.5;
-      maxRadius = Math.max(32, rect.width * 0.36);
+      maxRadius = Math.max(32, rect.width * 0.42);
       updateStick(e.clientX, e.clientY);
     });
 
-    joyZone.addEventListener('pointermove', (e: PointerEvent) => {
+    window.addEventListener(
+      'pointermove',
+      (e: PointerEvent) => {
+        if (e.pointerId !== activePointerId) return;
+        e.preventDefault();
+        updateStick(e.clientX, e.clientY);
+      },
+      { passive: false }
+    );
+
+    const handlePointerUp = (e: PointerEvent) => {
       if (e.pointerId !== activePointerId) return;
       e.preventDefault();
-      updateStick(e.clientX, e.clientY);
-    });
-
-    joyZone.addEventListener('pointerup', (e: PointerEvent) => {
-      if (e.pointerId !== activePointerId) return;
-      e.preventDefault();
+      try {
+        if (joyZone.hasPointerCapture(e.pointerId)) {
+          joyZone.releasePointerCapture(e.pointerId);
+        }
+      } catch {
+        // Ignore
+      }
       resetStick();
-    });
+    };
 
-    joyZone.addEventListener('pointercancel', (e: PointerEvent) => {
-      if (e.pointerId !== activePointerId) return;
-      resetStick();
-    });
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerUp);
   }
 
-  // 2. Bind Right-Hand Action Buttons (independent multi-touch pointer capture)
+  // 2. Bind Right-Hand Action Buttons (independent multi-touch pointer tracking)
   const buttons = document.querySelectorAll<HTMLButtonElement>('.vbtn[data-action]');
   for (const btn of buttons) {
     const action = btn.dataset.action as VirtualAction;
@@ -197,7 +210,11 @@ export function bindTouchControls(
       e.preventDefault();
       onTouchActive?.();
       btnPointerId = e.pointerId;
-      btn.setPointerCapture(e.pointerId);
+      try {
+        btn.setPointerCapture(e.pointerId);
+      } catch {
+        // Safe: ignore if pointer cannot be captured
+      }
       btn.classList.add('pressed');
 
       // Authentic console-grade haptic impulse based on action
@@ -233,8 +250,15 @@ export function bindTouchControls(
     };
 
     const release = (e: PointerEvent) => {
-      if (btnPointerId !== null && e.pointerId !== btnPointerId) return;
+      if (btnPointerId === null || e.pointerId !== btnPointerId) return;
       e.preventDefault();
+      try {
+        if (btn.hasPointerCapture(e.pointerId)) {
+          btn.releasePointerCapture(e.pointerId);
+        }
+      } catch {
+        // Ignore
+      }
       btnPointerId = null;
       btn.classList.remove('pressed');
       if (action !== 'shop') {
@@ -243,8 +267,8 @@ export function bindTouchControls(
     };
 
     btn.addEventListener('pointerdown', press);
-    btn.addEventListener('pointerup', release);
-    btn.addEventListener('pointercancel', release);
+    window.addEventListener('pointerup', release);
+    window.addEventListener('pointercancel', release);
   }
 
   return {

@@ -1887,32 +1887,10 @@ async function lockLandscapeOrientation(): Promise<void> {
   } catch {}
 }
 
-const btnDismissRotate = document.getElementById('btn-dismiss-rotate') as HTMLButtonElement | null;
-const rotateOverlay = document.getElementById('rotate-device-overlay') as HTMLDivElement | null;
-
-btnForceLandscape?.addEventListener('click', async () => {
+btnForceLandscape?.addEventListener('click', () => {
   audio.unlock();
-  await lockLandscapeOrientation();
-  rotateOverlay?.classList.add('dismissed');
+  void lockLandscapeOrientation();
 });
-
-btnDismissRotate?.addEventListener('click', () => {
-  audio.unlock();
-  rotateOverlay?.classList.add('dismissed');
-  try {
-    sessionStorage.setItem('dismiss_rotate_overlay', '1');
-  } catch {
-    // Ignore
-  }
-});
-
-try {
-  if (sessionStorage.getItem('dismiss_rotate_overlay') === '1') {
-    rotateOverlay?.classList.add('dismissed');
-  }
-} catch {
-  // Ignore
-}
 
 function showResultIfNeeded(): void {
   if (resultShown || state.status === 'playing' || storyDialogueOpen) return;

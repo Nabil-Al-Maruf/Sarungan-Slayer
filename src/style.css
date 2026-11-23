@@ -1552,6 +1552,10 @@ body {
   filter: brightness(1.25);
 }
 
+.vbtn * {
+  pointer-events: none;
+}
+
 /* 360° Virtual Analog Thumbstick (responsive percentage inner geometry) */
 .joystick-zone {
   width: clamp(118px, 32vw, 152px);
@@ -1562,6 +1566,10 @@ body {
   touch-action: none;
   position: relative;
   flex-shrink: 0;
+}
+
+.joystick-zone * {
+  pointer-events: none;
 }
 
 .joystick-base {
@@ -2845,18 +2853,6 @@ body {
 /* ===== MOBILE FORCE LANDSCAPE OVERLAY ===== */
 .rotate-device-overlay {
   display: none;
-}
-
-.rotate-device-overlay.dismissed,
-.rotate-device-overlay.hidden {
-  display: none !important;
-}
-
-.rotate-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  width: 100%;
 }
 
 @media (max-width: 950px) and (orientation: portrait) {

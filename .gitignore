@@ -6,3 +6,5 @@ worker-dist/
 *.log
 .env
 .env.*
+
+.chrome-test-profile/
