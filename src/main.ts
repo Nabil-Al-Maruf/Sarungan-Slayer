@@ -2,7 +2,7 @@ import './style.css';
 import { ProceduralAudio } from './audio/sfx';
 import { FIXED_DT, PLAYER_PALETTES, ULT_DEFS, VIRTUAL_HEIGHT, VIRTUAL_WIDTH } from './core/constants';
 import { InputManager } from './core/input';
-import type { BuffId, GameState, UltType } from './core/types';
+import type { BuffId, GameState, PlayerInput, UltType } from './core/types';
 import { createSandboxState, stepSandbox } from './modes/sandbox';
 import {
   createStoryState,
@@ -27,6 +27,13 @@ import {
   TOWER_UPGRADE_COST,
   type ShopItemId,
 } from './modes/survival';
+import { LocalPeerManager } from './net/localPeer';
+import {
+  packGameSnapshot,
+  type CompactGameSnapshot,
+  type LobbyPlayerInfo,
+  type StickPersonalSnapshot,
+} from './net/protocol';
 import { renderGame } from './render/renderer';
 import {
   isAutoFullscreenEnabled,
@@ -36,6 +43,7 @@ import {
   triggerAutoFullscreenIfEnabled,
 } from './ui/fullscreen';
 import { HudController } from './ui/hud';
+import { buildInviteUrl, renderQrCodeToCanvas } from './ui/qrHelper';
 import { bindTouchControls, type TouchDisplayMode } from './ui/touchControls';
 import { haptic } from './ui/haptics';
 
@@ -57,6 +65,7 @@ let playerName = (localStorage.getItem(NAME_STORAGE_KEY) || 'Cak Bima').slice(0,
 
 let state: GameState = createStoryState(1, selectedPalette, playerName);
 let menuOpen = true;
+let lobbyOpen = false;
 let shopOpen = false;
 let buffModalOpen = false;
 let ultModalOpen = false;
@@ -80,6 +89,7 @@ const menuStoryView = document.getElementById('menu-story-view') as HTMLDivEleme
 const menuCreditsView = document.getElementById('menu-credits-view') as HTMLDivElement;
 const menuChangelogView = document.getElementById('menu-changelog-view') as HTMLDivElement;
 
+const lobbyOverlay = document.getElementById('lobby-overlay') as HTMLDivElement;
 const shopOverlay = document.getElementById('shop-overlay') as HTMLDivElement;
 const buffOverlay = document.getElementById('buff-overlay') as HTMLDivElement;
 const buffChoicesGrid = document.getElementById('buff-choices-grid') as HTMLDivElement;
@@ -123,6 +133,52 @@ const setHapticBtn = document.getElementById('set-haptic-btn') as HTMLButtonElem
 const setAutoFsBtn = document.getElementById('set-autofs-btn') as HTMLButtonElement | null;
 const btnFullscreenToggle = document.getElementById('btn-fullscreen-toggle') as HTMLButtonElement | null;
 
+// Lobby DOM references
+const inputLobbyName = document.getElementById('input-lobby-name') as HTMLInputElement;
+const localStyleNormalBtn = document.getElementById('local-style-normal') as HTMLButtonElement;
+const localStyleMonitorBtn = document.getElementById('local-style-monitor') as HTMLButtonElement;
+const hotspotGuideTitle = document.getElementById('hotspot-guide-title') as HTMLElement;
+const hotspotGuideStep1 = document.getElementById('hotspot-guide-step1') as HTMLElement;
+const hotspotGuideStep2 = document.getElementById('hotspot-guide-step2') as HTMLElement;
+const hotspotGuideStep3 = document.getElementById('hotspot-guide-step3') as HTMLElement;
+const labelHostModeEl = document.getElementById('label-host-mode') as HTMLElement;
+const btnCreateRoom = document.getElementById('btn-create-room') as HTMLButtonElement;
+const hostCodeWrap = document.getElementById('host-code-wrap') as HTMLElement;
+const lobbyRoomCodeEl = document.getElementById('lobby-room-code') as HTMLElement;
+const qrCodeCanvas = document.getElementById('qr-code-canvas') as HTMLCanvasElement;
+const btnEnlargeQr = document.getElementById('btn-enlarge-qr') as HTMLElement;
+const btnCopyLink = document.getElementById('btn-copy-link') as HTMLButtonElement;
+const btnStartMabar = document.getElementById('btn-start-mabar') as HTMLButtonElement;
+const btnRoleCoop = document.getElementById('btn-role-coop') as HTMLButtonElement;
+const btnRoleStick = document.getElementById('btn-role-stick') as HTMLButtonElement;
+const inputRoomCode = document.getElementById('input-room-code') as HTMLInputElement;
+const btnJoinRoom = document.getElementById('btn-join-room') as HTMLButtonElement;
+const lobbyRosterEl = document.getElementById('lobby-roster') as HTMLElement;
+const lobbyPlayerCountEl = document.getElementById('lobby-player-count') as HTMLElement;
+const lobbyStatusEl = document.getElementById('lobby-status') as HTMLElement;
+const btnCloseLobby = document.getElementById('btn-close-lobby') as HTMLButtonElement;
+const btnLobbyFullscreen = document.getElementById('btn-lobby-fullscreen') as HTMLButtonElement;
+
+// QR Modal DOM references
+const qrModalOverlay = document.getElementById('qr-modal-overlay') as HTMLDivElement;
+const qrModalTitle = document.getElementById('qr-modal-title') as HTMLElement;
+const qrModalCanvas = document.getElementById('qr-modal-canvas') as HTMLCanvasElement;
+const qrModalCodeVal = document.getElementById('qr-modal-code-val') as HTMLElement;
+const btnCloseQrModal = document.getElementById('btn-close-qr-modal') as HTMLButtonElement;
+
+// Stick Controller HUD references
+const stickHudBar = document.getElementById('stick-hud-bar') as HTMLDivElement;
+const stickPlayerBadge = document.getElementById('stick-player-badge') as HTMLElement;
+const stickPlayerName = document.getElementById('stick-player-name') as HTMLElement;
+const stickWavePill = document.getElementById('stick-wave-pill') as HTMLElement;
+const stickHpFill = document.getElementById('stick-hp-fill') as HTMLElement;
+const stickHpText = document.getElementById('stick-hp-text') as HTMLElement;
+const stickUltText = document.getElementById('stick-ult-text') as HTMLElement;
+const stickCoinsText = document.getElementById('stick-coins-text') as HTMLElement;
+const stickPingPill = document.getElementById('stick-ping-pill') as HTMLElement;
+const vbtnStickShop = document.getElementById('vbtn-stick-shop') as HTMLButtonElement;
+const btnStickExit = document.getElementById('btn-stick-exit') as HTMLButtonElement;
+
 // Shop DOM references
 const shopCoinsEl = document.getElementById('shop-coins') as HTMLElement;
 const shopTicketsEl = document.getElementById('shop-tickets') as HTMLElement;
@@ -138,10 +194,17 @@ const btnSfx = document.getElementById('btn-sfx') as HTMLButtonElement | null;
 const btnBgm = document.getElementById('btn-bgm') as HTMLButtonElement | null;
 const btnForceLandscape = document.getElementById('btn-force-landscape') as HTMLButtonElement | null;
 
+let selectedHostRole: 'coop' | 'monitor' = 'coop';
+let selectedJoinRole: 'coop' | 'stick' = 'coop';
+
 if (inputPlayerName) inputPlayerName.value = playerName;
 if (inputSettingsName) inputSettingsName.value = playerName;
+if (inputLobbyName) inputLobbyName.value = playerName;
 
 function getLocalPlayer() {
+  if (localPeer.connected && !localPeer.isHost) {
+    return state.players.find((p) => p.id === localPeer.localPlayerId) ?? state.players[0];
+  }
   return state.players[0];
 }
 
@@ -150,11 +213,10 @@ function syncPlayerName(newName: string): void {
   playerName = cleaned;
   try {
     localStorage.setItem(NAME_STORAGE_KEY, cleaned);
-  } catch {
-    // Ignore storage errors
-  }
+  } catch {}
   if (inputPlayerName && inputPlayerName.value !== newName) inputPlayerName.value = newName;
   if (inputSettingsName && inputSettingsName.value !== newName) inputSettingsName.value = newName;
+  if (inputLobbyName && inputLobbyName.value !== newName) inputLobbyName.value = newName;
 
   const p = getLocalPlayer();
   if (p) p.name = cleaned;
@@ -164,13 +226,11 @@ function syncSelectedSkin(skinIdx: number): void {
   selectedPalette = Math.abs(Math.floor(skinIdx)) % PLAYER_PALETTES.length;
   try {
     localStorage.setItem(SKIN_STORAGE_KEY, String(selectedPalette));
-  } catch {
-    // Ignore storage errors
-  }
+  } catch {}
   const pal = PLAYER_PALETTES[selectedPalette];
   if (btnPalette) btnPalette.textContent = pal.label;
 
-  document.querySelectorAll<HTMLButtonElement>('#settings-skin-picker .skin-swatch').forEach((btn) => {
+  document.querySelectorAll<HTMLButtonElement>('#settings-skin-picker .skin-swatch, #lobby-skin-picker .skin-swatch').forEach((btn) => {
     btn.classList.toggle('active', Number(btn.dataset.skin) === selectedPalette);
   });
 
@@ -182,6 +242,7 @@ function syncSelectedSkin(skinIdx: number): void {
 
 inputPlayerName?.addEventListener('input', () => syncPlayerName(inputPlayerName.value));
 inputSettingsName?.addEventListener('input', () => syncPlayerName(inputSettingsName.value));
+inputLobbyName?.addEventListener('input', () => syncPlayerName(inputLobbyName.value));
 
 let wakeLockSentinel: {
   release: () => Promise<void>;
@@ -204,9 +265,7 @@ async function requestScreenWakeLock(): Promise<void> {
         wakeLockSentinel = null;
       });
     }
-  } catch {
-    // Ignore unsupported or denied wake lock
-  }
+  } catch {}
 }
 
 function releaseScreenWakeLock(): void {
@@ -217,16 +276,446 @@ function releaseScreenWakeLock(): void {
 }
 
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && !menuOpen) {
+  if (document.visibilityState === 'visible' && (!menuOpen || localPeer.connected)) {
     void requestScreenWakeLock();
   }
 });
 
 window.setInterval(() => {
-  if (document.visibilityState === 'visible' && !menuOpen) {
+  if (document.visibilityState === 'visible' && (!menuOpen || localPeer.connected)) {
     void requestScreenWakeLock();
   }
 }, 20000);
+
+function setStickMode(active: boolean): void {
+  const appShell = document.querySelector('.app-shell');
+  appShell?.classList.toggle('stick-controller-mode', active);
+  stickHudBar?.classList.toggle('hidden', !active);
+  if (active) {
+    void requestScreenWakeLock();
+  }
+}
+
+function updateStickHud(): void {
+  if (localPeer.localRole !== 'stick') return;
+  const p = getLocalPlayer();
+  const surv = state.survival;
+  if (p) {
+    const pal = PLAYER_PALETTES[p.paletteIndex % PLAYER_PALETTES.length];
+    if (stickPlayerBadge) {
+      stickPlayerBadge.textContent = p.id.toUpperCase();
+      stickPlayerBadge.style.background = pal.accent;
+    }
+    if (stickPlayerName) stickPlayerName.textContent = p.name.toUpperCase();
+    const hpPct = Math.max(0, Math.min(100, (p.hp / Math.max(1, p.maxHp)) * 100));
+    if (stickHpFill) stickHpFill.style.width = `${hpPct}%`;
+    if (stickHpText) stickHpText.textContent = `${Math.ceil(p.hp)}/${p.maxHp}`;
+    if (stickUltText) stickUltText.textContent = `ULT ${Math.floor(p.ult)}%`;
+    if (stickCoinsText) stickCoinsText.textContent = `🪙 ${p.coins}`;
+    if (vbtnStickShop) vbtnStickShop.classList.toggle('shop-ready', canOpenWarung(state, p));
+  }
+  if (surv && stickWavePill) {
+    stickWavePill.textContent =
+      surv.phase === 'intermission'
+        ? `W${surv.wave} ⏱${Math.ceil(surv.intermissionTimer)}s`
+        : `W${surv.wave}`;
+  }
+  if (stickPingPill) {
+    stickPingPill.textContent = localPeer.pingMs > 0 ? `⚡ ${localPeer.pingMs}ms` : '⚡ LAN';
+  }
+}
+
+// ===== LOCAL WEBRTC P2P MANAGER =====
+const localPeer = new LocalPeerManager({
+  onStatus(msg, isError) {
+    if (lobbyStatusEl) {
+      lobbyStatusEl.textContent = msg;
+      lobbyStatusEl.style.color = isError ? '#f87171' : '#94a3b8';
+    }
+  },
+  onLobbyUpdate(roomCode, players, localId, isHost) {
+    renderLobbyRoster(roomCode, players, localId, isHost);
+  },
+  onGameStart() {
+    audio.unlock();
+    if (state && state.mode === 'survival' && state.status === 'playing' && !lobbyOpen && !menuOpen) {
+      return;
+    }
+
+    if (localPeer.isHost) {
+      const roster = localPeer.lobbyPlayers
+        .filter((p) => p.role !== 'monitor')
+        .map((p) => ({
+          id: p.id,
+          paletteIndex: p.paletteIndex,
+          name: p.name,
+        }));
+      state = createSurvivalState(selectedPalette, roster, playerName);
+    }
+
+    menuOpen = false;
+    lobbyOpen = false;
+    shopOpen = false;
+    buffModalOpen = false;
+    ultModalOpen = false;
+    pauseOpen = false;
+    storyDialogueOpen = false;
+    lastBuffSig = '';
+    resultShown = false;
+
+    menuOverlay.classList.add('hidden');
+    lobbyOverlay.classList.add('hidden');
+    shopOverlay.classList.add('hidden');
+    buffOverlay.classList.add('hidden');
+    ultOverlay.classList.add('hidden');
+    sandboxSkillsBar?.classList.add('hidden');
+    pauseOverlay.classList.add('hidden');
+    storyDialogueOverlay.classList.add('hidden');
+    resultOverlay.classList.add('hidden');
+
+    setStickMode(localPeer.localRole === 'stick');
+    updateStickHud();
+    void requestScreenWakeLock();
+  },
+  onSnapshot(snap: CompactGameSnapshot) {
+    if (localPeer.localRole === 'stick') return;
+    // Replicate snapshot into local render state
+    state.status = snap.status;
+    state.koCount = snap.koCount;
+    state.shakeIntensity = snap.shakeIntensity;
+
+    if (state.survival) {
+      state.survival.wave = snap.wave;
+      state.survival.phase = snap.phase;
+      state.survival.intermissionTimer = snap.intermissionTimer;
+      state.survival.core.hp = snap.core.hp;
+      state.survival.core.maxHp = snap.core.maxHp;
+      state.survival.core.shieldActive = snap.core.shieldActive;
+      state.survival.core.shieldHp = snap.core.shieldHp;
+      state.survival.core.towerLevel = snap.core.towerLevel as 0 | 1 | 2 | 3 | 4;
+
+      for (const sb of snap.barricades) {
+        const lb = state.survival.barricades.find((b) => b.id === sb.id);
+        if (lb) {
+          lb.hp = sb.hp;
+          lb.maxHp = sb.maxHp;
+        }
+      }
+    }
+
+    // Sync players
+    for (const sp of snap.players) {
+      let lp = state.players.find((p) => p.id === sp.id);
+      if (!lp) {
+        lp = {
+          id: sp.id,
+          name: sp.name,
+          paletteIndex: sp.pal,
+          x: sp.x,
+          y: sp.y,
+          z: sp.z,
+          vx: sp.vx,
+          vy: sp.vy,
+          vz: 0,
+          radius: 18,
+          dirX: sp.dirX,
+          dirY: 0,
+          jumpsRemaining: 2,
+          hp: sp.hp,
+          maxHp: sp.maxHp,
+          ult: sp.ult,
+          maxUlt: sp.maxUlt,
+          coins: sp.coins,
+          reviveTickets: 1,
+          knockedDown: sp.knockedDown,
+          invulnTimer: sp.invulnTimer,
+          hitFlashTimer: 0,
+          dmgMult: 1,
+          cdMult: 1,
+          speedMult: 1,
+          ultGainMult: 1,
+          coinMult: 1,
+          pendingBuffChoices: [],
+          buffCount: sp.buffCount,
+          dashTimer: 0,
+          dashCooldown: 0,
+          dashDirX: sp.dirX,
+          dashDirY: 0,
+          meleeTimer: 0,
+          meleeCooldown: 0,
+          meleeSwingId: 0,
+          meleeComboStep: 0,
+          meleeAngle: 0,
+          projCooldown: 0,
+          ultType: sp.ultType,
+          ultActiveTimer: 0,
+          ultTickTimer: 0,
+          scaleX: 1,
+          scaleY: 1,
+          animTime: sp.animTime,
+          afterimages: [],
+        };
+        state.players.push(lp);
+      } else {
+        if (sp.id !== localPeer.localPlayerId) {
+          lp.x = sp.x;
+          lp.y = sp.y;
+          lp.z = sp.z;
+          lp.vx = sp.vx;
+          lp.vy = sp.vy;
+          lp.dirX = sp.dirX;
+          lp.animTime = sp.animTime;
+        }
+        lp.hp = sp.hp;
+        lp.maxHp = sp.maxHp;
+        lp.ult = sp.ult;
+        lp.coins = sp.coins;
+        lp.knockedDown = sp.knockedDown;
+        lp.ultType = sp.ultType;
+      }
+    }
+
+    // Sound queue
+    if (snap.sounds.length > 0) {
+      audio.playQueue(snap.sounds);
+    }
+
+    if (shopOpen) {
+      refreshShopUI();
+    }
+    showResultIfNeeded();
+  },
+  onStickSnapshot(snap: StickPersonalSnapshot) {
+    if (localPeer.localRole !== 'stick') return;
+    const p = getLocalPlayer();
+    if (p) {
+      p.hp = snap.hp;
+      p.maxHp = snap.maxHp;
+      p.ult = snap.ult;
+      p.coins = snap.coins;
+    }
+    if (state.survival) {
+      state.survival.wave = snap.wave;
+      state.survival.phase = snap.phase;
+      state.survival.intermissionTimer = snap.intermissionTimer;
+    }
+    if (snap.soundCue === 'player_hurt') {
+      haptic.damage();
+    }
+    updateStickHud();
+  },
+  onSkillPrompt(kind: 'buff' | 'ult', choices: string[]) {
+    if (kind === 'buff') {
+      const p = getLocalPlayer();
+      if (p) p.pendingBuffChoices = choices as BuffId[];
+      checkPendingBuffModal();
+    } else {
+      const p = getLocalPlayer();
+      if (p) p.pendingUltChoice = true;
+      checkPendingUltModal();
+    }
+  },
+  onDisconnect(reason: string) {
+    setStickMode(false);
+    releaseScreenWakeLock();
+    state.shakeTimer = 0;
+    state.shakeIntensity = 0;
+    shopOpen = false;
+    buffModalOpen = false;
+    ultModalOpen = false;
+    pauseOpen = false;
+    resultShown = false;
+    buffOverlay.classList.add('hidden');
+    ultOverlay.classList.add('hidden');
+    openLobby();
+    if (lobbyStatusEl) {
+      lobbyStatusEl.textContent = reason;
+      lobbyStatusEl.style.color = '#f87171';
+    }
+  },
+});
+
+function renderLobbyRoster(
+  roomCode: string,
+  players: LobbyPlayerInfo[],
+  localId: string,
+  isHost: boolean
+): void {
+  const fighters = players.filter((p) => p.role !== 'monitor');
+  const me = players.find((p) => p.id === localId);
+  if (me && me.role !== 'monitor' && me.paletteIndex !== selectedPalette) {
+    syncSelectedSkin(me.paletteIndex);
+  }
+
+  const takenByOthers = new Set(
+    fighters.filter((p) => p.id !== localId).map((p) => p.paletteIndex)
+  );
+  document.querySelectorAll<HTMLButtonElement>('#lobby-skin-picker .skin-swatch').forEach((btn) => {
+    const idx = Number(btn.dataset.skin);
+    const taken = takenByOthers.has(idx);
+    btn.disabled = taken;
+    btn.classList.toggle('taken', taken);
+  });
+
+  if (roomCode && players.length > 0) {
+    hostCodeWrap.classList.remove('hidden');
+    lobbyRoomCodeEl.textContent = roomCode;
+    qrModalCodeVal.textContent = roomCode;
+    qrModalTitle.textContent = `ROOM ${roomCode}`;
+
+    const inviteUrl = buildInviteUrl(roomCode, selectedHostRole === 'monitor' ? 'stick' : 'coop');
+    if (qrCodeCanvas) {
+      void renderQrCodeToCanvas(qrCodeCanvas, inviteUrl, { width: 96 });
+    }
+    if (qrModalCanvas) {
+      void renderQrCodeToCanvas(qrModalCanvas, inviteUrl, { width: 240 });
+    }
+
+    const isMonitorHost = selectedHostRole === 'monitor';
+    btnStartMabar.classList.toggle('hidden', !isHost);
+    btnStartMabar.disabled = isMonitorHost && fighters.length === 0;
+    btnStartMabar.textContent =
+      isMonitorHost && fighters.length === 0
+        ? 'MENUNGGU STICK HP GABUNG...'
+        : 'MULAI MABAR SURVIVAL ➔';
+  } else {
+    hostCodeWrap.classList.add('hidden');
+    btnStartMabar.classList.add('hidden');
+  }
+
+  lobbyPlayerCountEl.textContent = `${fighters.length}/5`;
+  if (players.length === 0) {
+    lobbyRosterEl.innerHTML = '<div class="roster-empty">Belum ada room aktif.</div>';
+    return;
+  }
+
+  lobbyRosterEl.innerHTML = players
+    .map((p) => {
+      const isMon = p.role === 'monitor';
+      const isStk = p.role === 'stick';
+      const dotColor = isMon
+        ? '#38bdf8'
+        : PLAYER_PALETTES[p.paletteIndex % PLAYER_PALETTES.length].accent;
+      const you = p.id === localId ? ' (KAMU)' : '';
+      const tag = isMon ? ' [MONITOR]' : isStk ? ' [STICK]' : ' [LAYAR]';
+      return `<div class="roster-chip"><span class="roster-dot" style="background:${dotColor}"></span>${p.name}${tag}${you}</div>`;
+    })
+    .join('');
+}
+
+function setLocalPlayStyle(style: 'normal' | 'coop' | 'monitor'): void {
+  selectedHostRole = style === 'monitor' ? 'monitor' : 'coop';
+  const isNormal = style === 'normal' || style === 'coop';
+  localStyleNormalBtn.classList.toggle('active', isNormal);
+  localStyleMonitorBtn.classList.toggle('active', style === 'monitor');
+
+  if (style === 'monitor') {
+    hotspotGuideTitle.textContent = 'Cara Mabar Mode Monitor + HP Stick (Satu Jaringan):';
+    hotspotGuideStep1.innerHTML =
+      '1. Hubungkan Monitor & semua HP ke <b>Wi-Fi / Hotspot yang sama</b>.';
+    hotspotGuideStep2.innerHTML =
+      '2. Perangkat <b>Monitor</b> (Laptop/Tablet/TV/HP utama) klik <b>BUAT ROOM MONITOR</b>.';
+    hotspotGuideStep3.innerHTML =
+      '3. HP teman masukkan <b>Kode Room</b> — layar HP teman otomatis jadi <b>Stick Gamepad</b>!';
+    labelHostModeEl.textContent = 'HOST MONITOR (LAYAR UTAMA)';
+    btnCreateRoom.textContent = 'BUAT ROOM MONITOR';
+    btnRoleStick.click();
+  } else {
+    hotspotGuideTitle.textContent = 'Cara Mabar Layar Sendiri-Sendiri (Co-op Local):';
+    hotspotGuideStep1.innerHTML =
+      '1. Semua HP/Laptop terhubung ke <b>Wi-Fi atau Hotspot yang sama</b>.';
+    hotspotGuideStep2.innerHTML =
+      '2. Satu orang klik <b>BUAT ROOM CO-OP</b>, lalu bagikan kode room ke teman.';
+    hotspotGuideStep3.innerHTML =
+      '3. Teman masukkan kode itu lalu klik <b>GABUNG ROOM</b>!';
+    labelHostModeEl.textContent = 'HOST CO-OP (LAYAR SENDIRI)';
+    btnCreateRoom.textContent = 'BUAT ROOM CO-OP';
+    btnRoleCoop.click();
+  }
+}
+
+localStyleNormalBtn?.addEventListener('click', () => {
+  audio.unlock();
+  setLocalPlayStyle('normal');
+});
+
+localStyleMonitorBtn?.addEventListener('click', () => {
+  audio.unlock();
+  setLocalPlayStyle('monitor');
+});
+
+btnRoleCoop?.addEventListener('click', () => {
+  selectedJoinRole = 'coop';
+  btnRoleCoop.classList.add('active');
+  btnRoleStick.classList.remove('active');
+});
+
+btnRoleStick?.addEventListener('click', () => {
+  selectedJoinRole = 'stick';
+  btnRoleStick.classList.add('active');
+  btnRoleCoop.classList.remove('active');
+});
+
+btnCreateRoom?.addEventListener('click', () => {
+  audio.unlock();
+  triggerAutoFullscreenIfEnabled();
+  localPeer.createRoom(selectedHostRole, playerName, selectedPalette);
+});
+
+btnJoinRoom?.addEventListener('click', () => {
+  audio.unlock();
+  triggerAutoFullscreenIfEnabled();
+  localPeer.joinRoom(inputRoomCode.value, selectedJoinRole, playerName, selectedPalette);
+});
+
+inputRoomCode?.addEventListener('input', () => {
+  inputRoomCode.value = inputRoomCode.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 4);
+});
+
+inputRoomCode?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    audio.unlock();
+    triggerAutoFullscreenIfEnabled();
+    localPeer.joinRoom(inputRoomCode.value, selectedJoinRole, playerName, selectedPalette);
+  }
+});
+
+btnStartMabar?.addEventListener('click', () => {
+  if (!localPeer.isHost) return;
+  triggerAutoFullscreenIfEnabled();
+  localPeer.sendStartGame();
+});
+
+btnCopyLink?.addEventListener('click', () => {
+  if (!localPeer.roomCode) return;
+  const url = buildInviteUrl(localPeer.roomCode, selectedHostRole === 'monitor' ? 'stick' : 'coop');
+  navigator.clipboard?.writeText(url).catch(() => {});
+  if (lobbyStatusEl) {
+    lobbyStatusEl.textContent = `Link disalin: ${url}`;
+    lobbyStatusEl.style.color = '#4ade80';
+  }
+});
+
+btnEnlargeQr?.addEventListener('click', () => {
+  audio.unlock();
+  qrModalOverlay.classList.remove('hidden');
+});
+
+btnCloseQrModal?.addEventListener('click', () => {
+  qrModalOverlay.classList.add('hidden');
+});
+
+qrModalOverlay?.addEventListener('click', (e) => {
+  if (e.target === qrModalOverlay) {
+    qrModalOverlay.classList.add('hidden');
+  }
+});
+
+btnStickExit?.addEventListener('click', () => {
+  audio.unlock();
+  openPauseMenu();
+});
 
 function refreshMenuProgress(): void {
   const prog = loadStoryProgress();
@@ -257,7 +746,6 @@ function refreshShopUI(): void {
   shopTicketsEl.textContent = `${player.reviveTickets}`;
   btnSkipIntermission.classList.toggle('hidden', surv.phase !== 'intermission');
 
-  // Bottom Barricade lock state when wave < 31
   const bottomBtn = document.getElementById('shop-bar-bottom') as HTMLButtonElement | null;
   const hasBottom = surv.barricades.some((b) => b.id === 'bottom');
   if (bottomBtn && !hasBottom) {
@@ -274,15 +762,10 @@ function refreshShopUI(): void {
     const descEl = document.getElementById(`shop-bar-${bar.id}-desc`);
     const costEl = document.getElementById(`shop-bar-${bar.id}-cost`);
     if (btn) btn.disabled = info.disabled;
-    if (descEl) {
-      descEl.textContent = `HP ${Math.ceil(bar.hp)}/${bar.maxHp} • ${info.actionLabel}`;
-    }
-    if (costEl) {
-      costEl.textContent = info.disabled ? 'MAX' : `${info.cost} Receh`;
-    }
+    if (descEl) descEl.textContent = `HP ${Math.ceil(bar.hp)}/${bar.maxHp} • ${info.actionLabel}`;
+    if (costEl) costEl.textContent = info.disabled ? 'MAX' : `${info.cost} Receh`;
   }
 
-  // Center Pos Warkop Permanent Upgradable Tower weapon
   const towerBtn = document.getElementById('shop-tower-pos') as HTMLButtonElement | null;
   const towerDesc = document.getElementById('shop-tower-pos-desc');
   const towerCost = document.getElementById('shop-tower-pos-cost');
@@ -304,7 +787,6 @@ function refreshShopUI(): void {
     if (towerCost) towerCost.textContent = `${cost} Receh`;
   }
 
-  // Pos Warkop Building HP Upgrade
   const coreHpBtn = document.getElementById('shop-upgrade-core') as HTMLButtonElement | null;
   const coreHpDesc = document.getElementById('shop-upgrade-core-desc');
   const coreHpCost = document.getElementById('shop-upgrade-core-cost');
@@ -315,7 +797,6 @@ function refreshShopUI(): void {
   }
   if (coreHpCost) coreHpCost.textContent = `${upCost} Receh`;
 
-  // Pos Warkop 1-Wave Energy Shield (Tameng Gaib)
   const shieldBtn = document.getElementById('shop-shield-core') as HTMLButtonElement | null;
   const shieldDesc = document.getElementById('shop-shield-core-desc');
   const shieldCost = document.getElementById('shop-shield-core-cost');
@@ -326,11 +807,8 @@ function refreshShopUI(): void {
       ? `Tameng Aktif (${Math.ceil(surv.core.shieldHp)}/${surv.core.shieldMaxHp}) • Sengat Zombie`
       : 'Perisai pelindung Pos Ronda (1 Wave) + Sengat Zombie';
   }
-  if (shieldCost) {
-    shieldCost.textContent = shieldActive ? 'AKTIF ✓' : '150 Receh';
-  }
+  if (shieldCost) shieldCost.textContent = shieldActive ? 'AKTIF ✓' : '150 Receh';
 
-  // Active Ultimate Jurus display card
   const curUlt = player.ultType ?? 'gasing';
   const ultDef = ULT_DEFS[curUlt];
   const iconEl = document.getElementById('shop-ult-active-icon');
@@ -341,12 +819,8 @@ function refreshShopUI(): void {
   if (descEl && ultDef) descEl.textContent = ultDef.desc;
 }
 
-/**
- * Checks if the player has a pending every-10-wave Jurus Ultimate milestone choice
- * and displays the 4 Jurus cards modal.
- */
 function checkPendingUltModal(): void {
-  if (state.mode !== 'survival' || state.status !== 'playing' || menuOpen) {
+  if (state.mode !== 'survival' || state.status !== 'playing' || menuOpen || lobbyOpen) {
     if (ultModalOpen) {
       ultModalOpen = false;
       ultOverlay.classList.add('hidden');
@@ -363,13 +837,11 @@ function checkPendingUltModal(): void {
     return;
   }
 
-  // Auto-close shop/warung if open
   if (shopOpen) {
     shopOpen = false;
     shopOverlay.classList.add('hidden');
   }
 
-  // Sequencing: If buff modal is open, suppress it while Ultimate choice is made
   if (buffModalOpen) {
     buffModalOpen = false;
     buffOverlay.classList.add('hidden');
@@ -378,7 +850,6 @@ function checkPendingUltModal(): void {
   if (ultModalOpen) return;
   ultModalOpen = true;
 
-  // Highlight current active jurus
   const ultCards = ultOverlay.querySelectorAll<HTMLButtonElement>('.ult-card-btn');
   for (const card of ultCards) {
     const uType = card.dataset.ult as UltType;
@@ -390,28 +861,31 @@ function checkPendingUltModal(): void {
 
 function pickUltChoice(ultType: UltType): void {
   const now = Date.now();
-  if (now - lastSkillPickTime < 350) return;
+  if (now - lastSkillPickTime < 300) return;
   lastSkillPickTime = now;
 
-  const player = getLocalPlayer();
-  if (!player) return;
-
-  player.ultType = ultType;
-  player.ult = player.maxUlt; // Instant 100% Ult milestone reward!
-  player.pendingUltChoice = false;
-
-  const def = ULT_DEFS[ultType];
-  state.soundQueue.push('pickup_kopi');
-  state.floatingTexts.push({
-    x: player.x,
-    y: player.y - player.z - 58,
-    vy: -50,
-    text: `JURUS: ${def.title.toUpperCase()}! ${def.icon}`,
-    color: '#facc15',
-    scale: 1.25,
-    life: 1.5,
-    maxLife: 1.5,
-  });
+  if (localPeer.connected && !localPeer.isHost) {
+    localPeer.sendPickSkill('ult', ultType);
+  } else {
+    const player = getLocalPlayer();
+    if (player) {
+      player.ultType = ultType;
+      player.ult = player.maxUlt;
+      player.pendingUltChoice = false;
+      const def = ULT_DEFS[ultType];
+      state.soundQueue.push('pickup_kopi');
+      state.floatingTexts.push({
+        x: player.x,
+        y: player.y - player.z - 58,
+        vy: -50,
+        text: `JURUS: ${def.title.toUpperCase()}! ${def.icon}`,
+        color: '#facc15',
+        scale: 1.25,
+        life: 1.5,
+        maxLife: 1.5,
+      });
+    }
+  }
 
   ultModalOpen = false;
   ultOverlay.classList.add('hidden');
@@ -422,12 +896,8 @@ function pickUltChoice(ultType: UltType): void {
   }, 220);
 }
 
-/**
- * Checks if the player has a pending every-2-wave Buff choice
- * and displays the 3 random Buff cards modal.
- */
 function checkPendingBuffModal(): void {
-  if (state.mode !== 'survival' || state.status !== 'playing' || menuOpen) {
+  if (state.mode !== 'survival' || state.status !== 'playing' || menuOpen || lobbyOpen) {
     if (buffModalOpen) {
       buffModalOpen = false;
       buffOverlay.classList.add('hidden');
@@ -454,7 +924,6 @@ function checkPendingBuffModal(): void {
     return;
   }
 
-  // Auto-close shop/warung if open
   if (shopOpen) {
     shopOpen = false;
     shopOverlay.classList.add('hidden');
@@ -491,15 +960,23 @@ function checkPendingBuffModal(): void {
 
 function pickBuffChoice(buffId: BuffId): void {
   const now = Date.now();
-  if (now - lastSkillPickTime < 350) return;
+  if (now - lastSkillPickTime < 300) return;
   lastSkillPickTime = now;
 
   const player = getLocalPlayer();
-  if (!player) return;
+  if (player) {
+    player.pendingBuffChoices = [];
+  }
 
-  applyPlayerBuff(state, player, buffId);
-  audio.playQueue(state.soundQueue);
-  state.soundQueue.length = 0;
+  if (localPeer.connected && !localPeer.isHost) {
+    localPeer.sendPickSkill('buff', buffId);
+  } else {
+    if (player) {
+      applyPlayerBuff(state, player, buffId);
+      audio.playQueue(state.soundQueue);
+      state.soundQueue.length = 0;
+    }
+  }
 
   buffModalOpen = false;
   lastBuffSig = '';
@@ -511,6 +988,7 @@ function toggleWarung(): void {
   if (
     state.mode !== 'survival' ||
     menuOpen ||
+    lobbyOpen ||
     buffModalOpen ||
     ultModalOpen ||
     state.status !== 'playing'
@@ -585,6 +1063,16 @@ document.getElementById('btn-open-play')?.addEventListener('click', () => {
   showMenuView('play');
 });
 
+document.getElementById('btn-open-mabar-home')?.addEventListener('click', () => {
+  audio.unlock();
+  openLobby();
+});
+
+document.getElementById('btn-open-lobby')?.addEventListener('click', () => {
+  audio.unlock();
+  openLobby();
+});
+
 document.getElementById('btn-home-sandbox')?.addEventListener('click', () => {
   audio.unlock();
   startSandbox();
@@ -606,7 +1094,7 @@ document.getElementById('btn-back-home-settings')?.addEventListener('click', () 
   showMenuView('home');
 });
 
-document.querySelectorAll<HTMLButtonElement>('#settings-skin-picker .skin-swatch').forEach((btn) => {
+document.querySelectorAll<HTMLButtonElement>('#settings-skin-picker .skin-swatch, #lobby-skin-picker .skin-swatch').forEach((btn) => {
   btn.addEventListener('click', () => {
     audio.unlock();
     syncSelectedSkin(Number(btn.dataset.skin));
@@ -667,21 +1155,31 @@ btnFullscreenToggle?.addEventListener('click', () => {
   void toggleFullscreen();
 });
 
+btnLobbyFullscreen?.addEventListener('click', () => {
+  audio.unlock();
+  void toggleFullscreen();
+});
+
 document.addEventListener('fullscreenchange', () => {
   const fs = isFullscreen();
   if (btnFullscreenToggle) {
     btnFullscreenToggle.textContent = fs ? '🗗' : '⛶';
     btnFullscreenToggle.title = fs ? 'Keluar Layar Penuh [Esc]' : 'Layar Penuh / Fullscreen [F11]';
   }
+  if (btnLobbyFullscreen) {
+    btnLobbyFullscreen.textContent = fs ? '🗗 KELUAR FULLSCREEN' : '⛶ FULLSCREEN';
+  }
   setTimeout(resizeCanvas, 80);
 });
 
 function openPauseMenu(): void {
-  if (menuOpen || resultShown) return;
+  if (menuOpen || lobbyOpen || resultShown) return;
   pauseOpen = true;
-  pauseEyebrow.textContent = 'PERMAINAN DIJEDA';
-  pauseSub.textContent = 'Simulasi dijeda sementara. Ambil napas dulu rek!';
-  btnPauseRestart.classList.remove('hidden');
+  pauseEyebrow.textContent = localPeer.connected ? 'JEDA MABAR LOCAL' : 'PERMAINAN DIJEDA';
+  pauseSub.textContent = localPeer.connected
+    ? 'Room tetap aktif di jaringan Wi-Fi. Tekan Lanjutkan untuk bermain!'
+    : 'Simulasi dijeda sementara. Ambil napas dulu rek!';
+  btnPauseRestart.classList.toggle('hidden', localPeer.connected && !localPeer.isHost);
   pauseOverlay.classList.remove('hidden');
 }
 
@@ -701,7 +1199,11 @@ btnPauseRestart.addEventListener('click', () => {
   if (state.mode === 'story') {
     startStoryStage(state.stageNumber);
   } else if (state.mode === 'survival') {
-    startSoloSurvival();
+    if (localPeer.connected && localPeer.isHost) {
+      localPeer.sendStartGame();
+    } else {
+      startSoloSurvival();
+    }
   } else {
     startSandbox();
   }
@@ -770,6 +1272,11 @@ btnStorySkip.addEventListener('click', () => {
 });
 
 window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && qrModalOverlay && !qrModalOverlay.classList.contains('hidden')) {
+    e.preventDefault();
+    qrModalOverlay.classList.add('hidden');
+    return;
+  }
   if (storyDialogueOpen) {
     if (e.code === 'Space' || e.code === 'Enter' || e.code === 'KeyJ' || e.code === 'KeyZ') {
       e.preventDefault();
@@ -782,7 +1289,7 @@ window.addEventListener('keydown', (e) => {
       return;
     }
   }
-  if (e.key === 'Escape' && !menuOpen && !resultShown) {
+  if (e.key === 'Escape' && !menuOpen && !lobbyOpen && !resultShown) {
     if (shopOpen) {
       shopOpen = false;
       shopOverlay.classList.add('hidden');
@@ -820,11 +1327,14 @@ window.addEventListener('keydown', (e) => {
 });
 
 function openMenu(): void {
+  setStickMode(false);
   releaseScreenWakeLock();
+  localPeer.disconnect();
   state.shakeTimer = 0;
   state.shakeIntensity = 0;
   state.hitstopTimer = 0;
   menuOpen = true;
+  lobbyOpen = false;
   shopOpen = false;
   buffModalOpen = false;
   ultModalOpen = false;
@@ -833,6 +1343,7 @@ function openMenu(): void {
   resultShown = false;
   refreshMenuProgress();
   showMenuView('home');
+  lobbyOverlay.classList.add('hidden');
   shopOverlay.classList.add('hidden');
   buffOverlay.classList.add('hidden');
   ultOverlay.classList.add('hidden');
@@ -843,11 +1354,36 @@ function openMenu(): void {
   menuOverlay.classList.remove('hidden');
 }
 
+function openLobby(): void {
+  audio.unlock();
+  menuOpen = false;
+  lobbyOpen = true;
+  shopOpen = false;
+  buffModalOpen = false;
+  ultModalOpen = false;
+  resultShown = false;
+  menuOverlay.classList.add('hidden');
+  shopOverlay.classList.add('hidden');
+  buffOverlay.classList.add('hidden');
+  ultOverlay.classList.add('hidden');
+  sandboxSkillsBar?.classList.add('hidden');
+  resultOverlay.classList.add('hidden');
+  lobbyOverlay.classList.remove('hidden');
+  setLocalPlayStyle(selectedHostRole);
+  renderLobbyRoster(localPeer.roomCode, localPeer.lobbyPlayers, localPeer.localPlayerId, localPeer.isHost);
+}
+
+btnCloseLobby?.addEventListener('click', () => {
+  openMenu();
+});
+
 function startStoryStage(stage: 1 | 2 | 3): void {
   audio.unlock();
   triggerAutoFullscreenIfEnabled();
+  localPeer.disconnect();
   state = createStoryState(stage, selectedPalette, playerName);
   menuOpen = false;
+  lobbyOpen = false;
   shopOpen = false;
   buffModalOpen = false;
   ultModalOpen = false;
@@ -856,6 +1392,7 @@ function startStoryStage(stage: 1 | 2 | 3): void {
   storyOutroDone = false;
   resultShown = false;
   menuOverlay.classList.add('hidden');
+  lobbyOverlay.classList.add('hidden');
   shopOverlay.classList.add('hidden');
   buffOverlay.classList.add('hidden');
   ultOverlay.classList.add('hidden');
@@ -869,8 +1406,10 @@ function startStoryStage(stage: 1 | 2 | 3): void {
 function startSoloSurvival(): void {
   audio.unlock();
   triggerAutoFullscreenIfEnabled();
+  localPeer.disconnect();
   state = createSurvivalState(selectedPalette, undefined, playerName);
   menuOpen = false;
+  lobbyOpen = false;
   shopOpen = false;
   buffModalOpen = false;
   ultModalOpen = false;
@@ -879,6 +1418,7 @@ function startSoloSurvival(): void {
   lastBuffSig = '';
   resultShown = false;
   menuOverlay.classList.add('hidden');
+  lobbyOverlay.classList.add('hidden');
   shopOverlay.classList.add('hidden');
   buffOverlay.classList.add('hidden');
   ultOverlay.classList.add('hidden');
@@ -892,12 +1432,14 @@ function startSoloSurvival(): void {
 function startSandbox(): void {
   audio.unlock();
   triggerAutoFullscreenIfEnabled();
+  localPeer.disconnect();
   state = createSandboxState(selectedPalette, playerName);
   const p0 = state.players[0];
   if (p0) {
-    p0.ult = p0.maxUlt; // Ready to test instantly!
+    p0.ult = p0.maxUlt;
   }
   menuOpen = false;
+  lobbyOpen = false;
   shopOpen = false;
   buffModalOpen = false;
   ultModalOpen = false;
@@ -905,6 +1447,7 @@ function startSandbox(): void {
   storyDialogueOpen = false;
   resultShown = false;
   menuOverlay.classList.add('hidden');
+  lobbyOverlay.classList.add('hidden');
   shopOverlay.classList.add('hidden');
   buffOverlay.classList.add('hidden');
   ultOverlay.classList.add('hidden');
@@ -998,7 +1541,11 @@ btnRetryStage.addEventListener('click', () => {
   if (state.mode === 'story') {
     startStoryStage(state.stageNumber);
   } else if (state.mode === 'survival') {
-    startSoloSurvival();
+    if (localPeer.connected && localPeer.isHost) {
+      localPeer.sendStartGame();
+    } else {
+      startSoloSurvival();
+    }
   } else {
     startSandbox();
   }
@@ -1087,7 +1634,7 @@ if (sandboxSkillsBar) {
       const player = getLocalPlayer();
       if (player && uType) {
         player.ultType = uType;
-        player.ult = player.maxUlt; // Ready instantly!
+        player.ult = player.maxUlt;
         sandboxSkillsBar.querySelectorAll('.sandbox-skill-btn[data-ult]').forEach((b) => b.classList.remove('active'));
         btn.classList.add('active');
         const def = ULT_DEFS[uType];
@@ -1205,12 +1752,14 @@ function showResultIfNeeded(): void {
   state.hitstopTimer = 0;
   shopOpen = false;
   buffModalOpen = false;
+  ultModalOpen = false;
   pauseOpen = false;
   shopOverlay.classList.add('hidden');
   buffOverlay.classList.add('hidden');
+  ultOverlay.classList.add('hidden');
   pauseOverlay.classList.add('hidden');
 
-  btnRetryStage.textContent = 'MAIN LAGI';
+  btnRetryStage.textContent = localPeer.connected && localPeer.isHost ? 'MAIN LAGI (HOST)' : 'MAIN LAGI';
 
   if (state.mode === 'survival' && state.survival) {
     saveBestWave(state.survival.wave);
@@ -1276,12 +1825,43 @@ window.addEventListener('orientationchange', () => setTimeout(resizeCanvas, 80))
 resizeCanvas();
 refreshMenuProgress();
 
-// Fixed-timestep 60Hz Loop
+// Check URL query parameters for auto joining room
+const urlParams = new URLSearchParams(window.location.search);
+const inviteRoom = urlParams.get('room');
+const inviteRole = urlParams.get('role');
+const autoJoin = urlParams.get('autojoin') === '1';
+
+if (inviteRoom && inviteRoom.trim().length === 4) {
+  const code = inviteRoom.trim().toUpperCase();
+  inputRoomCode.value = code;
+  if (inviteRole === 'stick') {
+    btnRoleStick.click();
+  } else {
+    btnRoleCoop.click();
+  }
+  openLobby();
+
+  if (autoJoin) {
+    if (lobbyStatusEl) {
+      lobbyStatusEl.textContent = `⚡ Link terdeteksi! Menggabungkan ke Room ${code}...`;
+      lobbyStatusEl.style.color = '#38bdf8';
+    }
+    setTimeout(() => {
+      audio.unlock();
+      triggerAutoFullscreenIfEnabled();
+      localPeer.joinRoom(code, selectedJoinRole, playerName, selectedPalette);
+    }, 400);
+  }
+}
+
+// Fixed-timestep 60Hz Loop + Network Sync
 let lastTime = performance.now();
 let accumulator = 0;
 let fpsFrames = 0;
 let fpsLastSample = performance.now();
 let currentFps = 60;
+let snapSeq = 0;
+let snapAccum = 0;
 
 function frame(now: number): void {
   const delta = Math.min(0.1, (now - lastTime) / 1000);
@@ -1301,6 +1881,7 @@ function frame(now: number): void {
       sampled.shopPressed &&
       state.mode === 'survival' &&
       !menuOpen &&
+      !lobbyOpen &&
       !buffModalOpen &&
       !ultModalOpen &&
       state.status === 'playing'
@@ -1308,12 +1889,86 @@ function frame(now: number): void {
       toggleWarung();
     }
 
-    if (menuOpen) {
+    if (menuOpen || lobbyOpen) {
       state.time += FIXED_DT;
     }
 
-    if (!menuOpen && state.status === 'playing') {
-      if (!shopOpen && !buffModalOpen && !ultModalOpen && !pauseOpen && !storyDialogueOpen) {
+    if (!menuOpen && !lobbyOpen && state.status === 'playing') {
+      if (localPeer.connected && !localPeer.isHost) {
+        // Client: Send input to Host via WebRTC UDP DataChannel
+        localPeer.sendInput(sampled);
+        if (localPeer.localRole === 'stick') {
+          updateStickHud();
+        }
+      } else if (localPeer.connected && localPeer.isHost) {
+        // Host: Simulate game with all player inputs
+        const allInputs: Record<string, PlayerInput> = {};
+        if (localPeer.localRole !== 'monitor') {
+          allInputs[localPeer.localPlayerId] =
+            shopOpen || buffModalOpen || ultModalOpen || pauseOpen || storyDialogueOpen
+              ? {
+                  up: false,
+                  down: false,
+                  left: false,
+                  right: false,
+                  jumpPressed: false,
+                  dashPressed: false,
+                  meleePressed: false,
+                  projPressed: false,
+                  ultPressed: false,
+                  shopPressed: false,
+                }
+              : sampled;
+        }
+
+        for (const p of state.players) {
+          if (p.id === localPeer.localPlayerId) continue;
+          const rem = localPeer.clientInputs.get(p.id);
+          if (rem) allInputs[p.id] = rem;
+        }
+
+        stepSurvival(state, allInputs, FIXED_DT);
+
+        // Check Milestone Buffs & Jurus for players
+        for (const p of state.players) {
+          if (p.id === localPeer.localPlayerId) {
+            checkPendingBuffModal();
+            checkPendingUltModal();
+          } else {
+            if (p.pendingBuffChoices.length > 0) {
+              localPeer.promptClientSkill(p.id, 'buff', p.pendingBuffChoices);
+              p.pendingBuffChoices = [];
+            }
+            if (p.pendingUltChoice) {
+              localPeer.promptClientSkill(p.id, 'ult', ['gasing', 'petir', 'mercon', 'naga']);
+              p.pendingUltChoice = false;
+            }
+          }
+        }
+
+        if (state.soundQueue.includes('player_hurt')) {
+          haptic.damage();
+        }
+        audio.playQueue(state.soundQueue);
+
+        // Broadcast snapshot at 25Hz (0.04s) for ultra fluid 60 FPS replication
+        snapAccum += FIXED_DT;
+        if (snapAccum >= 0.04 || state.status !== 'playing') {
+          snapAccum = 0;
+          snapSeq++;
+          const snap = packGameSnapshot(state, snapSeq);
+          localPeer.broadcastSnapshot(snap);
+          state.soundQueue.length = 0;
+        }
+
+        if (state.status !== 'playing') {
+          state.shakeTimer = 0;
+          state.shakeIntensity = 0;
+          state.hitstopTimer = 0;
+          showResultIfNeeded();
+        }
+      } else if (!shopOpen && !buffModalOpen && !ultModalOpen && !pauseOpen && !storyDialogueOpen) {
+        // Offline Solo Mode
         if (state.mode === 'story') {
           stepStory(state, sampled, FIXED_DT);
           if (!storyBossShown && state.storyZones?.some((z) => z.isBossZone && z.triggered && !z.cleared)) {
@@ -1348,21 +2003,26 @@ function frame(now: number): void {
     accumulator -= FIXED_DT;
   }
 
-  renderGame(ctx, state, 'p1', false);
+  if (localPeer.localRole !== 'stick') {
+    renderGame(ctx, state, localPeer.localPlayerId, localPeer.localRole === 'monitor');
+  }
 
   if (sandboxSkillsBar) {
     const isSandboxActive =
       state.mode === 'sandbox' &&
       state.status === 'playing' &&
       !menuOpen &&
+      !lobbyOpen &&
       !pauseOpen &&
       !resultShown;
     sandboxSkillsBar.classList.toggle('hidden', !isSandboxActive);
     sandboxSkillsBar.style.display = isSandboxActive ? 'flex' : 'none';
   }
 
-  const perfText = `${currentFps} FPS`;
-  hud.update(state, 'p1', perfText);
+  const perfText = localPeer.connected
+    ? `${currentFps} FPS • ${localPeer.pingMs}ms LAN`
+    : `${currentFps} FPS`;
+  hud.update(state, localPeer.localPlayerId, perfText);
   requestAnimationFrame(frame);
 }
 

@@ -172,18 +172,22 @@
               </h1>
             </div>
 
-            <!-- View 1: Clean 3-Button Cartoon Home Menu -->
+            <!-- View 1: Clean 4-Button Cartoon Home Menu -->
             <div id="menu-home-view" class="menu-view scenic-home-view">
               <div class="cartoon-pill-stack">
                 <button id="btn-open-play" class="cartoon-pill-btn anim-stagger-1">
                   <span class="pill-gloss"></span>
                   <span class="pill-label">PLAY</span>
                 </button>
-                <button id="btn-home-sandbox" class="cartoon-pill-btn anim-stagger-2">
+                <button id="btn-open-mabar-home" class="cartoon-pill-btn anim-stagger-2">
+                  <span class="pill-gloss"></span>
+                  <span class="pill-label">MABAR LOCAL</span>
+                </button>
+                <button id="btn-home-sandbox" class="cartoon-pill-btn anim-stagger-3">
                   <span class="pill-gloss"></span>
                   <span class="pill-label">LATIHAN DOJO</span>
                 </button>
-                <button id="btn-open-settings" class="cartoon-pill-btn anim-stagger-3">
+                <button id="btn-open-settings" class="cartoon-pill-btn anim-stagger-4">
                   <span class="pill-gloss"></span>
                   <span class="pill-label">PENGATURAN</span>
                 </button>
@@ -282,6 +286,15 @@
                   <span class="cta-text">
                     <strong>SURVIVAL SOLO <span id="menu-best-wave"></span></strong>
                     <small>Pertahankan Warkop Suroboyo dari Serbuan Zombie!</small>
+                  </span>
+                  <span class="cta-arrow">➔</span>
+                </button>
+
+                <button id="btn-open-lobby" class="title-cta-btn cta-mabar">
+                  <span class="cta-icon">📶</span>
+                  <span class="cta-text">
+                    <strong>MABAR 1 JARINGAN</strong>
+                    <small>Wi-Fi / Hotspot Sama • Mode Co-op atau HP Jadi Stick</small>
                   </span>
                   <span class="cta-arrow">➔</span>
                 </button>
@@ -478,6 +491,149 @@
             <button id="btn-open-credits" class="dock-icon-btn dock-blue" title="Credits & Versi">
               <span class="dock-emoji">⭐</span>
             </button>
+          </div>
+        </div>
+
+        <!-- Mabar Local (Satu Jaringan Wi-Fi / Hotspot) Lobby Overlay -->
+        <div id="lobby-overlay" class="overlay-modal hidden">
+          <div class="modal-card lobby-card">
+            <div class="lobby-title-row">
+              <div>
+                <div class="modal-eyebrow">📶 MABAR SATU JARINGAN (LOCAL P2P)</div>
+                <h2 class="modal-title">LOBI MABAR AREK</h2>
+              </div>
+              <button id="btn-lobby-fullscreen" class="lobby-fs-btn" title="Toggle Fullscreen">
+                ⛶ FULLSCREEN
+              </button>
+            </div>
+            <p class="modal-sub">
+              Main bareng di Wi-Fi yang sama atau Hotspot HP • Latensi 1–5ms • 0 Kuota saat main
+            </p>
+
+            <!-- Mode Selector: Mode 1 (Layar Sendiri) vs Mode 2 (Monitor + HP Stick) -->
+            <div class="mabar-mode-selector-wrap">
+              <span class="mabar-selector-label">PILIH MODE MABAR:</span>
+              <div class="setting-seg local-style-seg" id="local-style-group">
+                <button id="local-style-normal" class="seg-btn active" title="Semua pemain melihat layar masing-masing">
+                  📱 1. LAYAR MASING-MASING
+                </button>
+                <button id="local-style-monitor" class="seg-btn" title="1 Layar jadi Monitor utama, HP teman jadi Stick Gamepad">
+                  📺 2. 1 MONITOR + HP STICK
+                </button>
+              </div>
+            </div>
+
+            <!-- Petunjuk Singkat Koneksi -->
+            <div class="hotspot-guide-box" id="hotspot-guide">
+              <strong id="hotspot-guide-title">Cara Mabar Satu Jaringan (Wi-Fi / Hotspot):</strong>
+              <ol>
+                <li id="hotspot-guide-step1">Semua HP/Laptop terhubung ke <b>Wi-Fi atau Hotspot HP yang sama</b>.</li>
+                <li id="hotspot-guide-step2">Satu orang klik <b>BUAT ROOM</b>, bagikan <b>Kode 4 Huruf</b> atau tunjukkan <b>QR Code</b>.</li>
+                <li id="hotspot-guide-step3">Teman masukkan kode itu lalu klik <b>GABUNG ROOM</b>!</li>
+              </ol>
+            </div>
+
+            <!-- Profile Bar (Nama & Skin) -->
+            <div class="profile-bar">
+              <label for="input-lobby-name" class="profile-label">NAMA AREK:</label>
+              <input
+                id="input-lobby-name"
+                class="profile-name-input"
+                type="text"
+                maxlength="14"
+                placeholder="Cak Suroboyo"
+                autocomplete="off"
+              />
+              <div id="lobby-skin-picker" class="skin-picker-row">
+                <button class="skin-swatch active" data-skin="0" style="--sw: #ef4444">BIMA</button>
+                <button class="skin-swatch" data-skin="1" style="--sw: #2563eb">BAGUS</button>
+                <button class="skin-swatch" data-skin="2" style="--sw: #eab308">DIMAS</button>
+                <button class="skin-swatch" data-skin="3" style="--sw: #10b981">RAKA</button>
+                <button class="skin-swatch" data-skin="4" style="--sw: #9333ea">YUDI</button>
+              </div>
+            </div>
+
+            <!-- 2-Column Action Deck: Buat Room (Kiri) vs Gabung Room (Kanan) -->
+            <div class="lobby-actions-row">
+              <!-- Kolom Kiri: Host -->
+              <div class="lobby-box">
+                <span class="lobby-box-title" id="label-host-mode">JADI HOST (BUAT ROOM)</span>
+                <button id="btn-create-room" class="mabar-btn">BUAT ROOM BARU</button>
+
+                <div id="host-code-wrap" class="host-code-wrap hidden">
+                  <div class="qr-host-container">
+                    <div class="qr-frame-box" id="btn-enlarge-qr" title="Klik untuk memperbesar QR Code">
+                      <canvas id="qr-code-canvas" class="qr-code-canvas"></canvas>
+                      <span class="qr-scan-badge">🔍 KLIK BESARKAN</span>
+                    </div>
+                    <div class="host-code-details">
+                      <span class="qr-code-tag">KODE ROOM:</span>
+                      <div class="room-code-badge" id="lobby-room-code">----</div>
+                      <button id="btn-copy-link" class="ghost-btn mini-btn">📋 SALIN LINK</button>
+                      <span class="qr-code-note">Teman bisa scan QR di atas atau masukkan kode di sebelah kanan!</span>
+                    </div>
+                  </div>
+                  <button id="btn-start-mabar" class="primary-btn hidden">MULAI MABAR SURVIVAL ➔</button>
+                </div>
+              </div>
+
+              <!-- Kolom Kanan: Client -->
+              <div class="lobby-box">
+                <span class="lobby-box-title">GABUNG ROOM TEMAN</span>
+                <div class="join-role-selector">
+                  <span class="join-role-label">Peran Saat Gabung:</span>
+                  <div class="setting-seg join-role-seg">
+                    <button id="btn-role-coop" class="seg-btn active" data-role="coop">📱 Layar Sendiri</button>
+                    <button id="btn-role-stick" class="seg-btn" data-role="stick">🎮 Stick Gamepad</button>
+                  </div>
+                </div>
+                <input
+                  id="input-room-code"
+                  type="text"
+                  maxlength="4"
+                  placeholder="KODE (4 HURUF)"
+                  class="room-code-input"
+                  autocomplete="off"
+                  autocapitalize="characters"
+                />
+                <button id="btn-join-room" class="secondary-btn">GABUNG ROOM ➔</button>
+              </div>
+            </div>
+
+            <!-- Roster & Status -->
+            <div class="lobby-roster-wrap">
+              <div class="roster-header">
+                <span>Pemain di Room:</span>
+                <span id="lobby-player-count">0/5</span>
+              </div>
+              <div id="lobby-roster" class="lobby-roster">
+                <div class="roster-empty">Belum ada room aktif.</div>
+              </div>
+            </div>
+
+            <p id="lobby-status" class="lobby-status">
+              Pastikan semua HP/Laptop terhubung ke Wi-Fi / Hotspot yang sama.
+            </p>
+
+            <div class="lobby-footer">
+              <button id="btn-close-lobby" class="ghost-btn">← KEMBALI KE MENU</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Big QR Code Modal Overlay for easy scanning -->
+        <div id="qr-modal-overlay" class="overlay-modal hidden">
+          <div class="modal-card qr-modal-card">
+            <h2 class="modal-title" id="qr-modal-title">SCAN QR UNTUK GABUNG</h2>
+            <p class="modal-sub">Arahkan kamera HP teman ke kode QR ini untuk langsung masuk lobi:</p>
+            <div class="qr-modal-frame">
+              <canvas id="qr-modal-canvas" class="qr-modal-canvas"></canvas>
+            </div>
+            <div class="qr-modal-code-banner">
+              <span>ATAU MASUKKAN KODE:</span>
+              <strong id="qr-modal-code-val">----</strong>
+            </div>
+            <button id="btn-close-qr-modal" class="primary-btn">TUTUP QR [ESC]</button>
           </div>
         </div>
 
@@ -694,6 +850,33 @@
 
       <!-- Virtual Controls (Ergonomic 360° Analog Thumbstick + Arc Action Pad) -->
       <section id="controls-deck" class="controls-deck" aria-label="Kontrol Virtual">
+        <!-- Stick-only Mini HUD Bar (Top of controller) -->
+        <div id="stick-hud-bar" class="stick-hud-bar hidden">
+          <div class="stick-hud-left">
+            <span id="stick-player-badge" class="stick-player-badge">P1</span>
+            <span id="stick-player-name" class="stick-player-name">AREK</span>
+            <span id="stick-wave-pill" class="stick-pill">W1</span>
+          </div>
+          <div id="stick-toast" class="stick-toast hidden"></div>
+          <div class="stick-hud-mid">
+            <div class="stick-bar-wrap">
+              <div id="stick-hp-fill" class="stick-hp-fill" style="width: 100%"></div>
+            </div>
+            <span id="stick-hp-text" class="stick-bar-text">100/100</span>
+          </div>
+          <div class="stick-hud-right">
+            <span id="stick-ult-text" class="stick-pill pill-ult">ULT 0%</span>
+            <span id="stick-coins-text" class="stick-pill pill-coins">🪙 0</span>
+            <span id="stick-ping-pill" class="stick-pill pill-ping">⚡ 0ms</span>
+            <button class="vbtn util-btn" data-action="shop" id="vbtn-stick-shop" title="Buka Warung">
+              🏪 WARUNG
+            </button>
+            <button id="btn-stick-exit" class="secondary-btn stick-pause-btn" title="Pause / Menu">
+              ⏸ JEDA
+            </button>
+          </div>
+        </div>
+
         <div class="deck-header">
           <span class="deck-brand">AREK SARUNGAN SLAYER</span>
           <button class="vbtn util-btn" data-action="shop" id="vbtn-shop" title="Buka Warung">
