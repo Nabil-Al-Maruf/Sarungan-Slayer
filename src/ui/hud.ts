@@ -1,10 +1,12 @@
 import { PLAYER_PALETTES, PROJ_COOLDOWN } from '../core/constants';
+import { getHeroDef } from '../core/heroes';
 import type { GameState } from '../core/types';
 
 export class HudController {
   private badgeEl = document.getElementById('hud-player-badge');
   private personalBarsEl = document.getElementById('hud-personal-bars');
   private monitorTeamStripEl = document.getElementById('monitor-team-strip');
+  private brawlStripEl = document.getElementById('brawl-scoreboard-strip');
   private pecutPillEl = document.getElementById('hud-pecut-pill');
   private hpFillEl = document.getElementById('hud-hp-fill');
   private hpTextEl = document.getElementById('hud-hp-text');
@@ -36,7 +38,9 @@ export class HudController {
   private lastIsSurvival = false;
   private lastPerfText = '';
   private lastMonitorHtml = '';
+  private lastBrawlHtml = '';
   private lastWasMonitor: boolean | null = null;
+  private lastProjName = '';
 
   public update(
     state: GameState,
@@ -51,15 +55,63 @@ export class HudController {
       this.perfEl.textContent = perfText;
     }
 
-    if (this.lastModeTitle !== state.stageTitle) {
-      this.lastModeTitle = state.stageTitle;
-      this.modeTitleEl.textContent = state.stageTitle;
+    const currentTitle =
+      state.mode === 'brawl' && state.brawl
+        ? `🥊 BRAWL • ${Math.floor(state.brawl.remainingTime / 60)}:${Math.floor(state.brawl.remainingTime % 60)
+            .toString()
+            .padStart(2, '0')}`
+        : state.stageTitle;
+    if (this.lastModeTitle !== currentTitle) {
+      this.lastModeTitle = currentTitle;
+      this.modeTitleEl.textContent = currentTitle;
     }
 
     const koTxt = `KO: ${state.koCount}`;
     if (this.lastKoText !== koTxt) {
       this.lastKoText = koTxt;
       this.koCountEl.textContent = koTxt;
+    }
+
+    // Brawl Mode 6-Player Live Scoreboard Strip
+    if (this.brawlStripEl) {
+      if (state.mode === 'brawl') {
+        this.brawlStripEl.classList.remove('hidden');
+        const cardsHtml = state.players
+          .map((pl) => {
+            const hero = getHeroDef(pl.heroId);
+            const pal = PLAYER_PALETTES[pl.paletteIndex % PLAYER_PALETTES.length];
+            const stocks = pl.brawlStocks ?? 3;
+            const kos = pl.brawlKos ?? 0;
+            const dead = stocks <= 0;
+            const hpPct = Math.max(0, Math.min(100, (pl.hp / Math.max(1, pl.maxHp)) * 100));
+            const dmgColor = hpPct > 60 ? '#22c55e' : hpPct > 30 ? '#f59e0b' : '#ef4444';
+            const isLocal = pl.id === localPlayerId;
+            const hearts = dead ? '💀 K.O.' : '❤️'.repeat(stocks);
+            return `<div class="brawl-fighter-card${dead ? ' dead' : ''}${isLocal ? ' local-focus' : ''}" style="--pal-acc:${pal.accent}">
+              <div class="brawl-card-top">
+                <span class="brawl-hero-avatar">${hero.avatar}</span>
+                <div class="brawl-info">
+                  <span class="brawl-name">${pl.name}</span>
+                  <span class="brawl-alias">${hero.name}</span>
+                </div>
+                <span class="brawl-ko-tag">⚔️ ${kos}</span>
+              </div>
+              <div class="brawl-card-mid">
+                <div class="brawl-dmg-gauge">
+                  <span class="brawl-dmg-val" style="color:${dmgColor}">${Math.ceil(pl.hp)}%</span>
+                </div>
+                <span class="brawl-stocks">${hearts}</span>
+              </div>
+            </div>`;
+          })
+          .join('');
+        if (this.lastBrawlHtml !== cardsHtml) {
+          this.lastBrawlHtml = cardsHtml;
+          this.brawlStripEl.innerHTML = cardsHtml;
+        }
+      } else {
+        this.brawlStripEl.classList.add('hidden');
+      }
     }
 
     // Monitor Screen Layout Toggle
@@ -112,7 +164,10 @@ export class HudController {
     // HP Bar
     const hpPct = Math.max(0, Math.min(100, (player.hp / player.maxHp) * 100));
     const hpW = `${hpPct.toFixed(1)}%`;
-    const hpTxt = `${Math.ceil(player.hp)}/${player.maxHp}`;
+    const hpTxt =
+      state.mode === 'brawl'
+        ? `${Math.ceil(player.hp)}% • ❤️x${player.brawlStocks ?? 0}`
+        : `${Math.ceil(player.hp)}/${player.maxHp}`;
     if (this.hpFillEl && this.lastHpWidth !== hpW) {
       this.lastHpWidth = hpW;
       this.hpFillEl.style.width = hpW;
@@ -160,6 +215,14 @@ export class HudController {
     }
 
     // Projectile Cooldown (2.5s * cdMult)
+    const localHero = getHeroDef(player.heroId);
+    if (this.lastProjName !== localHero.projName) {
+      this.lastProjName = localHero.projName;
+      if (this.pecutPillEl && this.pecutPillEl.firstElementChild) {
+        this.pecutPillEl.firstElementChild.textContent = localHero.projName.toUpperCase();
+      }
+    }
+
     const cd = player.projCooldown;
     const maxCd = PROJ_COOLDOWN * (player.cdMult || 1);
     const cdRatio = Math.max(0, Math.min(1, 1 - cd / maxCd));

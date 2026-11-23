@@ -1,5 +1,6 @@
 import type {
   GameState,
+  HeroId,
   PlayerInput,
   SoundEvent,
   UltType,
@@ -7,13 +8,16 @@ import type {
 import type { ShopItemId } from '../modes/survival';
 
 export type MabarRole = 'coop' | 'stick' | 'monitor';
+export type MabarGameMode = 'survival' | 'brawl';
 
 export interface LobbyPlayerInfo {
   id: string;
   name: string;
   paletteIndex: number;
+  heroId?: HeroId;
   role: MabarRole;
   isHost: boolean;
+  isBot?: boolean;
   pingMs?: number;
 }
 
@@ -21,6 +25,7 @@ export interface PlayerCompactRow {
   id: string;
   name: string;
   pal: number;
+  heroId?: HeroId;
   x: number;
   y: number;
   z: number;
@@ -37,6 +42,8 @@ export interface PlayerCompactRow {
   ultType?: UltType;
   buffCount: number;
   invulnTimer: number;
+  brawlStocks?: number;
+  brawlKos?: number;
 }
 
 export interface EnemyCompactRow {
@@ -55,9 +62,12 @@ export interface CompactGameSnapshot {
   seq: number;
   time: number;
   status: 'playing' | 'victory' | 'gameover';
+  gameMode?: 'survival' | 'brawl';
   wave: number;
   phase: 'wave' | 'intermission';
   intermissionTimer: number;
+  brawlRemainingTime?: number;
+  brawlWinnerId?: string;
   koCount: number;
   core: {
     hp: number;
@@ -82,6 +92,9 @@ export interface StickPersonalSnapshot {
   ult: number;
   maxUlt: number;
   coins: number;
+  stocks?: number;
+  kos?: number;
+  gameMode?: 'survival' | 'brawl';
   wave: number;
   phase: 'wave' | 'intermission';
   intermissionTimer: number;
@@ -90,9 +103,11 @@ export interface StickPersonalSnapshot {
 }
 
 export type NetMessage =
-  | { t: 'join'; name: string; pal: number; role: MabarRole }
+  | { t: 'join'; name: string; pal: number; role: MabarRole; heroId?: HeroId }
   | { t: 'welcome'; playerId: string; isHost: boolean; hostRole: MabarRole }
-  | { t: 'lobby_update'; roomCode: string; players: LobbyPlayerInfo[] }
+  | { t: 'lobby_update'; roomCode: string; players: LobbyPlayerInfo[]; mode?: MabarGameMode }
+  | { t: 'set_mode'; mode: MabarGameMode }
+  | { t: 'pick_hero'; heroId: HeroId }
   | { t: 'start_game' }
   | { t: 'input'; seq: number; input: PlayerInput }
   | { t: 'snap'; snap: CompactGameSnapshot }
@@ -110,10 +125,12 @@ export type NetMessage =
  */
 export function packGameSnapshot(state: GameState, seq: number): CompactGameSnapshot {
   const surv = state.survival;
+  const br = state.brawl;
   const players: PlayerCompactRow[] = state.players.map((p) => ({
     id: p.id,
     name: p.name,
     pal: p.paletteIndex,
+    heroId: p.heroId,
     x: Math.round(p.x * 10) / 10,
     y: Math.round(p.y * 10) / 10,
     z: Math.round(p.z * 10) / 10,
@@ -130,6 +147,8 @@ export function packGameSnapshot(state: GameState, seq: number): CompactGameSnap
     ultType: p.ultType,
     buffCount: p.buffCount,
     invulnTimer: Math.round(p.invulnTimer * 10) / 10,
+    brawlStocks: p.brawlStocks,
+    brawlKos: p.brawlKos,
   }));
 
   const enemies: EnemyCompactRow[] = state.enemies.map((e) => ({
@@ -158,6 +177,9 @@ export function packGameSnapshot(state: GameState, seq: number): CompactGameSnap
     seq,
     time: Math.round(state.time * 100) / 100,
     status: state.status,
+    gameMode: state.mode === 'brawl' ? 'brawl' : 'survival',
+    brawlRemainingTime: br ? Math.ceil(br.remainingTime) : undefined,
+    brawlWinnerId: br?.winnerId,
     wave: surv?.wave || 1,
     phase: surv?.phase || 'wave',
     intermissionTimer: surv ? Math.ceil(surv.intermissionTimer) : 0,

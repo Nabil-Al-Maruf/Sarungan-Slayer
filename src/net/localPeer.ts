@@ -2,15 +2,22 @@ import { Peer, type DataConnection } from 'peerjs';
 import type {
   CompactGameSnapshot,
   LobbyPlayerInfo,
+  MabarGameMode,
   MabarRole,
   NetMessage,
   StickPersonalSnapshot,
 } from './protocol';
-import type { PlayerInput } from '../core/types';
+import type { HeroId, PlayerInput } from '../core/types';
 
 export interface LocalPeerCallbacks {
   onStatus: (msg: string, isError?: boolean) => void;
-  onLobbyUpdate: (roomCode: string, players: LobbyPlayerInfo[], localId: string, isHost: boolean) => void;
+  onLobbyUpdate: (
+    roomCode: string,
+    players: LobbyPlayerInfo[],
+    localId: string,
+    isHost: boolean,
+    mode?: MabarGameMode
+  ) => void;
   onGameStart: () => void;
   onSnapshot: (snap: CompactGameSnapshot) => void;
   onStickSnapshot: (snap: StickPersonalSnapshot) => void;
@@ -38,6 +45,8 @@ export class LocalPeerManager {
   public roomCode = '';
   public localPlayerId = 'p1';
   public localRole: MabarRole = 'coop';
+  public gameMode: MabarGameMode = 'survival';
+  public selectedHeroId: HeroId = 'bima';
   public connected = false;
   public pingMs = 0;
 
@@ -55,11 +64,13 @@ export class LocalPeerManager {
   public createRoom(
     role: 'coop' | 'monitor',
     playerName: string,
-    paletteIndex: number
+    paletteIndex: number,
+    heroId: HeroId = 'bima'
   ): string {
     this.disconnect();
     this.isHost = true;
     this.localRole = role;
+    this.selectedHeroId = heroId;
     this.localPlayerId = role === 'monitor' ? 'monitor' : 'p1';
     this.roomCode = generateRoomCode();
     const peerId = PEER_PREFIX + this.roomCode;
@@ -77,13 +88,14 @@ export class LocalPeerManager {
           id: this.localPlayerId,
           name: role === 'monitor' ? 'LAYAR MONITOR' : playerName,
           paletteIndex,
+          heroId,
           role,
           isHost: true,
           pingMs: 0,
         },
       ];
       this.callbacks.onStatus(`Room aktif! Bagikan kode [${this.roomCode}] ke teman.`);
-      this.callbacks.onLobbyUpdate(this.roomCode, this.lobbyPlayers, this.localPlayerId, true);
+      this.callbacks.onLobbyUpdate(this.roomCode, this.lobbyPlayers, this.localPlayerId, true, this.gameMode);
     });
 
     this.peer.on('connection', (conn) => {
@@ -94,7 +106,7 @@ export class LocalPeerManager {
       console.warn('[Peer Host Error]', err);
       if (err.type === 'unavailable-id') {
         // Room code collision: try once more with new code
-        this.createRoom(role, playerName, paletteIndex);
+        this.createRoom(role, playerName, paletteIndex, heroId);
       } else {
         this.callbacks.onStatus(`Koneksi error: ${err.message}`, true);
       }
@@ -107,7 +119,8 @@ export class LocalPeerManager {
     roomCode: string,
     role: 'coop' | 'stick',
     playerName: string,
-    paletteIndex: number
+    paletteIndex: number,
+    heroId: HeroId = 'bima'
   ): void {
     this.disconnect();
     const cleanedCode = roomCode.trim().toUpperCase().slice(0, 4);
@@ -119,6 +132,7 @@ export class LocalPeerManager {
     this.isHost = false;
     this.roomCode = cleanedCode;
     this.localRole = role;
+    this.selectedHeroId = heroId;
     this.callbacks.onStatus(`Menghubungkan ke room [${this.roomCode}] via Wi-Fi/Hotspot...`);
 
     const targetPeerId = PEER_PREFIX + this.roomCode;
@@ -138,6 +152,7 @@ export class LocalPeerManager {
           name: playerName,
           pal: paletteIndex,
           role,
+          heroId,
         } as NetMessage);
 
         this.startPingLoop();
@@ -176,10 +191,10 @@ export class LocalPeerManager {
     conn.on('data', (data) => {
       const msg = data as NetMessage;
       if (msg.t === 'join') {
-        // Assign next available player slot
+        // Assign next available player slot (up to 6 players!)
         const usedIds = new Set(this.lobbyPlayers.map((p) => p.id));
         let nextId = 'p2';
-        for (let i = 2; i <= 5; i++) {
+        for (let i = 2; i <= 6; i++) {
           const candidate = `p${i}`;
           if (!usedIds.has(candidate)) {
             nextId = candidate;
@@ -191,6 +206,7 @@ export class LocalPeerManager {
           id: nextId,
           name: msg.name || `Arek ${nextId.toUpperCase()}`,
           paletteIndex: msg.pal,
+          heroId: msg.heroId || 'bima',
           role: msg.role,
           isHost: false,
           pingMs: 0,
@@ -215,6 +231,16 @@ export class LocalPeerManager {
         if (playerId) {
           this.clientInputs.set(playerId, msg.input);
         }
+      } else if (msg.t === 'pick_hero') {
+        const playerId = (conn as any)._playerId;
+        const pl = this.lobbyPlayers.find((p) => p.id === playerId);
+        if (pl) {
+          pl.heroId = msg.heroId;
+          this.broadcastLobbyUpdate();
+        }
+      } else if (msg.t === 'set_mode') {
+        this.gameMode = msg.mode;
+        this.broadcastLobbyUpdate();
       } else if (msg.t === 'ping') {
         conn.send({ t: 'pong', timestamp: msg.timestamp } as NetMessage);
       } else if (msg.t === 'pick_skill') {
@@ -244,7 +270,8 @@ export class LocalPeerManager {
         break;
       case 'lobby_update':
         this.lobbyPlayers = msg.players;
-        this.callbacks.onLobbyUpdate(msg.roomCode, msg.players, this.localPlayerId, false);
+        if (msg.mode) this.gameMode = msg.mode;
+        this.callbacks.onLobbyUpdate(msg.roomCode, msg.players, this.localPlayerId, false, this.gameMode);
         break;
       case 'start_game':
         this.callbacks.onGameStart();
@@ -272,15 +299,101 @@ export class LocalPeerManager {
       t: 'lobby_update',
       roomCode: this.roomCode,
       players: this.lobbyPlayers,
+      mode: this.gameMode,
     };
     this.broadcastMessage(msg);
-    this.callbacks.onLobbyUpdate(this.roomCode, this.lobbyPlayers, this.localPlayerId, true);
+    this.callbacks.onLobbyUpdate(this.roomCode, this.lobbyPlayers, this.localPlayerId, true, this.gameMode);
   }
 
   public sendStartGame(): void {
     if (!this.isHost) return;
     this.broadcastMessage({ t: 'start_game' });
     this.callbacks.onGameStart();
+  }
+
+  public sendPickHero(heroId: HeroId): void {
+    this.selectedHeroId = heroId;
+    const me = this.lobbyPlayers.find((p) => p.id === this.localPlayerId);
+    if (me) me.heroId = heroId;
+
+    if (this.isHost) {
+      this.broadcastLobbyUpdate();
+    } else if (this.hostConnection) {
+      this.hostConnection.send({
+        t: 'pick_hero',
+        heroId,
+      } as NetMessage);
+    }
+  }
+
+  public sendSetGameMode(mode: MabarGameMode): void {
+    this.gameMode = mode;
+    if (this.isHost) {
+      this.broadcastLobbyUpdate();
+    } else if (this.hostConnection) {
+      this.hostConnection.send({
+        t: 'set_mode',
+        mode,
+      } as NetMessage);
+    }
+  }
+
+  public addBot(heroId?: HeroId): void {
+    if (!this.isHost) return;
+    const usedIds = new Set(this.lobbyPlayers.map((p) => p.id));
+    let nextId = '';
+    let slotNum = 2;
+    for (let i = 2; i <= 6; i++) {
+      const candidate = `p${i}`;
+      if (!usedIds.has(candidate)) {
+        nextId = candidate;
+        slotNum = i;
+        break;
+      }
+    }
+    if (!nextId) return;
+
+    const usedPals = new Set(this.lobbyPlayers.map((p) => p.paletteIndex));
+    let botPal = 1;
+    for (let i = 0; i < 6; i++) {
+      if (!usedPals.has(i)) {
+        botPal = i;
+        break;
+      }
+    }
+
+    const heroKeys: HeroId[] = ['bima', 'mat_clurit', 'bambang', 'gus_dimas', 'pak_rt', 'mbak_sri'];
+    const chosenHero = heroId || heroKeys[(slotNum - 1) % heroKeys.length];
+
+    this.lobbyPlayers.push({
+      id: nextId,
+      name: `BOT ${slotNum} (${chosenHero.toUpperCase()})`,
+      paletteIndex: botPal,
+      heroId: chosenHero,
+      role: 'coop',
+      isHost: false,
+      isBot: true,
+      pingMs: 0,
+    });
+
+    this.callbacks.onLobbyUpdate(this.roomCode, this.lobbyPlayers, this.localPlayerId, true, this.gameMode);
+    this.broadcastLobbyUpdate();
+  }
+
+  public removeBot(): void {
+    if (!this.isHost) return;
+    let botIdx = -1;
+    for (let i = this.lobbyPlayers.length - 1; i >= 0; i--) {
+      if (this.lobbyPlayers[i].isBot) {
+        botIdx = i;
+        break;
+      }
+    }
+    if (botIdx !== -1) {
+      this.lobbyPlayers.splice(botIdx, 1);
+      this.callbacks.onLobbyUpdate(this.roomCode, this.lobbyPlayers, this.localPlayerId, true, this.gameMode);
+      this.broadcastLobbyUpdate();
+    }
   }
 
   public sendInput(input: PlayerInput): void {
@@ -321,6 +434,9 @@ export class LocalPeerManager {
             ult: pState.ult,
             maxUlt: pState.maxUlt,
             coins: pState.coins,
+            stocks: pState.brawlStocks,
+            kos: pState.brawlKos,
+            gameMode: snap.gameMode,
             wave: snap.wave,
             phase: snap.phase,
             intermissionTimer: snap.intermissionTimer,

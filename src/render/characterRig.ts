@@ -1,4 +1,5 @@
 import { CRATE_SIZE, PLAYER_PALETTES, ULT_RADIUS } from '../core/constants';
+import { getHeroDef } from '../core/heroes';
 import type { CrateState, EnemyState, PickupState, PlayerState } from '../core/types';
 
 export function drawPlayer(
@@ -191,11 +192,16 @@ export function drawPlayer(
     drawTopDownArekRig(ctx, player, palette, time);
   }
 
-  // 3. Clean Nametag Above Head (No bulky beacon above head, Cincin Aura Neon below feet identifies player!)
+  // 3. Clean Nametag Above Head (with Hero Icon & Stocks if in Brawl)
   ctx.save();
   const tagY = player.y - player.z - 60;
-  const displayName = player.name ? `${palette.label} • ${player.name}` : palette.label;
-  ctx.font = '900 10px "Segoe UI", system-ui, sans-serif';
+  const hDef = getHeroDef(player.heroId);
+  const heroBadge = player.heroId ? `${hDef.avatar} ` : '';
+  const stocksText = player.brawlStocks !== undefined ? ` [${player.brawlStocks}❤️]` : '';
+  const displayName = player.name
+    ? `${palette.label} • ${heroBadge}${player.name}${stocksText}`
+    : `${palette.label}${stocksText}`;
+  ctx.font = '900 10.5px "Segoe UI", system-ui, sans-serif';
   ctx.textAlign = 'center';
   ctx.lineWidth = 3;
   ctx.strokeStyle = '#090c14';
@@ -418,22 +424,85 @@ function drawTopDownArekRig(
   }
 
   const meleeActive = player.meleeTimer > 0;
-  const sarungLen = meleeActive ? 34 : 16;
   const swingAngle = meleeActive ? -0.9 + (1 - player.meleeTimer / 0.22) * 2.1 : 0.25;
 
   ctx.save();
   ctx.translate(9, -22 + bob);
   ctx.rotate(swingAngle);
-  ctx.fillStyle = palette.sarung;
-  ctx.strokeStyle = '#090c14';
-  ctx.lineWidth = 2.5;
-  ctx.beginPath();
-  ctx.moveTo(0, -4);
-  ctx.quadraticCurveTo(sarungLen * 0.6, -10, sarungLen, 0);
-  ctx.quadraticCurveTo(sarungLen * 0.5, 8, 0, 4);
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
+
+  // Render hero-specific weapon in hand!
+  if (player.heroId === 'mat_clurit') {
+    // Madura Sickle (Celurit)
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.lineWidth = 3.5;
+    ctx.beginPath();
+    ctx.arc(10, -6, 14, 0, Math.PI * 0.75);
+    ctx.stroke();
+    // Wooden handle
+    ctx.strokeStyle = '#78350f';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(8, -4);
+    ctx.stroke();
+  } else if (player.heroId === 'bambang') {
+    // Red boxing glove / Tinju Beton
+    ctx.fillStyle = '#ef4444';
+    ctx.strokeStyle = '#090c14';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(8, 0, 9, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  } else if (player.heroId === 'gus_dimas') {
+    // Yellow bamboo staff (Bambu Kuning)
+    ctx.strokeStyle = '#eab308';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(-10, 8);
+    ctx.lineTo(26, -16);
+    ctx.stroke();
+    ctx.fillStyle = '#22c55e';
+    ctx.beginPath();
+    ctx.moveTo(26, -16);
+    ctx.lineTo(34, -22);
+    ctx.lineTo(28, -12);
+    ctx.fill();
+  } else if (player.heroId === 'pak_rt') {
+    // Sapu Lidi
+    ctx.strokeStyle = '#ca8a04';
+    ctx.lineWidth = 3.5;
+    ctx.beginPath();
+    ctx.moveTo(0, 2);
+    ctx.lineTo(24, -10);
+    ctx.stroke();
+    ctx.fillStyle = '#a16207';
+    ctx.fillRect(16, -14, 12, 8);
+  } else if (player.heroId === 'mbak_sri') {
+    // Selendang sutra
+    ctx.fillStyle = '#ec4899';
+    ctx.strokeStyle = '#090c14';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, -2);
+    ctx.quadraticCurveTo(18, -14, 28, 4);
+    ctx.quadraticCurveTo(12, 10, 0, 2);
+    ctx.fill();
+    ctx.stroke();
+  } else {
+    // Default Bima Sarung
+    const sarungLen = meleeActive ? 34 : 16;
+    ctx.fillStyle = palette.sarung;
+    ctx.strokeStyle = '#090c14';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(0, -4);
+    ctx.quadraticCurveTo(sarungLen * 0.6, -10, sarungLen, 0);
+    ctx.quadraticCurveTo(sarungLen * 0.5, 8, 0, 4);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  }
   ctx.restore();
 
   ctx.restore();

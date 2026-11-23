@@ -14,9 +14,17 @@ export interface PlayerInput {
   shopPressed: boolean;
 }
 
-export type MapTheme = 'tambak' | 'tunjungan' | 'suramadu' | 'perempatan';
+export type MapTheme = 'tambak' | 'tunjungan' | 'suramadu' | 'perempatan' | 'arena_smash';
 
 export type UltType = 'gasing' | 'petir' | 'mercon' | 'naga';
+
+export type HeroId =
+  | 'bima'
+  | 'mat_clurit'
+  | 'bambang'
+  | 'gus_dimas'
+  | 'pak_rt'
+  | 'mbak_sri';
 
 export type BuffId =
   | 'max_hp'
@@ -118,6 +126,14 @@ export interface PlayerState {
   ultType?: UltType;
   ultActiveTimer: number;
   ultTickTimer: number;
+
+  // Hero Archetype & Brawl Stats
+  heroId?: HeroId;
+  brawlStocks?: number;
+  brawlKos?: number;
+  isBot?: boolean;
+  lastHitBy?: string;
+  lastHitTime?: number;
 
   // Visual squash & stretch + walk cycle
   scaleX: number;
@@ -347,8 +363,32 @@ export interface SurvivalState {
   mapBannerText: string;
 }
 
+export interface BrawlPlatform {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  dropThrough?: boolean;
+}
+
+export interface BrawlState {
+  initialStocks: number;
+  matchDuration: number;
+  remainingTime: number;
+  winnerId?: string;
+  winnerName?: string;
+  platforms: BrawlPlatform[];
+  itemSpawnTimer: number;
+  ringOutBound: {
+    minX: number;
+    maxX: number;
+    minY: number;
+    maxY: number;
+  };
+}
+
 export interface GameState {
-  mode: 'sandbox' | 'story' | 'survival';
+  mode: 'sandbox' | 'story' | 'survival' | 'brawl';
   theme: MapTheme;
   stageNumber: 1 | 2 | 3;
   stageTitle: string;
@@ -364,6 +404,7 @@ export interface GameState {
 
   storyZones: StoryZone[];
   survival?: SurvivalState;
+  brawl?: BrawlState;
   obstacles: Obstacle[];
   players: PlayerState[];
   enemies: EnemyState[];

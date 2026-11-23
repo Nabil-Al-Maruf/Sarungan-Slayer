@@ -99,7 +99,13 @@ export interface PlayerPalette {
   sarungStripe: string;
   peci: string;
   accent: string;
-  headgear: 'peci_garuda' | 'udeng_kenjeran' | 'blangkon_batik' | 'baret_bonek' | 'sorban_putih';
+  headgear:
+    | 'peci_garuda'
+    | 'udeng_kenjeran'
+    | 'blangkon_batik'
+    | 'baret_bonek'
+    | 'sorban_putih'
+    | 'udeng_wali';
   accessoryDesc: string;
 }
 
@@ -168,5 +174,18 @@ export const PLAYER_PALETTES: PlayerPalette[] = [
     accent: '#a855f7',
     headgear: 'sorban_putih',
     accessoryDesc: 'Sorban Putih Melingkar & Kalung Tasbih',
+  },
+  {
+    id: 5,
+    label: 'P6',
+    name: 'Cak Fajar (Oranye Ampel)',
+    shirt: '#ea580c',
+    shirtShadow: '#c2410c',
+    sarung: '#0284c7',
+    sarungStripe: '#fef08a',
+    peci: '#0f172a',
+    accent: '#f97316',
+    headgear: 'udeng_wali',
+    accessoryDesc: 'Udeng Wali Songo & Selempang Oranye',
   },
 ];

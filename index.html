@@ -61,6 +61,9 @@
           </div>
         </header>
 
+        <!-- Brawl Mode 6-Player Live Scoreboard Strip -->
+        <div id="brawl-scoreboard-strip" class="brawl-scoreboard-strip hidden"></div>
+
         <!-- Landscape Hint Bar (Desktop only) -->
         <div id="desktop-hints" class="desktop-hints">
           <span><b>WASD/Panah</b> Gerak 8-Arah</span>
@@ -218,6 +221,7 @@
                     <button class="skin-swatch" data-skin="2" style="--sw: #eab308">DIMAS</button>
                     <button class="skin-swatch" data-skin="3" style="--sw: #10b981">RAKA</button>
                     <button class="skin-swatch" data-skin="4" style="--sw: #9333ea">YUDI</button>
+                    <button class="skin-swatch" data-skin="5" style="--sw: #ea580c">FAJAR</button>
                   </div>
                 </div>
                 <div class="setting-row">
@@ -287,6 +291,15 @@
                   <span class="cta-text">
                     <strong>SURVIVAL SOLO <span id="menu-best-wave"></span></strong>
                     <small>Pertahankan Warkop Suroboyo dari Serbuan Zombie!</small>
+                  </span>
+                  <span class="cta-arrow">➔</span>
+                </button>
+
+                <button id="btn-play-brawl" class="title-cta-btn cta-brawl">
+                  <span class="cta-icon">🥊</span>
+                  <span class="cta-text">
+                    <strong>TAWURAN SMASH BRAWL (SOLO / BOTS)</strong>
+                    <small>Brawl Bebas Ring-Out 6 Arek • Pilihan Hero &amp; Bot AI!</small>
                   </span>
                   <span class="cta-arrow">➔</span>
                 </button>
@@ -511,6 +524,19 @@
               Main bareng sak jaringan Wi-Fi / Hotspot HP • Latensi 1ms Josss • Bebas kuota!
             </p>
 
+            <!-- Mode Permainan: Survival Co-op vs Tawuran Smash Brawl -->
+            <div class="mabar-gametype-wrap">
+              <span class="mabar-selector-label">JENIS PERMAINAN MABAR:</span>
+              <div class="setting-seg gametype-seg" id="lobby-gametype-group">
+                <button id="gametype-survival-btn" class="seg-btn active" data-mode="survival">
+                  🧟 1. SURVIVAL CO-OP (1–5 AREK)
+                </button>
+                <button id="gametype-brawl-btn" class="seg-btn" data-mode="brawl">
+                  🥊 2. TAWURAN SMASH BRAWL (2–6 AREK)
+                </button>
+              </div>
+            </div>
+
             <!-- Mode Selector: Mode 1 (Layar Sendiri) vs Mode 2 (Monitor + HP Stick) -->
             <div class="mabar-mode-selector-wrap">
               <span class="mabar-selector-label">PILIH MODE MABAR:</span>
@@ -551,6 +577,58 @@
                 <button class="skin-swatch" data-skin="2" style="--sw: #eab308">DIMAS</button>
                 <button class="skin-swatch" data-skin="3" style="--sw: #10b981">RAKA</button>
                 <button class="skin-swatch" data-skin="4" style="--sw: #9333ea">YUDI</button>
+                <button class="skin-swatch" data-skin="5" style="--sw: #ea580c">FAJAR</button>
+              </div>
+            </div>
+
+            <!-- Hero Selection Grid (Brawl Mode & Fighter Archetype) -->
+            <div class="hero-selector-section" id="lobby-hero-section">
+              <div class="hero-selector-header">
+                <span class="profile-label">PILIH HERO / PENDEKAR:</span>
+                <span class="hero-archetype-tag" id="selected-hero-archetype">Balanced</span>
+              </div>
+              <div class="hero-picker-grid" id="lobby-hero-picker">
+                <button class="hero-card active" data-hero="bima" style="--hero-color: #ef4444">
+                  <span class="hero-card-avatar">🧣</span>
+                  <span class="hero-card-name">Cak Bima</span>
+                  <span class="hero-card-badge">Balanced</span>
+                </button>
+                <button class="hero-card" data-hero="mat_clurit" style="--hero-color: #3b82f6">
+                  <span class="hero-card-avatar">🗡️</span>
+                  <span class="hero-card-name">Mat Clurit</span>
+                  <span class="hero-card-badge">Assassin</span>
+                </button>
+                <button class="hero-card" data-hero="bambang" style="--hero-color: #f59e0b">
+                  <span class="hero-card-avatar">🥊</span>
+                  <span class="hero-card-name">Bang Bambang</span>
+                  <span class="hero-card-badge">Juggernaut</span>
+                </button>
+                <button class="hero-card" data-hero="gus_dimas" style="--hero-color: #10b981">
+                  <span class="hero-card-avatar">🎋</span>
+                  <span class="hero-card-name">Gus Dimas</span>
+                  <span class="hero-card-badge">Zoner</span>
+                </button>
+                <button class="hero-card" data-hero="pak_rt" style="--hero-color: #ea580c">
+                  <span class="hero-card-avatar">🧨</span>
+                  <span class="hero-card-name">Pak RT</span>
+                  <span class="hero-card-badge">Trapper</span>
+                </button>
+                <button class="hero-card" data-hero="mbak_sri" style="--hero-color: #ec4899">
+                  <span class="hero-card-avatar">💃</span>
+                  <span class="hero-card-name">Mbak Sri</span>
+                  <span class="hero-card-badge">Acrobat</span>
+                </button>
+              </div>
+              <div class="hero-spec-preview" id="hero-spec-preview">
+                <div class="hero-spec-col">
+                  <strong>Senjata:</strong> <span id="hero-spec-weapon">Kibasan Sarung</span>
+                </div>
+                <div class="hero-spec-col">
+                  <strong>Skill:</strong> <span id="hero-spec-proj">Pecut Kilat</span>
+                </div>
+                <div class="hero-spec-col">
+                  <strong>Ultimate:</strong> <span id="hero-spec-ult">Badai Gasing Suroboyo</span>
+                </div>
               </div>
             </div>
 
@@ -573,6 +651,11 @@
                       <button id="btn-copy-link" class="ghost-btn mini-btn">📋 SALIN LINK</button>
                       <span class="qr-code-note">Konco iso scan QR utawa ketik kode nang sebelah tengen!</span>
                     </div>
+                  </div>
+                  <div class="host-bot-control-row hidden" id="host-bot-controls">
+                    <span class="bot-control-label">🤖 BOT SMASH BRAWL:</span>
+                    <button id="btn-add-bot" class="ghost-btn mini-btn" title="Tambah Bot Arek Smash">➕ TAMBAH BOT</button>
+                    <button id="btn-rem-bot" class="ghost-btn mini-btn" title="Hapus Bot">➖ HAPUS BOT</button>
                   </div>
                   <button id="btn-start-mabar" class="primary-btn hidden">MULAI MABAR SURVIVAL ➔</button>
                 </div>
@@ -605,7 +688,7 @@
             <div class="lobby-roster-wrap">
               <div class="roster-header">
                 <span>Arek seng wis Nang Room:</span>
-                <span id="lobby-player-count">0/5</span>
+                <span id="lobby-player-count">0/6</span>
               </div>
               <div id="lobby-roster" class="lobby-roster">
                 <div class="roster-empty">Durung ono arek mlebu.</div>
@@ -832,6 +915,28 @@
               <button id="btn-next-stage" class="primary-btn">STAGE BERIKUTNYA ➔</button>
               <button id="btn-retry-stage" class="secondary-btn">MAIN LAGI</button>
               <button id="btn-back-menu" class="ghost-btn">MENU UTAMA</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Brawl Smash Victory / Podium Overlay -->
+        <div id="brawl-victory-overlay" class="overlay-modal hidden">
+          <div class="modal-card brawl-victory-card">
+            <div class="modal-eyebrow">🥊 TAWURAN SMASH BRAWL SELESAI 🥊</div>
+            <h2 id="brawl-winner-title" class="modal-title">JUARA TAWURAN!</h2>
+            <div class="brawl-winner-spotlight">
+              <div class="brawl-winner-avatar" id="brawl-winner-avatar">🧣</div>
+              <div class="brawl-winner-meta">
+                <h3 id="brawl-winner-name" class="brawl-winner-name">Cak Bima</h3>
+                <span id="brawl-winner-alias" class="brawl-winner-alias">Pendekar Sarung Sakti</span>
+                <p id="brawl-winner-tagline" class="brawl-winner-tagline">"Kibasane nggepuk, pecute nyamber!"</p>
+              </div>
+            </div>
+            <div class="brawl-podium-roster" id="brawl-podium-roster"></div>
+            <div class="result-actions">
+              <button id="btn-brawl-rematch" class="primary-btn">🥊 REMATCH TAWURAN LAGI</button>
+              <button id="btn-brawl-lobby" class="secondary-btn">GANTI HERO / LOBI</button>
+              <button id="btn-brawl-quit" class="ghost-btn">MENU UTAMA</button>
             </div>
           </div>
         </div>

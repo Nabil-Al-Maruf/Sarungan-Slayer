@@ -1,8 +1,10 @@
 import './style.css';
 import { ProceduralAudio } from './audio/sfx';
 import { FIXED_DT, PLAYER_PALETTES, ULT_DEFS, VIRTUAL_HEIGHT, VIRTUAL_WIDTH } from './core/constants';
+import { HERO_DEFS, getHeroDef } from './core/heroes';
 import { InputManager } from './core/input';
-import type { BuffId, GameState, PlayerInput, UltType } from './core/types';
+import type { BuffId, GameState, HeroId, PlayerInput, UltType } from './core/types';
+import { createBrawlState, stepBrawl, type BrawlRosterMember } from './modes/brawl';
 import { createSandboxState, stepSandbox } from './modes/sandbox';
 import {
   createStoryState,
@@ -32,6 +34,7 @@ import {
   packGameSnapshot,
   type CompactGameSnapshot,
   type LobbyPlayerInfo,
+  type MabarGameMode,
   type StickPersonalSnapshot,
 } from './net/protocol';
 import { renderGame } from './render/renderer';
@@ -49,6 +52,7 @@ import { haptic } from './ui/haptics';
 
 const NAME_STORAGE_KEY = 'arek_slayer_player_name_v1';
 const SKIN_STORAGE_KEY = 'arek_slayer_player_skin_v1';
+const HERO_STORAGE_KEY = 'arek_slayer_hero_v1';
 const GFX_STORAGE_KEY = 'arek_slayer_gfx_v1';
 const HAPTIC_STORAGE_KEY = 'arek_slayer_haptic_v1';
 
@@ -62,6 +66,9 @@ const hud = new HudController();
 
 let selectedPalette = Number(localStorage.getItem(SKIN_STORAGE_KEY) || '0') % PLAYER_PALETTES.length;
 let playerName = (localStorage.getItem(NAME_STORAGE_KEY) || 'Cak Bima').slice(0, 14);
+let selectedHeroId: HeroId = (localStorage.getItem(HERO_STORAGE_KEY) as HeroId) || 'bima';
+if (!HERO_DEFS[selectedHeroId]) selectedHeroId = 'bima';
+let selectedGameMode: 'survival' | 'brawl' = 'survival';
 
 let state: GameState = createStoryState(1, selectedPalette, playerName);
 let menuOpen = true;
@@ -194,6 +201,30 @@ const btnSfx = document.getElementById('btn-sfx') as HTMLButtonElement | null;
 const btnBgm = document.getElementById('btn-bgm') as HTMLButtonElement | null;
 const btnForceLandscape = document.getElementById('btn-force-landscape') as HTMLButtonElement | null;
 
+// Tawuran Smash Brawl & Hero Picker DOM references
+const btnPlayBrawl = document.getElementById('btn-play-brawl') as HTMLButtonElement | null;
+const gametypeSurvivalBtn = document.getElementById('gametype-survival-btn') as HTMLButtonElement | null;
+const gametypeBrawlBtn = document.getElementById('gametype-brawl-btn') as HTMLButtonElement | null;
+const selectedHeroArchetypeEl = document.getElementById('selected-hero-archetype') as HTMLElement | null;
+const heroSpecWeaponEl = document.getElementById('hero-spec-weapon') as HTMLElement | null;
+const heroSpecProjEl = document.getElementById('hero-spec-proj') as HTMLElement | null;
+const heroSpecUltEl = document.getElementById('hero-spec-ult') as HTMLElement | null;
+const hostBotControls = document.getElementById('host-bot-controls') as HTMLElement | null;
+const btnAddBot = document.getElementById('btn-add-bot') as HTMLButtonElement | null;
+const btnRemBot = document.getElementById('btn-rem-bot') as HTMLButtonElement | null;
+
+// Brawl Victory Modal DOM references
+const brawlVictoryOverlay = document.getElementById('brawl-victory-overlay') as HTMLDivElement | null;
+const brawlWinnerTitle = document.getElementById('brawl-winner-title') as HTMLElement | null;
+const brawlWinnerAvatar = document.getElementById('brawl-winner-avatar') as HTMLElement | null;
+const brawlWinnerName = document.getElementById('brawl-winner-name') as HTMLElement | null;
+const brawlWinnerAlias = document.getElementById('brawl-winner-alias') as HTMLElement | null;
+const brawlWinnerTagline = document.getElementById('brawl-winner-tagline') as HTMLElement | null;
+const brawlPodiumRoster = document.getElementById('brawl-podium-roster') as HTMLElement | null;
+const btnBrawlRematch = document.getElementById('btn-brawl-rematch') as HTMLButtonElement | null;
+const btnBrawlLobby = document.getElementById('btn-brawl-lobby') as HTMLButtonElement | null;
+const btnBrawlQuit = document.getElementById('btn-brawl-quit') as HTMLButtonElement | null;
+
 let selectedHostRole: 'coop' | 'monitor' = 'coop';
 let selectedJoinRole: 'coop' | 'stick' = 'coop';
 
@@ -309,16 +340,27 @@ function updateStickHud(): void {
     if (stickPlayerName) stickPlayerName.textContent = p.name.toUpperCase();
     const hpPct = Math.max(0, Math.min(100, (p.hp / Math.max(1, p.maxHp)) * 100));
     if (stickHpFill) stickHpFill.style.width = `${hpPct}%`;
-    if (stickHpText) stickHpText.textContent = `${Math.ceil(p.hp)}/${p.maxHp}`;
+    if (stickHpText) {
+      stickHpText.textContent =
+        state.mode === 'brawl'
+          ? `${Math.ceil(p.hp)}% • ❤️x${p.brawlStocks ?? 3}`
+          : `${Math.ceil(p.hp)}/${p.maxHp}`;
+    }
     if (stickUltText) stickUltText.textContent = `ULT ${Math.floor(p.ult)}%`;
-    if (stickCoinsText) stickCoinsText.textContent = `🪙 ${p.coins}`;
-    if (vbtnStickShop) vbtnStickShop.classList.toggle('shop-ready', canOpenWarung(state, p));
+    if (stickCoinsText) {
+      stickCoinsText.textContent = state.mode === 'brawl' ? getHeroDef(p.heroId).avatar : `🪙 ${p.coins}`;
+    }
+    if (vbtnStickShop) vbtnStickShop.classList.toggle('shop-ready', state.mode === 'survival' && canOpenWarung(state, p));
   }
-  if (surv && stickWavePill) {
-    stickWavePill.textContent =
-      surv.phase === 'intermission'
-        ? `W${surv.wave} ⏱${Math.ceil(surv.intermissionTimer)}s`
-        : `W${surv.wave}`;
+  if (stickWavePill) {
+    if (state.mode === 'brawl') {
+      stickWavePill.textContent = `⚔️ ${p?.brawlKos ?? 0} KO`;
+    } else if (surv) {
+      stickWavePill.textContent =
+        surv.phase === 'intermission'
+          ? `W${surv.wave} ⏱${Math.ceil(surv.intermissionTimer)}s`
+          : `W${surv.wave}`;
+    }
   }
   if (stickPingPill) {
     stickPingPill.textContent = localPeer.pingMs > 0 ? `⚡ ${localPeer.pingMs}ms` : '⚡ LAN';
@@ -333,24 +375,43 @@ const localPeer = new LocalPeerManager({
       lobbyStatusEl.style.color = isError ? '#f87171' : '#94a3b8';
     }
   },
-  onLobbyUpdate(roomCode, players, localId, isHost) {
-    renderLobbyRoster(roomCode, players, localId, isHost);
+  onLobbyUpdate(roomCode, players, localId, isHost, mode) {
+    if (mode) {
+      selectedGameMode = mode;
+      gametypeSurvivalBtn?.classList.toggle('active', mode === 'survival');
+      gametypeBrawlBtn?.classList.toggle('active', mode === 'brawl');
+    }
+    renderLobbyRoster(roomCode, players, localId, isHost, mode);
   },
   onGameStart() {
     audio.unlock();
-    if (state && state.mode === 'survival' && state.status === 'playing' && !lobbyOpen && !menuOpen) {
+    const currentMode = localPeer.gameMode || 'survival';
+    if (state && state.mode === currentMode && state.status === 'playing' && !lobbyOpen && !menuOpen) {
       return;
     }
 
     if (localPeer.isHost) {
-      const roster = localPeer.lobbyPlayers
-        .filter((p) => p.role !== 'monitor')
-        .map((p) => ({
-          id: p.id,
-          paletteIndex: p.paletteIndex,
-          name: p.name,
-        }));
-      state = createSurvivalState(selectedPalette, roster, playerName);
+      if (localPeer.gameMode === 'brawl') {
+        const roster: BrawlRosterMember[] = localPeer.lobbyPlayers
+          .filter((p) => p.role !== 'monitor')
+          .map((p) => ({
+            id: p.id,
+            paletteIndex: p.paletteIndex,
+            name: p.name,
+            heroId: p.heroId || 'bima',
+            isBot: p.isBot,
+          }));
+        state = createBrawlState(roster);
+      } else {
+        const roster = localPeer.lobbyPlayers
+          .filter((p) => p.role !== 'monitor')
+          .map((p) => ({
+            id: p.id,
+            paletteIndex: p.paletteIndex,
+            name: p.name,
+          }));
+        state = createSurvivalState(selectedPalette, roster, playerName);
+      }
     }
 
     menuOpen = false;
@@ -372,6 +433,7 @@ const localPeer = new LocalPeerManager({
     pauseOverlay.classList.add('hidden');
     storyDialogueOverlay.classList.add('hidden');
     resultOverlay.classList.add('hidden');
+    brawlVictoryOverlay?.classList.add('hidden');
 
     setStickMode(localPeer.localRole === 'stick');
     updateStickHud();
@@ -384,7 +446,29 @@ const localPeer = new LocalPeerManager({
     state.koCount = snap.koCount;
     state.shakeIntensity = snap.shakeIntensity;
 
-    if (state.survival) {
+    if (snap.gameMode === 'brawl') {
+      state.mode = 'brawl';
+      state.stageTitle = 'TAWURAN SMASH BRAWL';
+      if (!state.brawl) {
+        state.brawl = {
+          platforms: [
+            { x: 170, y: 390, w: 620, h: 32 },
+            { x: 210, y: 280, w: 160, h: 14, dropThrough: true },
+            { x: 590, y: 280, w: 160, h: 14, dropThrough: true },
+            { x: 390, y: 190, w: 180, h: 14, dropThrough: true },
+          ],
+          initialStocks: 3,
+          matchDuration: 180,
+          ringOutBound: { minX: -50, maxX: 1010, minY: -100, maxY: 580 },
+          itemSpawnTimer: 15,
+          remainingTime: snap.brawlRemainingTime || 180,
+          winnerId: snap.brawlWinnerId,
+        };
+      } else {
+        if (snap.brawlRemainingTime !== undefined) state.brawl.remainingTime = snap.brawlRemainingTime;
+        state.brawl.winnerId = snap.brawlWinnerId;
+      }
+    } else if (state.survival) {
       state.survival.wave = snap.wave;
       state.survival.phase = snap.phase;
       state.survival.intermissionTimer = snap.intermissionTimer;
@@ -411,6 +495,9 @@ const localPeer = new LocalPeerManager({
           id: sp.id,
           name: sp.name,
           paletteIndex: sp.pal,
+          heroId: sp.heroId || 'bima',
+          brawlStocks: sp.brawlStocks,
+          brawlKos: sp.brawlKos,
           x: sp.x,
           y: sp.y,
           z: sp.z,
@@ -472,6 +559,9 @@ const localPeer = new LocalPeerManager({
         lp.coins = sp.coins;
         lp.knockedDown = sp.knockedDown;
         lp.ultType = sp.ultType;
+        if (sp.heroId) lp.heroId = sp.heroId;
+        if (sp.brawlStocks !== undefined) lp.brawlStocks = sp.brawlStocks;
+        if (sp.brawlKos !== undefined) lp.brawlKos = sp.brawlKos;
       }
     }
 
@@ -493,6 +583,11 @@ const localPeer = new LocalPeerManager({
       p.maxHp = snap.maxHp;
       p.ult = snap.ult;
       p.coins = snap.coins;
+      if (snap.stocks !== undefined) p.brawlStocks = snap.stocks;
+      if (snap.kos !== undefined) p.brawlKos = snap.kos;
+    }
+    if (snap.gameMode === 'brawl') {
+      state.mode = 'brawl';
     }
     if (state.survival) {
       state.survival.wave = snap.wave;
@@ -539,7 +634,8 @@ function renderLobbyRoster(
   roomCode: string,
   players: LobbyPlayerInfo[],
   localId: string,
-  isHost: boolean
+  isHost: boolean,
+  mode?: MabarGameMode
 ): void {
   const fighters = players.filter((p) => p.role !== 'monitor');
   const me = players.find((p) => p.id === localId);
@@ -556,6 +652,8 @@ function renderLobbyRoster(
     btn.disabled = taken;
     btn.classList.toggle('taken', taken);
   });
+
+  const isBrawl = (mode || localPeer.gameMode) === 'brawl';
 
   if (roomCode && players.length > 0) {
     hostCodeWrap.classList.remove('hidden');
@@ -577,13 +675,27 @@ function renderLobbyRoster(
     btnStartMabar.textContent =
       isMonitorHost && fighters.length === 0
         ? 'MENUNGGU STICK HP GABUNG...'
-        : 'MULAI MABAR SURVIVAL ➔';
+        : isBrawl
+          ? 'GAS TAWURAN BRAWL! ➔'
+          : 'MULAI MABAR SURVIVAL ➔';
+
+    if (hostBotControls) {
+      hostBotControls.classList.toggle('hidden', !isHost || !isBrawl);
+    }
+    if (labelHostModeEl) {
+      labelHostModeEl.textContent = isBrawl
+        ? '👑 HOST TAWURAN SMASH BRAWL'
+        : isMonitorHost
+          ? '👑 HOST MONITOR (LAYAR UTAMA)'
+          : '👑 HOST CO-OP (LAYAR DEWE)';
+    }
   } else {
     hostCodeWrap.classList.add('hidden');
     btnStartMabar.classList.add('hidden');
+    if (hostBotControls) hostBotControls.classList.add('hidden');
   }
 
-  lobbyPlayerCountEl.textContent = `${fighters.length}/5`;
+  lobbyPlayerCountEl.textContent = `${fighters.length}/${isBrawl ? 6 : 5}`;
   if (players.length === 0) {
     lobbyRosterEl.innerHTML = '<div class="roster-empty">Belum ada room aktif.</div>';
     return;
@@ -597,8 +709,9 @@ function renderLobbyRoster(
         ? '#38bdf8'
         : PLAYER_PALETTES[p.paletteIndex % PLAYER_PALETTES.length].accent;
       const you = p.id === localId ? ' (KAMU)' : '';
-      const tag = isMon ? ' [MONITOR]' : isStk ? ' [STICK]' : ' [LAYAR]';
-      return `<div class="roster-chip"><span class="roster-dot" style="background:${dotColor}"></span>${p.name}${tag}${you}</div>`;
+      const hDef = getHeroDef(p.heroId);
+      const tag = p.isBot ? ' 🤖[BOT]' : isMon ? ' [MONITOR]' : isStk ? ' [STICK]' : ' [LAYAR]';
+      return `<div class="roster-chip"><span class="roster-dot" style="background:${dotColor}"></span>${hDef.avatar} ${p.name}${tag}${you}</div>`;
     })
     .join('');
 }
@@ -659,13 +772,14 @@ btnRoleStick?.addEventListener('click', () => {
 btnCreateRoom?.addEventListener('click', () => {
   audio.unlock();
   triggerAutoFullscreenIfEnabled();
-  localPeer.createRoom(selectedHostRole, playerName, selectedPalette);
+  localPeer.gameMode = selectedGameMode;
+  localPeer.createRoom(selectedHostRole, playerName, selectedPalette, selectedHeroId);
 });
 
 btnJoinRoom?.addEventListener('click', () => {
   audio.unlock();
   triggerAutoFullscreenIfEnabled();
-  localPeer.joinRoom(inputRoomCode.value, selectedJoinRole, playerName, selectedPalette);
+  localPeer.joinRoom(inputRoomCode.value, selectedJoinRole, playerName, selectedPalette, selectedHeroId);
 });
 
 inputRoomCode?.addEventListener('input', () => {
@@ -677,8 +791,66 @@ inputRoomCode?.addEventListener('keydown', (e) => {
     e.preventDefault();
     audio.unlock();
     triggerAutoFullscreenIfEnabled();
-    localPeer.joinRoom(inputRoomCode.value, selectedJoinRole, playerName, selectedPalette);
+    localPeer.joinRoom(inputRoomCode.value, selectedJoinRole, playerName, selectedPalette, selectedHeroId);
   }
+});
+
+function selectHero(heroId: HeroId): void {
+  selectedHeroId = heroId;
+  localStorage.setItem(HERO_STORAGE_KEY, heroId);
+
+  document.querySelectorAll('#lobby-hero-picker .hero-card').forEach((card) => {
+    card.classList.toggle('active', card.getAttribute('data-hero') === heroId);
+  });
+
+  const hDef = getHeroDef(heroId);
+  if (selectedHeroArchetypeEl) selectedHeroArchetypeEl.textContent = hDef.archetype;
+  if (heroSpecWeaponEl) heroSpecWeaponEl.textContent = hDef.weaponName;
+  if (heroSpecProjEl) heroSpecProjEl.textContent = hDef.projName;
+  if (heroSpecUltEl) heroSpecUltEl.textContent = hDef.ultName;
+
+  if (localPeer.connected) {
+    localPeer.sendPickHero(heroId);
+  }
+}
+
+document.querySelectorAll<HTMLButtonElement>('#lobby-hero-picker .hero-card').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    audio.unlock();
+    const hero = btn.dataset.hero as HeroId;
+    if (hero) selectHero(hero);
+  });
+});
+
+function setMabarGameType(mode: 'survival' | 'brawl'): void {
+  selectedGameMode = mode;
+  gametypeSurvivalBtn?.classList.toggle('active', mode === 'survival');
+  gametypeBrawlBtn?.classList.toggle('active', mode === 'brawl');
+
+  if (localPeer.connected) {
+    localPeer.sendSetGameMode(mode);
+  } else {
+    localPeer.gameMode = mode;
+    renderLobbyRoster(localPeer.roomCode, localPeer.lobbyPlayers, localPeer.localPlayerId, localPeer.isHost, mode);
+  }
+}
+
+gametypeSurvivalBtn?.addEventListener('click', () => {
+  audio.unlock();
+  setMabarGameType('survival');
+});
+gametypeBrawlBtn?.addEventListener('click', () => {
+  audio.unlock();
+  setMabarGameType('brawl');
+});
+
+btnAddBot?.addEventListener('click', () => {
+  audio.unlock();
+  localPeer.addBot();
+});
+btnRemBot?.addEventListener('click', () => {
+  audio.unlock();
+  localPeer.removeBot();
 });
 
 btnStartMabar?.addEventListener('click', () => {
@@ -1368,9 +1540,12 @@ function openLobby(): void {
   ultOverlay.classList.add('hidden');
   sandboxSkillsBar?.classList.add('hidden');
   resultOverlay.classList.add('hidden');
+  brawlVictoryOverlay?.classList.add('hidden');
   lobbyOverlay.classList.remove('hidden');
+  selectHero(selectedHeroId);
+  setMabarGameType(localPeer.connected ? localPeer.gameMode : selectedGameMode);
   setLocalPlayStyle(selectedHostRole);
-  renderLobbyRoster(localPeer.roomCode, localPeer.lobbyPlayers, localPeer.localPlayerId, localPeer.isHost);
+  renderLobbyRoster(localPeer.roomCode, localPeer.lobbyPlayers, localPeer.localPlayerId, localPeer.isHost, localPeer.gameMode);
 }
 
 btnCloseLobby?.addEventListener('click', () => {
@@ -1400,6 +1575,7 @@ function startStoryStage(stage: 1 | 2 | 3): void {
   sandboxSkillsBar?.classList.add('hidden');
   pauseOverlay.classList.add('hidden');
   resultOverlay.classList.add('hidden');
+  brawlVictoryOverlay?.classList.add('hidden');
   openStoryCutscene('intro');
   void requestScreenWakeLock();
 }
@@ -1428,6 +1604,71 @@ function startSoloSurvival(): void {
   pauseOverlay.classList.add('hidden');
   storyDialogueOverlay.classList.add('hidden');
   resultOverlay.classList.add('hidden');
+  brawlVictoryOverlay?.classList.add('hidden');
+  void requestScreenWakeLock();
+}
+
+function startSoloBrawl(): void {
+  audio.unlock();
+  triggerAutoFullscreenIfEnabled();
+  setStickMode(false);
+  localPeer.disconnect();
+
+  const heroKeys: HeroId[] = ['mat_clurit', 'bambang', 'gus_dimas', 'pak_rt', 'mbak_sri'];
+  const otherHeroes = heroKeys.filter((h) => h !== selectedHeroId).slice(0, 3);
+  if (otherHeroes.length < 3) otherHeroes.push('bima');
+
+  const roster: BrawlRosterMember[] = [
+    {
+      id: 'p1',
+      name: playerName || 'Cak Bima',
+      paletteIndex: selectedPalette,
+      heroId: selectedHeroId,
+      isBot: false,
+    },
+    {
+      id: 'p2',
+      name: `BOT ${getHeroDef(otherHeroes[0]).name.replace('Cak ', '').replace('Bang ', '')}`,
+      paletteIndex: (selectedPalette + 1) % 6,
+      heroId: otherHeroes[0],
+      isBot: true,
+    },
+    {
+      id: 'p3',
+      name: `BOT ${getHeroDef(otherHeroes[1]).name.replace('Cak ', '').replace('Bang ', '')}`,
+      paletteIndex: (selectedPalette + 2) % 6,
+      heroId: otherHeroes[1],
+      isBot: true,
+    },
+    {
+      id: 'p4',
+      name: `BOT ${getHeroDef(otherHeroes[2]).name.replace('Cak ', '').replace('Bang ', '')}`,
+      paletteIndex: (selectedPalette + 3) % 6,
+      heroId: otherHeroes[2],
+      isBot: true,
+    },
+  ];
+
+  state = createBrawlState(roster);
+  menuOpen = false;
+  lobbyOpen = false;
+  shopOpen = false;
+  buffModalOpen = false;
+  ultModalOpen = false;
+  pauseOpen = false;
+  storyDialogueOpen = false;
+  lastBuffSig = '';
+  resultShown = false;
+  menuOverlay.classList.add('hidden');
+  lobbyOverlay.classList.add('hidden');
+  shopOverlay.classList.add('hidden');
+  buffOverlay.classList.add('hidden');
+  ultOverlay.classList.add('hidden');
+  sandboxSkillsBar?.classList.add('hidden');
+  pauseOverlay.classList.add('hidden');
+  storyDialogueOverlay.classList.add('hidden');
+  resultOverlay.classList.add('hidden');
+  brawlVictoryOverlay?.classList.add('hidden');
   void requestScreenWakeLock();
 }
 
@@ -1495,6 +1736,7 @@ document.getElementById('btn-quick-survival')?.addEventListener('click', () => {
 });
 
 document.getElementById('btn-play-survival')!.addEventListener('click', () => startSoloSurvival());
+btnPlayBrawl?.addEventListener('click', () => startSoloBrawl());
 document.getElementById('btn-play-sandbox')!.addEventListener('click', () => startSandbox());
 
 document.getElementById('btn-unlock-all')!.addEventListener('click', () => {
@@ -1549,12 +1791,37 @@ btnRetryStage.addEventListener('click', () => {
     } else {
       startSoloSurvival();
     }
+  } else if (state.mode === 'brawl') {
+    if (localPeer.connected && localPeer.isHost) {
+      localPeer.sendStartGame();
+    } else {
+      startSoloBrawl();
+    }
   } else {
     startSandbox();
   }
 });
 
 btnBackMenu.addEventListener('click', () => openMenu());
+
+btnBrawlRematch?.addEventListener('click', () => {
+  brawlVictoryOverlay?.classList.add('hidden');
+  if (localPeer.connected && localPeer.isHost) {
+    localPeer.sendStartGame();
+  } else {
+    startSoloBrawl();
+  }
+});
+
+btnBrawlLobby?.addEventListener('click', () => {
+  brawlVictoryOverlay?.classList.add('hidden');
+  openLobby();
+});
+
+btnBrawlQuit?.addEventListener('click', () => {
+  brawlVictoryOverlay?.classList.add('hidden');
+  openMenu();
+});
 
 const touchHandle = bindTouchControls(
   input,
@@ -1764,6 +2031,11 @@ function showResultIfNeeded(): void {
 
   btnRetryStage.textContent = localPeer.connected && localPeer.isHost ? 'MAIN LAGI (HOST)' : 'MAIN LAGI';
 
+  if (state.mode === 'brawl') {
+    showBrawlVictoryModal();
+    return;
+  }
+
   if (state.mode === 'survival' && state.survival) {
     saveBestWave(state.survival.wave);
   }
@@ -1795,6 +2067,54 @@ function showResultIfNeeded(): void {
   }
 
   resultOverlay.classList.remove('hidden');
+}
+
+function showBrawlVictoryModal(): void {
+  const br = state.brawl;
+  if (!br) return;
+  haptic.victory();
+
+  const sorted = [...state.players].sort((a, b) => {
+    const sA = a.brawlStocks ?? 0;
+    const sB = b.brawlStocks ?? 0;
+    if (sB !== sA) return sB - sA;
+    return (b.brawlKos ?? 0) - (a.brawlKos ?? 0);
+  });
+
+  const winner = sorted[0];
+  const hero = getHeroDef(winner?.heroId);
+
+  if (brawlWinnerTitle) brawlWinnerTitle.textContent = `${winner?.name || 'AREK'} JUARA TAWURAN!`;
+  if (brawlWinnerAvatar) brawlWinnerAvatar.textContent = hero.avatar;
+  if (brawlWinnerName) brawlWinnerName.textContent = winner?.name || hero.name;
+  if (brawlWinnerAlias) brawlWinnerAlias.textContent = hero.alias;
+  if (brawlWinnerTagline) brawlWinnerTagline.textContent = `"${hero.tagline}"`;
+
+  if (brawlPodiumRoster) {
+    const medals = ['🥇 1ST', '🥈 2ND', '🥉 3RD', '4TH', '5TH', '6TH'];
+    brawlPodiumRoster.innerHTML = sorted
+      .map((p, idx) => {
+        const h = getHeroDef(p.heroId);
+        const pal = PLAYER_PALETTES[p.paletteIndex % PLAYER_PALETTES.length];
+        const stocks = p.brawlStocks ?? 0;
+        const kos = p.brawlKos ?? 0;
+        const rankClass = idx === 0 ? 'rank-1' : idx === 1 ? 'rank-2' : idx === 2 ? 'rank-3' : '';
+        return `<div class="brawl-podium-item ${rankClass}">
+          <div class="brawl-podium-player">
+            <span class="brawl-rank-badge">${medals[idx] || `${idx + 1}TH`}</span>
+            <span class="roster-dot" style="background:${pal.accent}"></span>
+            <span>${h.avatar} <b>${p.name}</b></span>
+          </div>
+          <div class="brawl-podium-stats">
+            <span>❤️ x ${stocks}</span>
+            <span>⚔️ ${kos} KO</span>
+          </div>
+        </div>`;
+      })
+      .join('');
+  }
+
+  brawlVictoryOverlay?.classList.remove('hidden');
 }
 
 // Adaptive 16:9 Canvas Fit
@@ -1935,21 +2255,25 @@ function frame(now: number): void {
           if (rem) allInputs[p.id] = rem;
         }
 
-        stepSurvival(state, allInputs, FIXED_DT);
+        if (state.mode === 'brawl') {
+          stepBrawl(state, allInputs, FIXED_DT);
+        } else {
+          stepSurvival(state, allInputs, FIXED_DT);
 
-        // Check Milestone Buffs & Jurus for players
-        for (const p of state.players) {
-          if (p.id === localPeer.localPlayerId) {
-            checkPendingBuffModal();
-            checkPendingUltModal();
-          } else {
-            if (p.pendingBuffChoices.length > 0) {
-              localPeer.promptClientSkill(p.id, 'buff', p.pendingBuffChoices);
-              p.pendingBuffChoices = [];
-            }
-            if (p.pendingUltChoice) {
-              localPeer.promptClientSkill(p.id, 'ult', ['gasing', 'petir', 'mercon', 'naga']);
-              p.pendingUltChoice = false;
+          // Check Milestone Buffs & Jurus for players
+          for (const p of state.players) {
+            if (p.id === localPeer.localPlayerId) {
+              checkPendingBuffModal();
+              checkPendingUltModal();
+            } else {
+              if (p.pendingBuffChoices.length > 0) {
+                localPeer.promptClientSkill(p.id, 'buff', p.pendingBuffChoices);
+                p.pendingBuffChoices = [];
+              }
+              if (p.pendingUltChoice) {
+                localPeer.promptClientSkill(p.id, 'ult', ['gasing', 'petir', 'mercon', 'naga']);
+                p.pendingUltChoice = false;
+              }
             }
           }
         }
@@ -1992,6 +2316,8 @@ function frame(now: number): void {
           stepSurvival(state, sampled, FIXED_DT);
           checkPendingBuffModal();
           checkPendingUltModal();
+        } else if (state.mode === 'brawl') {
+          stepBrawl(state, { p1: sampled }, FIXED_DT);
         } else {
           stepSandbox(state, sampled, FIXED_DT);
         }
