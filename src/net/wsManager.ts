@@ -931,7 +931,6 @@ export class WsManager {
 
     for (const rp of renderState.players) {
       const tp = this.serverPlayerTargets.get(rp.id);
-      if (!tp) continue;
 
       if (rp.id === this.localPlayerId && !rp.knockedDown) {
         const pal = PLAYER_PALETTES[rp.paletteIndex % PLAYER_PALETTES.length];
@@ -1035,18 +1034,20 @@ export class WsManager {
         );
 
         // Smooth reconciliation toward server position
-        const drift = Math.hypot(tp.x - rp.x, tp.y - rp.y);
-        if (drift > 90) {
-          rp.x = tp.x;
-          rp.y = tp.y;
-          rp.z = tp.z;
-        } else {
-          const recon = Math.min(1, dt * 8);
-          rp.x += (tp.x - rp.x) * recon;
-          rp.y += (tp.y - rp.y) * recon;
-          rp.z += (tp.z - rp.z) * recon;
+        if (tp) {
+          const drift = Math.hypot(tp.x - rp.x, tp.y - rp.y);
+          if (drift > 90) {
+            rp.x = tp.x;
+            rp.y = tp.y;
+            rp.z = tp.z;
+          } else {
+            const recon = Math.min(1, dt * 8);
+            rp.x += (tp.x - rp.x) * recon;
+            rp.y += (tp.y - rp.y) * recon;
+            rp.z += (tp.z - rp.z) * recon;
+          }
         }
-      } else {
+      } else if (tp) {
         rp.x += (tp.x - rp.x) * lerpAlpha;
         rp.y += (tp.y - rp.y) * lerpAlpha;
         rp.z += (tp.z - rp.z) * lerpAlpha;

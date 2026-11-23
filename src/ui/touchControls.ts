@@ -153,71 +153,127 @@ export function bindTouchControls(
       input.setAnalogMove(0, 0);
     };
 
-    joyZone.addEventListener('pointerdown', (e: PointerEvent) => {
-      e.preventDefault();
-      onTouchActive?.();
-      if (activePointerId !== null) return;
-      activePointerId = e.pointerId;
-      try {
-        joyZone.setPointerCapture(e.pointerId);
-      } catch {
-        // Safe: ignore if pointer cannot be captured
-      }
-      joyZone.classList.add('active');
-      haptic.stick();
-
+    const setupStickMetrics = () => {
       const rect = joyBase.getBoundingClientRect();
       centerX = rect.left + rect.width * 0.5;
       centerY = rect.top + rect.height * 0.5;
       maxRadius = Math.max(32, rect.width * 0.42);
-      updateStick(e.clientX, e.clientY);
+    };
+
+    const joyStart = (clientX: number, clientY: number, id: number) => {
+      onTouchActive?.();
+      if (activePointerId !== null && activePointerId !== id) return;
+      activePointerId = id;
+      joyZone.classList.add('active');
+      haptic.stick();
+      setupStickMetrics();
+      updateStick(clientX, clientY);
+    };
+
+    const joyMove = (clientX: number, clientY: number, id: number) => {
+      if (activePointerId !== id) return;
+      updateStick(clientX, clientY);
+    };
+
+    const joyEnd = (id: number) => {
+      if (activePointerId !== id) return;
+      resetStick();
+    };
+
+    // 1. Pointer Events (Desktop Mouse, Stylus & Pointer Devices)
+    joyZone.addEventListener('pointerdown', (e: PointerEvent) => {
+      e.preventDefault();
+      try {
+        joyZone.setPointerCapture(e.pointerId);
+      } catch {
+        // Safe ignore
+      }
+      joyStart(e.clientX, e.clientY, e.pointerId);
     });
 
     window.addEventListener(
       'pointermove',
       (e: PointerEvent) => {
-        if (e.pointerId !== activePointerId) return;
+        if (activePointerId === e.pointerId) {
+          joyMove(e.clientX, e.clientY, e.pointerId);
+        }
+      },
+      { passive: true }
+    );
+
+    const onPointerUp = (e: PointerEvent) => {
+      if (activePointerId === e.pointerId) {
+        try {
+          if (joyZone.hasPointerCapture(e.pointerId)) {
+            joyZone.releasePointerCapture(e.pointerId);
+          }
+        } catch {
+          // Safe ignore
+        }
+        joyEnd(e.pointerId);
+      }
+    };
+    window.addEventListener('pointerup', onPointerUp, { passive: true });
+    window.addEventListener('pointercancel', onPointerUp, { passive: true });
+    joyZone.addEventListener('lostpointercapture', () => resetStick());
+
+    // 2. Touch Events (Native Multi-Touch Guarantee on Mobile)
+    joyZone.addEventListener(
+      'touchstart',
+      (e: TouchEvent) => {
         e.preventDefault();
-        updateStick(e.clientX, e.clientY);
+        const t = e.changedTouches[0];
+        if (t) joyStart(t.clientX, t.clientY, t.identifier);
       },
       { passive: false }
     );
 
-    const handlePointerUp = (e: PointerEvent) => {
-      if (e.pointerId !== activePointerId) return;
-      e.preventDefault();
-      try {
-        if (joyZone.hasPointerCapture(e.pointerId)) {
-          joyZone.releasePointerCapture(e.pointerId);
+    window.addEventListener(
+      'touchmove',
+      (e: TouchEvent) => {
+        if (activePointerId === null) return;
+        for (let i = 0; i < e.touches.length; i++) {
+          const t = e.touches[i];
+          if (t.identifier === activePointerId) {
+            joyMove(t.clientX, t.clientY, t.identifier);
+            break;
+          }
         }
-      } catch {
-        // Ignore
-      }
-      resetStick();
-    };
+      },
+      { passive: true }
+    );
 
-    window.addEventListener('pointerup', handlePointerUp);
-    window.addEventListener('pointercancel', handlePointerUp);
+    const onTouchEnd = (e: TouchEvent) => {
+      if (activePointerId === null) return;
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        if (e.changedTouches[i].identifier === activePointerId) {
+          joyEnd(e.changedTouches[i].identifier);
+          break;
+        }
+      }
+    };
+    window.addEventListener('touchend', onTouchEnd, { passive: true });
+    window.addEventListener('touchcancel', onTouchEnd, { passive: true });
+
+    // Window lifecycle safety
+    window.addEventListener('blur', resetStick);
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) resetStick();
+    });
   }
 
-  // 2. Bind Right-Hand Action Buttons (independent multi-touch pointer tracking)
+  // 2. Bind Right-Hand Action Buttons (multi-touch safe, zero pointer capture collisions)
   const buttons = document.querySelectorAll<HTMLButtonElement>('.vbtn[data-action]');
   for (const btn of buttons) {
     const action = btn.dataset.action as VirtualAction;
-    let btnPointerId: number | null = null;
+    let isPressed = false;
 
-    const press = (e: PointerEvent) => {
-      e.preventDefault();
+    const startPress = () => {
+      if (isPressed) return;
+      isPressed = true;
       onTouchActive?.();
-      btnPointerId = e.pointerId;
-      try {
-        btn.setPointerCapture(e.pointerId);
-      } catch {
-        // Safe: ignore if pointer cannot be captured
-      }
       btn.classList.add('pressed');
 
-      // Authentic console-grade haptic impulse based on action
       switch (action) {
         case 'melee':
           haptic.attack();
@@ -244,31 +300,58 @@ export function bindTouchControls(
 
       if (action === 'shop') {
         onShopClick?.();
-        return;
+      } else {
+        input.setVirtualAction(action, true);
       }
-      input.setVirtualAction(action, true);
     };
 
-    const release = (e: PointerEvent) => {
-      if (btnPointerId === null || e.pointerId !== btnPointerId) return;
-      e.preventDefault();
-      try {
-        if (btn.hasPointerCapture(e.pointerId)) {
-          btn.releasePointerCapture(e.pointerId);
-        }
-      } catch {
-        // Ignore
-      }
-      btnPointerId = null;
+    const endPress = () => {
+      if (!isPressed) return;
+      isPressed = false;
       btn.classList.remove('pressed');
       if (action !== 'shop') {
         input.setVirtualAction(action, false);
       }
     };
 
-    btn.addEventListener('pointerdown', press);
-    window.addEventListener('pointerup', release);
-    window.addEventListener('pointercancel', release);
+    btn.addEventListener('pointerdown', (e: PointerEvent) => {
+      e.preventDefault();
+      startPress();
+    });
+
+    btn.addEventListener('pointerup', (e: PointerEvent) => {
+      e.preventDefault();
+      endPress();
+    });
+
+    btn.addEventListener('pointercancel', () => endPress());
+    btn.addEventListener('pointerleave', () => endPress());
+
+    btn.addEventListener(
+      'touchstart',
+      (e: TouchEvent) => {
+        e.preventDefault();
+        startPress();
+      },
+      { passive: false }
+    );
+
+    btn.addEventListener(
+      'touchend',
+      (e: TouchEvent) => {
+        e.preventDefault();
+        endPress();
+      },
+      { passive: false }
+    );
+
+    btn.addEventListener('touchcancel', () => endPress(), { passive: true });
+
+    window.addEventListener('pointerup', () => endPress());
+    window.addEventListener('blur', () => endPress());
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) endPress();
+    });
   }
 
   return {

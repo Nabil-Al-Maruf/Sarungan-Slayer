@@ -390,7 +390,9 @@ const wsMgr = new WsManager({
     lobbyOpen = false;
     shopOpen = false;
     buffModalOpen = false;
+    ultModalOpen = false;
     pauseOpen = false;
+    storyDialogueOpen = false;
     lastBuffSig = '';
     resultShown = false;
     menuOverlay.classList.add('hidden');
@@ -400,6 +402,7 @@ const wsMgr = new WsManager({
     ultOverlay.classList.add('hidden');
     sandboxSkillsBar?.classList.add('hidden');
     pauseOverlay.classList.add('hidden');
+    storyDialogueOverlay.classList.add('hidden');
     resultOverlay.classList.add('hidden');
 
     resetSkillAcks();
@@ -416,6 +419,11 @@ const wsMgr = new WsManager({
     resetSkillAcks();
     menuOpen = false;
     lobbyOpen = false;
+    shopOpen = false;
+    buffModalOpen = false;
+    ultModalOpen = false;
+    pauseOpen = false;
+    storyDialogueOpen = false;
     menuOverlay.classList.add('hidden');
     lobbyOverlay.classList.add('hidden');
     shopOverlay.classList.add('hidden');
@@ -423,6 +431,7 @@ const wsMgr = new WsManager({
     ultOverlay.classList.add('hidden');
     sandboxSkillsBar?.classList.add('hidden');
     pauseOverlay.classList.add('hidden');
+    storyDialogueOverlay.classList.add('hidden');
     resultOverlay.classList.add('hidden');
 
     setStickMode(wsMgr.isStickClient);
@@ -1487,6 +1496,8 @@ function startSoloSurvival(): void {
   shopOpen = false;
   buffModalOpen = false;
   ultModalOpen = false;
+  pauseOpen = false;
+  storyDialogueOpen = false;
   lastBuffSig = '';
   resultShown = false;
   menuOverlay.classList.add('hidden');
@@ -1495,7 +1506,10 @@ function startSoloSurvival(): void {
   buffOverlay.classList.add('hidden');
   ultOverlay.classList.add('hidden');
   sandboxSkillsBar?.classList.add('hidden');
+  pauseOverlay.classList.add('hidden');
+  storyDialogueOverlay.classList.add('hidden');
   resultOverlay.classList.add('hidden');
+  void requestScreenWakeLock();
 }
 
 function startSandbox(): void {
@@ -1513,6 +1527,8 @@ function startSandbox(): void {
   shopOpen = false;
   buffModalOpen = false;
   ultModalOpen = false;
+  pauseOpen = false;
+  storyDialogueOpen = false;
   resultShown = false;
   menuOverlay.classList.add('hidden');
   lobbyOverlay.classList.add('hidden');
@@ -1520,7 +1536,10 @@ function startSandbox(): void {
   buffOverlay.classList.add('hidden');
   ultOverlay.classList.add('hidden');
   sandboxSkillsBar?.classList.remove('hidden');
+  pauseOverlay.classList.add('hidden');
+  storyDialogueOverlay.classList.add('hidden');
   resultOverlay.classList.add('hidden');
+  void requestScreenWakeLock();
 }
 
 // Menu Buttons
@@ -2043,7 +2062,7 @@ function frame(now: number): void {
       if (wsMgr.connected && !wsMgr.isHost) {
         // Client: 0ms Local Action & Movement Prediction + Delta Input + 60 FPS Lerp
         const netInput =
-          shopOpen || buffModalOpen || pauseOpen || storyDialogueOpen
+          shopOpen || buffModalOpen || ultModalOpen || pauseOpen || storyDialogueOpen
             ? {
                 up: false,
                 down: false,
@@ -2068,7 +2087,7 @@ function frame(now: number): void {
         const allInputs: Record<string, PlayerInput> = {};
         if (!wsMgr.isMonitor) {
           allInputs[wsMgr.localPlayerId] =
-            shopOpen || buffModalOpen || pauseOpen || storyDialogueOpen
+            shopOpen || buffModalOpen || ultModalOpen || pauseOpen || storyDialogueOpen
               ? {
                   up: false,
                   down: false,
