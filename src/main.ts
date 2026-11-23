@@ -95,6 +95,9 @@ const menuSettingsView = document.getElementById('menu-settings-view') as HTMLDi
 const menuStoryView = document.getElementById('menu-story-view') as HTMLDivElement;
 const menuCreditsView = document.getElementById('menu-credits-view') as HTMLDivElement;
 const menuChangelogView = document.getElementById('menu-changelog-view') as HTMLDivElement;
+const menuTitleHero = document.getElementById('menu-title-hero') as HTMLDivElement | null;
+const menuSideDock = document.getElementById('menu-side-dock') as HTMLDivElement | null;
+const menuFooterCredit = document.getElementById('menu-footer-credit') as HTMLDivElement | null;
 
 const lobbyOverlay = document.getElementById('lobby-overlay') as HTMLDivElement;
 const shopOverlay = document.getElementById('shop-overlay') as HTMLDivElement;
@@ -123,6 +126,7 @@ const btnStorySkip = document.getElementById('btn-story-skip') as HTMLButtonElem
 const btnStoryNext = document.getElementById('btn-story-next') as HTMLButtonElement;
 
 const resultOverlay = document.getElementById('result-overlay') as HTMLDivElement;
+const resultCard = document.getElementById('result-card') as HTMLDivElement | null;
 const resultEyebrow = document.getElementById('result-eyebrow') as HTMLDivElement;
 const resultTitle = document.getElementById('result-title') as HTMLHeadingElement;
 const resultDesc = document.getElementById('result-desc') as HTMLParagraphElement;
@@ -827,6 +831,12 @@ function setMabarGameType(mode: 'survival' | 'brawl'): void {
   gametypeSurvivalBtn?.classList.toggle('active', mode === 'survival');
   gametypeBrawlBtn?.classList.toggle('active', mode === 'brawl');
 
+  const isBrawl = mode === 'brawl';
+  const heroSection = document.getElementById('lobby-hero-section');
+  const skinPicker = document.getElementById('lobby-skin-picker');
+  if (heroSection) heroSection.classList.toggle('hidden', !isBrawl);
+  if (skinPicker) skinPicker.classList.toggle('hidden', isBrawl);
+
   if (localPeer.connected) {
     localPeer.sendSetGameMode(mode);
   } else {
@@ -900,12 +910,13 @@ function refreshMenuProgress(): void {
 
     btn.disabled = !unlocked;
     statusEl.classList.toggle('cleared', cleared);
+    statusEl.classList.toggle('locked', !unlocked);
     statusEl.textContent = cleared ? 'SELESAI ✓' : unlocked ? 'TERBUKA' : 'TERKUNCI';
   });
 
   const bestWave = loadBestWave();
   if (menuBestWaveEl) {
-    menuBestWaveEl.textContent = bestWave > 0 ? `(REKOR: W${bestWave})` : '';
+    menuBestWaveEl.textContent = bestWave > 0 ? `REKOR: W${bestWave}` : 'SOLO WARKOP';
   }
 }
 
@@ -1197,6 +1208,12 @@ function toggleWarung(): void {
 }
 
 function showMenuView(view: 'home' | 'play' | 'settings' | 'story' | 'credits' | 'changelog'): void {
+  const isHome = view === 'home';
+  menuOverlay.classList.toggle('in-subview', !isHome);
+  if (menuTitleHero) menuTitleHero.classList.toggle('hidden', !isHome);
+  if (menuSideDock) menuSideDock.classList.toggle('hidden', !isHome);
+  if (menuFooterCredit) menuFooterCredit.classList.toggle('hidden', !isHome);
+
   menuHomeView.classList.toggle('hidden', view !== 'home');
   menuPlayView.classList.toggle('hidden', view !== 'play');
   menuSettingsView.classList.toggle('hidden', view !== 'settings');
@@ -1345,7 +1362,11 @@ document.addEventListener('fullscreenchange', () => {
 });
 
 function openPauseMenu(): void {
-  if (menuOpen || lobbyOpen || resultShown) return;
+  if (menuOpen || lobbyOpen || resultShown || buffModalOpen || ultModalOpen) return;
+  if (shopOpen) {
+    shopOpen = false;
+    shopOverlay.classList.add('hidden');
+  }
   pauseOpen = true;
   pauseEyebrow.textContent = localPeer.connected ? 'JEDA MABAR LOCAL' : 'PERMAINAN DIJEDA';
   pauseSub.textContent = localPeer.connected
@@ -1375,6 +1396,12 @@ btnPauseRestart.addEventListener('click', () => {
       localPeer.sendStartGame();
     } else {
       startSoloSurvival();
+    }
+  } else if (state.mode === 'brawl') {
+    if (localPeer.connected && localPeer.isHost) {
+      localPeer.sendStartGame();
+    } else {
+      startSoloBrawl();
     }
   } else {
     startSandbox();
@@ -1461,6 +1488,28 @@ window.addEventListener('keydown', (e) => {
       return;
     }
   }
+  if (e.key === 'Escape' && lobbyOpen) {
+    e.preventDefault();
+    openMenu();
+    return;
+  }
+  if (e.key === 'Escape' && menuOpen) {
+    if (!menuHomeView.classList.contains('hidden')) {
+      return; // Already on home view
+    }
+    e.preventDefault();
+    if (!menuStoryView.classList.contains('hidden')) {
+      showMenuView('play');
+    } else {
+      showMenuView('home');
+    }
+    return;
+  }
+  if (e.key === 'Escape' && (resultShown || (brawlVictoryOverlay && !brawlVictoryOverlay.classList.contains('hidden')))) {
+    e.preventDefault();
+    openMenu();
+    return;
+  }
   if (e.key === 'Escape' && !menuOpen && !lobbyOpen && !resultShown) {
     if (shopOpen) {
       shopOpen = false;
@@ -1498,6 +1547,20 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
+function closeAllModals(): void {
+  menuOverlay.classList.add('hidden');
+  lobbyOverlay.classList.add('hidden');
+  shopOverlay.classList.add('hidden');
+  buffOverlay.classList.add('hidden');
+  ultOverlay.classList.add('hidden');
+  pauseOverlay.classList.add('hidden');
+  storyDialogueOverlay.classList.add('hidden');
+  resultOverlay.classList.add('hidden');
+  brawlVictoryOverlay?.classList.add('hidden');
+  qrModalOverlay?.classList.add('hidden');
+  sandboxSkillsBar?.classList.add('hidden');
+}
+
 function openMenu(): void {
   setStickMode(false);
   releaseScreenWakeLock();
@@ -1515,14 +1578,7 @@ function openMenu(): void {
   resultShown = false;
   refreshMenuProgress();
   showMenuView('home');
-  lobbyOverlay.classList.add('hidden');
-  shopOverlay.classList.add('hidden');
-  buffOverlay.classList.add('hidden');
-  ultOverlay.classList.add('hidden');
-  sandboxSkillsBar?.classList.add('hidden');
-  pauseOverlay.classList.add('hidden');
-  storyDialogueOverlay.classList.add('hidden');
-  resultOverlay.classList.add('hidden');
+  closeAllModals();
   menuOverlay.classList.remove('hidden');
 }
 
@@ -1533,14 +1589,9 @@ function openLobby(): void {
   shopOpen = false;
   buffModalOpen = false;
   ultModalOpen = false;
+  pauseOpen = false;
   resultShown = false;
-  menuOverlay.classList.add('hidden');
-  shopOverlay.classList.add('hidden');
-  buffOverlay.classList.add('hidden');
-  ultOverlay.classList.add('hidden');
-  sandboxSkillsBar?.classList.add('hidden');
-  resultOverlay.classList.add('hidden');
-  brawlVictoryOverlay?.classList.add('hidden');
+  closeAllModals();
   lobbyOverlay.classList.remove('hidden');
   selectHero(selectedHeroId);
   setMabarGameType(localPeer.connected ? localPeer.gameMode : selectedGameMode);
@@ -1567,15 +1618,7 @@ function startStoryStage(stage: 1 | 2 | 3): void {
   storyBossShown = false;
   storyOutroDone = false;
   resultShown = false;
-  menuOverlay.classList.add('hidden');
-  lobbyOverlay.classList.add('hidden');
-  shopOverlay.classList.add('hidden');
-  buffOverlay.classList.add('hidden');
-  ultOverlay.classList.add('hidden');
-  sandboxSkillsBar?.classList.add('hidden');
-  pauseOverlay.classList.add('hidden');
-  resultOverlay.classList.add('hidden');
-  brawlVictoryOverlay?.classList.add('hidden');
+  closeAllModals();
   openStoryCutscene('intro');
   void requestScreenWakeLock();
 }
@@ -1595,16 +1638,7 @@ function startSoloSurvival(): void {
   storyDialogueOpen = false;
   lastBuffSig = '';
   resultShown = false;
-  menuOverlay.classList.add('hidden');
-  lobbyOverlay.classList.add('hidden');
-  shopOverlay.classList.add('hidden');
-  buffOverlay.classList.add('hidden');
-  ultOverlay.classList.add('hidden');
-  sandboxSkillsBar?.classList.add('hidden');
-  pauseOverlay.classList.add('hidden');
-  storyDialogueOverlay.classList.add('hidden');
-  resultOverlay.classList.add('hidden');
-  brawlVictoryOverlay?.classList.add('hidden');
+  closeAllModals();
   void requestScreenWakeLock();
 }
 
@@ -1659,16 +1693,7 @@ function startSoloBrawl(): void {
   storyDialogueOpen = false;
   lastBuffSig = '';
   resultShown = false;
-  menuOverlay.classList.add('hidden');
-  lobbyOverlay.classList.add('hidden');
-  shopOverlay.classList.add('hidden');
-  buffOverlay.classList.add('hidden');
-  ultOverlay.classList.add('hidden');
-  sandboxSkillsBar?.classList.add('hidden');
-  pauseOverlay.classList.add('hidden');
-  storyDialogueOverlay.classList.add('hidden');
-  resultOverlay.classList.add('hidden');
-  brawlVictoryOverlay?.classList.add('hidden');
+  closeAllModals();
   void requestScreenWakeLock();
 }
 
@@ -1690,15 +1715,8 @@ function startSandbox(): void {
   pauseOpen = false;
   storyDialogueOpen = false;
   resultShown = false;
-  menuOverlay.classList.add('hidden');
-  lobbyOverlay.classList.add('hidden');
-  shopOverlay.classList.add('hidden');
-  buffOverlay.classList.add('hidden');
-  ultOverlay.classList.add('hidden');
+  closeAllModals();
   sandboxSkillsBar?.classList.remove('hidden');
-  pauseOverlay.classList.add('hidden');
-  storyDialogueOverlay.classList.add('hidden');
-  resultOverlay.classList.add('hidden');
   void requestScreenWakeLock();
 }
 
@@ -1719,7 +1737,7 @@ document.getElementById('btn-open-changelog')!.addEventListener('click', () => {
   showMenuView('changelog');
 });
 
-document.getElementById('btn-back-home-story')!.addEventListener('click', () => showMenuView('home'));
+document.getElementById('btn-back-home-story')!.addEventListener('click', () => showMenuView('play'));
 document.getElementById('btn-back-home-credits')!.addEventListener('click', () => showMenuView('home'));
 document.getElementById('btn-back-home-changelog')!.addEventListener('click', () => showMenuView('home'));
 
@@ -1805,6 +1823,7 @@ btnRetryStage.addEventListener('click', () => {
 btnBackMenu.addEventListener('click', () => openMenu());
 
 btnBrawlRematch?.addEventListener('click', () => {
+  resultShown = false;
   brawlVictoryOverlay?.classList.add('hidden');
   if (localPeer.connected && localPeer.isHost) {
     localPeer.sendStartGame();
@@ -1814,11 +1833,13 @@ btnBrawlRematch?.addEventListener('click', () => {
 });
 
 btnBrawlLobby?.addEventListener('click', () => {
+  resultShown = false;
   brawlVictoryOverlay?.classList.add('hidden');
   openLobby();
 });
 
 btnBrawlQuit?.addEventListener('click', () => {
+  resultShown = false;
   brawlVictoryOverlay?.classList.add('hidden');
   openMenu();
 });
@@ -2066,6 +2087,12 @@ function showResultIfNeeded(): void {
     btnNextStage.classList.add('hidden');
   }
 
+  if (resultCard) {
+    const isVictory = state.status === 'victory';
+    resultCard.classList.toggle('is-victory', isVictory);
+    resultCard.classList.toggle('is-gameover', !isVictory);
+  }
+
   resultOverlay.classList.remove('hidden');
 }
 
@@ -2073,6 +2100,11 @@ function showBrawlVictoryModal(): void {
   const br = state.brawl;
   if (!br) return;
   haptic.victory();
+  resultShown = true;
+  pauseOpen = false;
+  pauseOverlay.classList.add('hidden');
+  resultOverlay.classList.add('hidden');
+  qrModalOverlay?.classList.add('hidden');
 
   const sorted = [...state.players].sort((a, b) => {
     const sA = a.brawlStocks ?? 0;

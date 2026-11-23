@@ -169,7 +169,7 @@
           <!-- Main Menu Content Wrapper -->
           <div class="menu-scenic-stage title-card-anim">
             <!-- Chunky Cartoon Title Logo -->
-            <div class="title-hero scenic-hero">
+            <div class="title-hero scenic-hero" id="menu-title-hero">
               <h1 class="game-logo-title scenic-logo">
                 <span class="logo-line-1"><span class="logo-accent-letter">A</span>REK SARUNGAN</span>
                 <span class="logo-line-2">SLAYER</span>
@@ -179,33 +179,38 @@
             <!-- View 1: Clean 4-Button Cartoon Home Menu -->
             <div id="menu-home-view" class="menu-view scenic-home-view">
               <div class="cartoon-pill-stack">
-                <button id="btn-open-play" class="cartoon-pill-btn anim-stagger-1">
+                <button id="btn-open-play" class="cartoon-pill-btn pill-btn-play anim-stagger-1">
                   <span class="pill-gloss"></span>
                   <span class="pill-label">PLAY</span>
                 </button>
-                <button id="btn-open-mabar-home" class="cartoon-pill-btn anim-stagger-2">
+                <button id="btn-open-mabar-home" class="cartoon-pill-btn pill-btn-mabar anim-stagger-2">
                   <span class="pill-gloss"></span>
                   <span class="pill-label">MABAR LOCAL</span>
                 </button>
-                <button id="btn-home-sandbox" class="cartoon-pill-btn anim-stagger-3">
+                <button id="btn-home-sandbox" class="cartoon-pill-btn pill-btn-dojo anim-stagger-3">
                   <span class="pill-gloss"></span>
                   <span class="pill-label">LATIHAN DOJO</span>
                 </button>
-                <button id="btn-open-settings" class="cartoon-pill-btn anim-stagger-4">
+                <button id="btn-open-settings" class="cartoon-pill-btn pill-btn-settings anim-stagger-4">
                   <span class="pill-gloss"></span>
                   <span class="pill-label">PENGATURAN</span>
                 </button>
               </div>
             </div>
 
-            <!-- View 1C: Settings / Pengaturan Menu -->
-            <div id="menu-settings-view" class="menu-view scenic-subpanel hidden">
-              <h2 class="subpanel-title">⚙️ PENGATURAN GAME</h2>
-              <div class="settings-list">
-                <div class="setting-row">
-                  <span class="setting-label">👤 Nama Arek</span>
+            <!-- View 1B: Play Mode Selector (Story / Survival / Brawl / Mabar / Sandbox) -->
+            <div id="menu-play-view" class="menu-view scenic-subpanel subpanel-play hidden">
+              <div class="subpanel-header">
+                <span class="subpanel-eyebrow eyebrow-gold">🎮 ARENA PERMAINAN</span>
+                <h2 class="subpanel-title-lg">PILIH MODE MAIN</h2>
+                <p class="subpanel-subtitle">Pilih petualangan solo, survival warkop, tawuran brawl, atau latihan</p>
+              </div>
+
+              <div class="subpanel-body">
+                <div class="profile-bar play-profile-bar">
+                  <label for="input-player-name" class="profile-label">👤 NAMA AREK:</label>
                   <input
-                    id="input-settings-name"
+                    id="input-player-name"
                     class="profile-name-input"
                     type="text"
                     maxlength="14"
@@ -213,180 +218,244 @@
                     autocomplete="off"
                   />
                 </div>
-                <div class="setting-row">
-                  <span class="setting-label">👕 Skin Default</span>
-                  <div id="settings-skin-picker" class="skin-picker-row">
-                    <button class="skin-swatch active" data-skin="0" style="--sw: #ef4444">BIMA</button>
-                    <button class="skin-swatch" data-skin="1" style="--sw: #2563eb">BAGUS</button>
-                    <button class="skin-swatch" data-skin="2" style="--sw: #eab308">DIMAS</button>
-                    <button class="skin-swatch" data-skin="3" style="--sw: #10b981">RAKA</button>
-                    <button class="skin-swatch" data-skin="4" style="--sw: #9333ea">YUDI</button>
-                    <button class="skin-swatch" data-skin="5" style="--sw: #ea580c">FAJAR</button>
-                  </div>
-                </div>
-                <div class="setting-row">
-                  <span class="setting-label">🔊 Efek Suara (SFX)</span>
-                  <button id="set-sfx-btn" class="setting-toggle active">NYALA</button>
-                </div>
-                <div class="setting-row">
-                  <span class="setting-label">🎵 Musik Latar (BGM)</span>
-                  <button id="set-bgm-btn" class="setting-toggle">MATI</button>
-                </div>
-                <div class="setting-row">
-                  <span class="setting-label">📳 Getaran Stick HP</span>
-                  <button id="set-haptic-btn" class="setting-toggle active">NYALA</button>
-                </div>
-                <div class="setting-row">
-                  <span class="setting-label">📱 Kualitas Grafis</span>
-                  <div class="setting-seg" id="set-gfx-group">
-                    <button class="seg-btn" data-gfx="low">RENDAH</button>
-                    <button class="seg-btn active" data-gfx="med">SEDANG</button>
-                    <button class="seg-btn" data-gfx="high">TINGGI</button>
-                  </div>
-                </div>
-                <div class="setting-row">
-                  <span class="setting-label">🎮 Tombol Layar Sentuh (HUD)</span>
-                  <div class="setting-seg" id="set-touch-group">
-                    <button class="seg-btn active" data-touch="auto">OTOMATIS</button>
-                    <button class="seg-btn" data-touch="on">SELALU TAMPIL</button>
-                    <button class="seg-btn" data-touch="off">SEMBUNYIKAN</button>
-                  </div>
-                </div>
-                <div class="setting-row">
-                  <span class="setting-label">⛶ Auto Fullscreen Saat Main</span>
-                  <button id="set-autofs-btn" class="setting-toggle active">NYALA</button>
+
+                <div class="title-menu-stack mode-select-stack">
+                  <button id="btn-open-story" class="title-cta-btn cta-story">
+                    <span class="cta-icon">⚔️</span>
+                    <span class="cta-text">
+                      <span class="cta-title-row">
+                        <strong>STORY MODE</strong>
+                        <span class="cta-tag tag-story">3 BABAK RPG</span>
+                      </span>
+                      <small>Petualangan 3 Babak • Tambak, Tunjungan &amp; Suramadu</small>
+                    </span>
+                    <span class="cta-arrow">➔</span>
+                  </button>
+
+                  <button id="btn-play-survival" class="title-cta-btn cta-survival">
+                    <span class="cta-icon">🛡️</span>
+                    <span class="cta-text">
+                      <span class="cta-title-row">
+                        <strong>SURVIVAL SOLO</strong>
+                        <span id="menu-best-wave" class="cta-tag tag-survival">SOLO WARKOP</span>
+                      </span>
+                      <small>Pertahankan Warkop Suroboyo dari Serbuan Zombie!</small>
+                    </span>
+                    <span class="cta-arrow">➔</span>
+                  </button>
+
+                  <button id="btn-play-brawl" class="title-cta-btn cta-brawl">
+                    <span class="cta-icon">🥊</span>
+                    <span class="cta-text">
+                      <span class="cta-title-row">
+                        <strong>TAWURAN SMASH BRAWL</strong>
+                        <span class="cta-tag tag-brawl">SOLO &amp; BOTS</span>
+                      </span>
+                      <small>Brawl Bebas Ring-Out 6 Arek • Pilihan Hero &amp; Bot AI!</small>
+                    </span>
+                    <span class="cta-arrow">➔</span>
+                  </button>
+
+                  <button id="btn-open-lobby" class="title-cta-btn cta-mabar">
+                    <span class="cta-icon">📶</span>
+                    <span class="cta-text">
+                      <span class="cta-title-row">
+                        <strong>MABAR 1 JARINGAN</strong>
+                        <span class="cta-tag tag-mabar">LOCAL MULTIPLAYER</span>
+                      </span>
+                      <small>Wi-Fi / Hotspot Sama • Mode Co-op atau HP Jadi Stick</small>
+                    </span>
+                    <span class="cta-arrow">➔</span>
+                  </button>
+
+                  <button id="btn-play-sandbox" class="title-cta-btn cta-dojo">
+                    <span class="cta-icon">🥋</span>
+                    <span class="cta-text">
+                      <span class="cta-title-row">
+                        <strong>DOJO LATIHAN</strong>
+                        <span class="cta-tag tag-dojo">SANDBOX</span>
+                      </span>
+                      <small>Praktek Jurus Sakti &amp; Eksplorasi Combo Bebas</small>
+                    </span>
+                    <span class="cta-arrow">➔</span>
+                  </button>
                 </div>
               </div>
+
               <div class="menu-footer-actions">
-                <button id="btn-back-home-settings" class="primary-btn">← SIMPAN &amp; KEMBALI</button>
+                <button id="btn-back-home-play" class="primary-btn back-btn">← KEMBALI KE MENU</button>
               </div>
             </div>
 
-            <!-- View 1B: Play Mode Selector (Story / Survival / Sandbox + Nickname) -->
-            <div id="menu-play-view" class="menu-view scenic-subpanel hidden">
-              <div class="profile-bar">
-                <label for="input-player-name" class="profile-label">NAMA AREK:</label>
-                <input
-                  id="input-player-name"
-                  class="profile-name-input"
-                  type="text"
-                  maxlength="14"
-                  placeholder="Cak Suroboyo"
-                  autocomplete="off"
-                />
+            <!-- View 1C: Settings / Pengaturan Menu -->
+            <div id="menu-settings-view" class="menu-view scenic-subpanel subpanel-settings hidden">
+              <div class="subpanel-header">
+                <span class="subpanel-eyebrow eyebrow-cyan">⚙️ KONFIGURASI SISTEM</span>
+                <h2 class="subpanel-title-lg">PENGATURAN GAME</h2>
+                <p class="subpanel-subtitle">Kustomisasi identitas arek, audio, getaran, dan kualitas grafis</p>
               </div>
 
-              <div class="title-menu-stack">
-                <button id="btn-open-story" class="title-cta-btn cta-story">
-                  <span class="cta-icon">⚔</span>
-                  <span class="cta-text">
-                    <strong>STORY MODE</strong>
-                    <small>Petualangan 3 Babak • Tambak, Tunjungan &amp; Suramadu</small>
-                  </span>
-                  <span class="cta-arrow">➔</span>
-                </button>
+              <div class="subpanel-body">
+                <div class="settings-group">
+                  <div class="settings-group-title">👤 IDENTITAS &amp; KARAKTER</div>
+                  <div class="setting-row">
+                    <span class="setting-label">Nama Arek</span>
+                    <input
+                      id="input-settings-name"
+                      class="profile-name-input"
+                      type="text"
+                      maxlength="14"
+                      placeholder="Cak Suroboyo"
+                      autocomplete="off"
+                    />
+                  </div>
+                  <div class="setting-row">
+                    <span class="setting-label">Skin Default</span>
+                    <div id="settings-skin-picker" class="skin-picker-row">
+                      <button class="skin-swatch active" data-skin="0" style="--sw: #ef4444">BIMA</button>
+                      <button class="skin-swatch" data-skin="1" style="--sw: #2563eb">BAGUS</button>
+                      <button class="skin-swatch" data-skin="2" style="--sw: #eab308">DIMAS</button>
+                      <button class="skin-swatch" data-skin="3" style="--sw: #10b981">RAKA</button>
+                      <button class="skin-swatch" data-skin="4" style="--sw: #9333ea">YUDI</button>
+                      <button class="skin-swatch" data-skin="5" style="--sw: #ea580c">FAJAR</button>
+                    </div>
+                  </div>
+                </div>
 
-                <button id="btn-play-survival" class="title-cta-btn cta-survival">
-                  <span class="cta-icon">🛡</span>
-                  <span class="cta-text">
-                    <strong>SURVIVAL SOLO <span id="menu-best-wave"></span></strong>
-                    <small>Pertahankan Warkop Suroboyo dari Serbuan Zombie!</small>
-                  </span>
-                  <span class="cta-arrow">➔</span>
-                </button>
+                <div class="settings-group">
+                  <div class="settings-group-title">🔊 AUDIO &amp; RESPON</div>
+                  <div class="setting-row">
+                    <span class="setting-label">Efek Suara (SFX)</span>
+                    <button id="set-sfx-btn" class="setting-toggle active">NYALA</button>
+                  </div>
+                  <div class="setting-row">
+                    <span class="setting-label">Musik Latar (BGM)</span>
+                    <button id="set-bgm-btn" class="setting-toggle">MATI</button>
+                  </div>
+                  <div class="setting-row">
+                    <span class="setting-label">Getaran Stick HP (Haptics)</span>
+                    <button id="set-haptic-btn" class="setting-toggle active">NYALA</button>
+                  </div>
+                </div>
 
-                <button id="btn-play-brawl" class="title-cta-btn cta-brawl">
-                  <span class="cta-icon">🥊</span>
-                  <span class="cta-text">
-                    <strong>TAWURAN SMASH BRAWL (SOLO / BOTS)</strong>
-                    <small>Brawl Bebas Ring-Out 6 Arek • Pilihan Hero &amp; Bot AI!</small>
-                  </span>
-                  <span class="cta-arrow">➔</span>
-                </button>
-
-                <button id="btn-open-lobby" class="title-cta-btn cta-mabar">
-                  <span class="cta-icon">📶</span>
-                  <span class="cta-text">
-                    <strong>MABAR 1 JARINGAN</strong>
-                    <small>Wi-Fi / Hotspot Sama • Mode Co-op atau HP Jadi Stick</small>
-                  </span>
-                  <span class="cta-arrow">➔</span>
-                </button>
-
-                <button id="btn-play-sandbox" class="title-cta-btn cta-mabar">
-                  <span class="cta-icon">🥋</span>
-                  <span class="cta-text">
-                    <strong>DOJO LATIHAN</strong>
-                    <small>Praktek Jurus Sakti &amp; Eksplorasi Combo Bebas</small>
-                  </span>
-                  <span class="cta-arrow">➔</span>
-                </button>
+                <div class="settings-group">
+                  <div class="settings-group-title">📱 TAMPILAN &amp; KONTROL</div>
+                  <div class="setting-row">
+                    <span class="setting-label">Kualitas Grafis</span>
+                    <div class="setting-seg" id="set-gfx-group">
+                      <button class="seg-btn" data-gfx="low">RENDAH</button>
+                      <button class="seg-btn active" data-gfx="med">SEDANG</button>
+                      <button class="seg-btn" data-gfx="high">TINGGI</button>
+                    </div>
+                  </div>
+                  <div class="setting-row">
+                    <span class="setting-label">Tombol Layar Sentuh (HUD)</span>
+                    <div class="setting-seg" id="set-touch-group">
+                      <button class="seg-btn active" data-touch="auto">OTOMATIS</button>
+                      <button class="seg-btn" data-touch="on">SELALU TAMPIL</button>
+                      <button class="seg-btn" data-touch="off">SEMBUNYIKAN</button>
+                    </div>
+                  </div>
+                  <div class="setting-row">
+                    <span class="setting-label">Auto Fullscreen Saat Main</span>
+                    <button id="set-autofs-btn" class="setting-toggle active">NYALA</button>
+                  </div>
+                </div>
               </div>
 
               <div class="menu-footer-actions">
-                <button id="btn-back-home-play" class="primary-btn">← KEMBALI</button>
+                <button id="btn-back-home-settings" class="primary-btn back-btn">← SIMPAN &amp; KEMBALI</button>
               </div>
             </div>
 
             <!-- View 2: Story Stage Select -->
-            <div id="menu-story-view" class="menu-view scenic-subpanel hidden">
-              <p class="modal-sub">Pilih Stage Petualangan Surabaya</p>
-              <div class="stage-grid">
-                <button class="stage-btn" data-stage="1" id="btn-stage-1">
-                  <span class="stage-tag">STAGE 1 • KISAH AWAL</span>
-                  <strong>Gang Tambak &amp; Kenjeran</strong>
-                  <small>Kendi kopi &amp; Sarung Pusaka dicuri! Kejar Cak Koordinator.</small>
-                  <span class="stage-status" id="status-stage-1">TERBUKA</span>
-                </button>
-                <button class="stage-btn" data-stage="2" id="btn-stage-2">
-                  <span class="stage-tag">STAGE 2 • JEJAK PUSAKA</span>
-                  <strong>Kawasan Jalan Tunjungan</strong>
-                  <small>Buka blokade gerobak &amp; hadapi Jagoan Tunjungan.</small>
-                  <span class="stage-status" id="status-stage-2">TERKUNCI</span>
-                </button>
-                <button class="stage-btn" data-stage="3" id="btn-stage-3">
-                  <span class="stage-tag">STAGE 3 • DUEL FINAL</span>
-                  <strong>Jembatan Suramadu (Malam)</strong>
-                  <small>Rebut kembali Sarung Pusaka dari Raja Sarung Baja!</small>
-                  <span class="stage-status" id="status-stage-3">TERKUNCI</span>
-                </button>
+            <div id="menu-story-view" class="menu-view scenic-subpanel subpanel-story hidden">
+              <div class="subpanel-header">
+                <span class="subpanel-eyebrow eyebrow-red">⚔️ MODE CERITA RPG</span>
+                <h2 class="subpanel-title-lg">PILIH STAGE SURABAYA</h2>
+                <p class="subpanel-subtitle">Selesaikan petualangan untuk merebut kembali Kendi Kopi &amp; Sarung Pusaka!</p>
               </div>
+
+              <div class="subpanel-body">
+                <div class="stage-grid">
+                  <button class="stage-btn" data-stage="1" id="btn-stage-1">
+                    <div class="stage-btn-header">
+                      <span class="stage-tag">BABAK 1</span>
+                      <span class="stage-status" id="status-stage-1">TERBUKA</span>
+                    </div>
+                    <strong>Gang Tambak &amp; Kenjeran</strong>
+                    <small>Kendi kopi &amp; Sarung Pusaka dicuri! Kejar Cak Koordinator.</small>
+                  </button>
+                  <button class="stage-btn" data-stage="2" id="btn-stage-2">
+                    <div class="stage-btn-header">
+                      <span class="stage-tag">BABAK 2</span>
+                      <span class="stage-status locked" id="status-stage-2">TERKUNCI</span>
+                    </div>
+                    <strong>Kawasan Jalan Tunjungan</strong>
+                    <small>Buka blokade gerobak &amp; hadapi Jagoan Tunjungan.</small>
+                  </button>
+                  <button class="stage-btn" data-stage="3" id="btn-stage-3">
+                    <div class="stage-btn-header">
+                      <span class="stage-tag">BABAK 3</span>
+                      <span class="stage-status locked" id="status-stage-3">TERKUNCI</span>
+                    </div>
+                    <strong>Jembatan Suramadu (Malam)</strong>
+                    <small>Rebut kembali Sarung Pusaka dari Raja Sarung Baja!</small>
+                  </button>
+                </div>
+              </div>
+
               <div class="menu-footer-actions">
-                <button id="btn-back-home-story" class="ghost-btn">← KEMBALI</button>
+                <button id="btn-back-home-story" class="ghost-btn back-btn">← KEMBALI</button>
                 <button id="btn-unlock-all" class="secondary-btn" title="Buka semua stage">
-                  BUKA SEMUA STAGE
+                  🔓 BUKA SEMUA STAGE
                 </button>
               </div>
             </div>
 
             <!-- View 3: Credits & Version -->
-            <div id="menu-credits-view" class="menu-view scenic-subpanel hidden">
-              <div class="credits-box">
-                <div class="credit-row">
-                  <span class="credit-role">CREATOR &amp; DEVELOPER</span>
-                  <strong>Nabil Al-Ma'ruf</strong>
-                </div>
-                <div class="credit-row">
-                  <span class="credit-role">TEMA &amp; KULTUR</span>
-                  <strong>Boso Suroboyoan • Tambak, Tunjungan, Suramadu</strong>
-                </div>
-                <div class="credit-row">
-                  <span class="credit-role">TEKNOLOGI</span>
-                  <strong>TypeScript • HTML5 Canvas 2D • PCM Audio • Node.js + Socket.IO</strong>
-                </div>
-                <div class="credit-row">
-                  <span class="credit-role">VERSI RILIS</span>
-                  <strong>v1.8.0 — Tawuran Smash Bros &amp; LAN Server Edition</strong>
+            <div id="menu-credits-view" class="menu-view scenic-subpanel subpanel-credits hidden">
+              <div class="subpanel-header">
+                <span class="subpanel-eyebrow eyebrow-purple">⭐ KREDIT &amp; APRESIASI</span>
+                <h2 class="subpanel-title-lg">TIM PENGEMBANG</h2>
+                <p class="subpanel-subtitle">Arek Sarungan Slayer — Game Tawuran Tradisional Suroboyo</p>
+              </div>
+
+              <div class="subpanel-body">
+                <div class="credits-box">
+                  <div class="credit-row">
+                    <span class="credit-role">CREATOR &amp; DEVELOPER</span>
+                    <strong>Nabil Al-Ma'ruf</strong>
+                  </div>
+                  <div class="credit-row">
+                    <span class="credit-role">TEMA &amp; KULTUR</span>
+                    <strong>Boso Suroboyoan • Tambak, Tunjungan, Suramadu</strong>
+                  </div>
+                  <div class="credit-row">
+                    <span class="credit-role">TEKNOLOGI</span>
+                    <strong>TypeScript • HTML5 Canvas 2D • PCM Audio • Node.js + Socket.IO</strong>
+                  </div>
+                  <div class="credit-row">
+                    <span class="credit-role">VERSI RILIS</span>
+                    <strong>v1.8.0 — Tawuran Smash Bros &amp; LAN Server Edition</strong>
+                  </div>
                 </div>
               </div>
+
               <div class="menu-footer-actions">
-                <button id="btn-back-home-credits" class="primary-btn">← KEMBALI KE MENU</button>
+                <button id="btn-back-home-credits" class="primary-btn back-btn">← KEMBALI KE MENU</button>
               </div>
             </div>
 
             <!-- View 4: Info Update / Changelog -->
-            <div id="menu-changelog-view" class="menu-view scenic-subpanel hidden">
-              <div class="changelog-box">
+            <div id="menu-changelog-view" class="menu-view scenic-subpanel subpanel-changelog hidden">
+              <div class="subpanel-header">
+                <span class="subpanel-eyebrow eyebrow-emerald">📰 WARKOP NEWS &amp; PATCH NOTES</span>
+                <h2 class="subpanel-title-lg">CATATAN RILIS &amp; UPDATE</h2>
+                <p class="subpanel-subtitle">Riwayat pembaruan fitur, hero brawl baru, dan optimasi performa</p>
+              </div>
+
+              <div class="subpanel-body">
                 <div class="changelog-entry">
                   <div class="changelog-head">
                     <span class="version-badge">v1.8.0</span>
@@ -496,19 +565,19 @@
                 </div>
               </div>
               <div class="menu-footer-actions">
-                <button id="btn-back-home-changelog" class="primary-btn">← KEMBALI KE MENU</button>
+                <button id="btn-back-home-changelog" class="primary-btn back-btn">← KEMBALI KE MENU</button>
               </div>
             </div>
 
-            <div class="title-bottom-credit scenic-footer-credit">
+            <div class="title-bottom-credit scenic-footer-credit" id="menu-footer-credit">
               <span>© 2026 Nabil Al-Ma'ruf • Arek Sarungan Slayer</span>
-              <span>v1.7.0</span>
+              <span>v1.8.0</span>
             </div>
           </div>
 
           <!-- Right-Side Translucent Cartoon Icon Dock (matches reference) -->
-          <div class="menu-side-dock" aria-label="Menu Cepat">
-            <button id="btn-open-changelog" class="dock-icon-btn dock-red" title="Info Update v1.7.0">
+          <div class="menu-side-dock" id="menu-side-dock" aria-label="Menu Cepat">
+            <button id="btn-open-changelog" class="dock-icon-btn dock-red" title="Info Update v1.8.0">
               <span class="dock-emoji">📰</span>
             </button>
             <button id="btn-quick-survival" class="dock-icon-btn dock-gold" title="Survival Solo & Rekor Wave">
@@ -919,7 +988,7 @@
 
         <!-- Victory / Game Over Overlay -->
         <div id="result-overlay" class="overlay-modal hidden">
-          <div class="modal-card result-card">
+          <div id="result-card" class="modal-card result-card">
             <div id="result-eyebrow" class="modal-eyebrow">STAGE CLEAR</div>
             <h2 id="result-title" class="modal-title">MANTAP REK!</h2>
             <p id="result-desc" class="modal-sub">Boss kampung sebelah berhasil ditumbangkan!</p>
