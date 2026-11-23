@@ -2,7 +2,7 @@ import './style.css';
 import { ProceduralAudio } from './audio/sfx';
 import { FIXED_DT, PLAYER_PALETTES, ULT_DEFS, VIRTUAL_HEIGHT, VIRTUAL_WIDTH } from './core/constants';
 import { InputManager } from './core/input';
-import type { BuffId, GameState, PlayerInput, UltType } from './core/types';
+import type { BuffId, GameState, UltType } from './core/types';
 import { createSandboxState, stepSandbox } from './modes/sandbox';
 import {
   createStoryState,
@@ -27,12 +27,6 @@ import {
   TOWER_UPGRADE_COST,
   type ShopItemId,
 } from './modes/survival';
-import {
-  WsManager,
-  type ConnectionMode,
-  type LobbyPlayer,
-  type LocalPlayStyle,
-} from './net/wsManager';
 import { renderGame } from './render/renderer';
 import {
   isAutoFullscreenEnabled,
@@ -42,12 +36,13 @@ import {
   triggerAutoFullscreenIfEnabled,
 } from './ui/fullscreen';
 import { HudController } from './ui/hud';
-import { buildInviteUrl, renderQrCodeToCanvas } from './ui/qrHelper';
 import { bindTouchControls, type TouchDisplayMode } from './ui/touchControls';
 import { haptic } from './ui/haptics';
 
 const NAME_STORAGE_KEY = 'arek_slayer_player_name_v1';
 const SKIN_STORAGE_KEY = 'arek_slayer_player_skin_v1';
+const GFX_STORAGE_KEY = 'arek_slayer_gfx_v1';
+const HAPTIC_STORAGE_KEY = 'arek_slayer_haptic_v1';
 
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 const stageWrap = document.getElementById('stage-wrap') as HTMLDivElement;
@@ -62,28 +57,11 @@ let playerName = (localStorage.getItem(NAME_STORAGE_KEY) || 'Cak Bima').slice(0,
 
 let state: GameState = createStoryState(1, selectedPalette, playerName);
 let menuOpen = true;
-let lobbyOpen = false;
 let shopOpen = false;
 let buffModalOpen = false;
 let ultModalOpen = false;
-let ultChoiceAwaitingAck = false;
-let buffChoiceAwaitingAck = false;
 let lastSkillPickTime = 0;
-let ultChoiceAckTimeout: number | null = null;
-let buffChoiceAckTimeout: number | null = null;
 
-function resetSkillAcks(): void {
-  ultChoiceAwaitingAck = false;
-  buffChoiceAwaitingAck = false;
-  if (ultChoiceAckTimeout) {
-    clearTimeout(ultChoiceAckTimeout);
-    ultChoiceAckTimeout = null;
-  }
-  if (buffChoiceAckTimeout) {
-    clearTimeout(buffChoiceAckTimeout);
-    buffChoiceAckTimeout = null;
-  }
-}
 let pauseOpen = false;
 let storyDialogueOpen = false;
 let storyQueue: StoryLine[] = [];
@@ -92,7 +70,6 @@ let storyBossShown = false;
 let storyOutroDone = false;
 let resultShown = false;
 let lastBuffSig = '';
-let snapshotAccum = 0;
 
 // Overlay DOM references
 const menuOverlay = document.getElementById('menu-overlay') as HTMLDivElement;
@@ -102,7 +79,7 @@ const menuSettingsView = document.getElementById('menu-settings-view') as HTMLDi
 const menuStoryView = document.getElementById('menu-story-view') as HTMLDivElement;
 const menuCreditsView = document.getElementById('menu-credits-view') as HTMLDivElement;
 const menuChangelogView = document.getElementById('menu-changelog-view') as HTMLDivElement;
-const lobbyOverlay = document.getElementById('lobby-overlay') as HTMLDivElement;
+
 const shopOverlay = document.getElementById('shop-overlay') as HTMLDivElement;
 const buffOverlay = document.getElementById('buff-overlay') as HTMLDivElement;
 const buffChoicesGrid = document.getElementById('buff-choices-grid') as HTMLDivElement;
@@ -116,6 +93,7 @@ const btnPauseToggleTouch = document.getElementById('btn-pause-toggle-touch') as
 const pauseTouchStateText = document.getElementById('pause-touch-state-text') as HTMLSpanElement | null;
 const btnPauseRestart = document.getElementById('btn-pause-restart') as HTMLButtonElement;
 const btnPauseQuit = document.getElementById('btn-pause-quit') as HTMLButtonElement;
+
 const storyDialogueOverlay = document.getElementById('story-dialogue-overlay') as HTMLDivElement;
 const storyDialogueBox = document.getElementById('story-dialogue-box') as HTMLDivElement;
 const storyMissionBanner = document.getElementById('story-mission-banner') as HTMLDivElement;
@@ -126,6 +104,7 @@ const storyProgress = document.getElementById('story-progress') as HTMLSpanEleme
 const storyText = document.getElementById('story-text') as HTMLParagraphElement;
 const btnStorySkip = document.getElementById('btn-story-skip') as HTMLButtonElement;
 const btnStoryNext = document.getElementById('btn-story-next') as HTMLButtonElement;
+
 const resultOverlay = document.getElementById('result-overlay') as HTMLDivElement;
 const resultEyebrow = document.getElementById('result-eyebrow') as HTMLDivElement;
 const resultTitle = document.getElementById('result-title') as HTMLHeadingElement;
@@ -135,68 +114,14 @@ const btnRetryStage = document.getElementById('btn-retry-stage') as HTMLButtonEl
 const btnBackMenu = document.getElementById('btn-back-menu') as HTMLButtonElement;
 const menuBestWaveEl = document.getElementById('menu-best-wave') as HTMLSpanElement;
 
-// Profile & Lobby DOM references
-const inputPlayerName = document.getElementById('input-player-name') as HTMLInputElement;
-const inputLobbyName = document.getElementById('input-lobby-name') as HTMLInputElement;
-const tabConnOnline = document.getElementById('tab-conn-online') as HTMLButtonElement;
-const tabConnHotspot = document.getElementById('tab-conn-hotspot') as HTMLButtonElement;
-const hotspotGuideEl = document.getElementById('hotspot-guide') as HTMLDivElement;
-const inputHotspotIp = document.getElementById('input-hotspot-ip') as HTMLInputElement;
-const labelHostModeEl = document.getElementById('label-host-mode') as HTMLSpanElement;
-const btnCreateRoom = document.getElementById('btn-create-room') as HTMLButtonElement;
-const lobbyStatusEl = document.getElementById('lobby-status') as HTMLParagraphElement;
-const hostCodeWrap = document.getElementById('host-code-wrap') as HTMLDivElement;
-const lobbyRoomCodeEl = document.getElementById('lobby-room-code') as HTMLDivElement;
-const inputRoomCode = document.getElementById('input-room-code') as HTMLInputElement;
-const lobbyRosterEl = document.getElementById('lobby-roster') as HTMLDivElement;
-const lobbyPlayerCountEl = document.getElementById('lobby-player-count') as HTMLSpanElement;
-const btnStartMabar = document.getElementById('btn-start-mabar') as HTMLButtonElement;
-const appShellEl = document.querySelector('.app-shell') as HTMLDivElement;
-const localStyleNormalBtn = document.getElementById('local-style-normal') as HTMLButtonElement;
-const localStyleMonitorBtn = document.getElementById('local-style-monitor') as HTMLButtonElement;
-const hotspotGuideTitle = document.getElementById('hotspot-guide-title') as HTMLElement;
-const hotspotGuideStep1 = document.getElementById('hotspot-guide-step1') as HTMLElement;
-const hotspotGuideStep2 = document.getElementById('hotspot-guide-step2') as HTMLElement;
-const hotspotGuideStep3 = document.getElementById('hotspot-guide-step3') as HTMLElement;
-
-// Stick HP Controller HUD references
-const stickHudBar = document.getElementById('stick-hud-bar') as HTMLDivElement;
-const stickPlayerBadge = document.getElementById('stick-player-badge') as HTMLSpanElement;
-const stickPlayerName = document.getElementById('stick-player-name') as HTMLElement;
-const stickWavePill = document.getElementById('stick-wave-pill') as HTMLSpanElement;
-const stickHpFill = document.getElementById('stick-hp-fill') as HTMLDivElement;
-const stickHpText = document.getElementById('stick-hp-text') as HTMLSpanElement;
-const stickUltText = document.getElementById('stick-ult-text') as HTMLSpanElement;
-const stickCoinsText = document.getElementById('stick-coins-text') as HTMLSpanElement;
-const stickPingPill = document.getElementById('stick-ping-pill') as HTMLSpanElement;
-const vbtnStickShop = document.getElementById('vbtn-stick-shop') as HTMLButtonElement;
-const stickToastEl = document.getElementById('stick-toast') as HTMLDivElement;
-const btnStickExit = document.getElementById('btn-stick-exit') as HTMLButtonElement;
-let stickToastTimer: number | null = null;
-
-function showStickToast(msg: string): void {
-  stickToastEl.textContent = msg;
-  stickToastEl.classList.remove('hidden');
-  if (stickToastTimer !== null) window.clearTimeout(stickToastTimer);
-  stickToastTimer = window.setTimeout(() => {
-    stickToastEl.classList.add('hidden');
-    stickToastTimer = null;
-  }, 2200);
-}
-
-// QR Code & Fullscreen Elements
-const qrCodeCanvas = document.getElementById('qr-code-canvas') as HTMLCanvasElement;
-const btnEnlargeQr = document.getElementById('btn-enlarge-qr') as HTMLDivElement;
-const btnOpenBigQr = document.getElementById('btn-open-big-qr') as HTMLButtonElement;
-const qrModalOverlay = document.getElementById('qr-modal-overlay') as HTMLDivElement;
-const qrModalTitle = document.getElementById('qr-modal-title') as HTMLHeadingElement;
-const qrModalCanvas = document.getElementById('qr-modal-canvas') as HTMLCanvasElement;
-const qrModalCodeVal = document.getElementById('qr-modal-code-val') as HTMLElement;
-const btnCloseQrModal = document.getElementById('btn-close-qr-modal') as HTMLButtonElement;
-
-const btnFullscreenToggle = document.getElementById('btn-fullscreen-toggle') as HTMLButtonElement;
-const btnLobbyFullscreen = document.getElementById('btn-lobby-fullscreen') as HTMLButtonElement;
-const setAutoFsBtn = document.getElementById('set-autofs-btn') as HTMLButtonElement;
+// Profile & Settings DOM references
+const inputPlayerName = document.getElementById('input-player-name') as HTMLInputElement | null;
+const inputSettingsName = document.getElementById('input-settings-name') as HTMLInputElement | null;
+const setSfxBtn = document.getElementById('set-sfx-btn') as HTMLButtonElement;
+const setBgmBtn = document.getElementById('set-bgm-btn') as HTMLButtonElement;
+const setHapticBtn = document.getElementById('set-haptic-btn') as HTMLButtonElement;
+const setAutoFsBtn = document.getElementById('set-autofs-btn') as HTMLButtonElement | null;
+const btnFullscreenToggle = document.getElementById('btn-fullscreen-toggle') as HTMLButtonElement | null;
 
 // Shop DOM references
 const shopCoinsEl = document.getElementById('shop-coins') as HTMLElement;
@@ -204,51 +129,48 @@ const shopTicketsEl = document.getElementById('shop-tickets') as HTMLElement;
 const shopFeedbackEl = document.getElementById('shop-feedback') as HTMLDivElement;
 const btnSkipIntermission = document.getElementById('btn-skip-intermission') as HTMLButtonElement;
 
-inputPlayerName.value = playerName;
-inputLobbyName.value = playerName;
+// HUD Quick Buttons
+const btnWarungHud = document.getElementById('btn-warung-hud') as HTMLButtonElement;
+const btnMenu = document.getElementById('btn-menu') as HTMLButtonElement;
+const btnPalette = document.getElementById('btn-palette') as HTMLButtonElement | null;
+const btnTouch = document.getElementById('btn-touch-toggle') as HTMLButtonElement | null;
+const btnSfx = document.getElementById('btn-sfx') as HTMLButtonElement | null;
+const btnBgm = document.getElementById('btn-bgm') as HTMLButtonElement | null;
+const btnForceLandscape = document.getElementById('btn-force-landscape') as HTMLButtonElement | null;
+
+if (inputPlayerName) inputPlayerName.value = playerName;
+if (inputSettingsName) inputSettingsName.value = playerName;
+
+function getLocalPlayer() {
+  return state.players[0];
+}
 
 function syncPlayerName(newName: string): void {
-  const cleaned = newName.trim().slice(0, 14) || 'Arek SBY';
+  const cleaned = newName.trim().slice(0, 14) || 'Cak SBY';
   playerName = cleaned;
   try {
     localStorage.setItem(NAME_STORAGE_KEY, cleaned);
   } catch {
-    // Ignore storage error
+    // Ignore storage errors
   }
-  if (inputPlayerName.value !== newName) inputPlayerName.value = newName;
-  if (inputLobbyName.value !== newName) inputLobbyName.value = newName;
+  if (inputPlayerName && inputPlayerName.value !== newName) inputPlayerName.value = newName;
+  if (inputSettingsName && inputSettingsName.value !== newName) inputSettingsName.value = newName;
 
   const p = getLocalPlayer();
   if (p) p.name = cleaned;
-
-  if (wsMgr.connected) {
-    wsMgr.sendSetProfile(cleaned, selectedPalette);
-  }
 }
 
-function syncSelectedSkin(skinIdx: number, sendProfile = true): void {
-  const nextIdx = Math.abs(Math.floor(skinIdx)) % PLAYER_PALETTES.length;
-  if (
-    wsMgr.connected &&
-    wsMgr.lobbyPlayers.some(
-      (pl) => pl.id !== wsMgr.localPlayerId && pl.role !== 'monitor' && pl.paletteIndex === nextIdx
-    )
-  ) {
-    lobbyStatusEl.textContent = 'Skin itu sudah dipakai pemain lain! Pilih skin yang berbeda.';
-    lobbyStatusEl.style.color = '#f87171';
-    return;
-  }
-
-  selectedPalette = nextIdx;
+function syncSelectedSkin(skinIdx: number): void {
+  selectedPalette = Math.abs(Math.floor(skinIdx)) % PLAYER_PALETTES.length;
   try {
     localStorage.setItem(SKIN_STORAGE_KEY, String(selectedPalette));
   } catch {
-    // Ignore storage error
+    // Ignore storage errors
   }
   const pal = PLAYER_PALETTES[selectedPalette];
   if (btnPalette) btnPalette.textContent = pal.label;
 
-  document.querySelectorAll<HTMLButtonElement>('#lobby-skin-picker .skin-swatch, #settings-skin-picker .skin-swatch').forEach((btn) => {
+  document.querySelectorAll<HTMLButtonElement>('#settings-skin-picker .skin-swatch').forEach((btn) => {
     btn.classList.toggle('active', Number(btn.dataset.skin) === selectedPalette);
   });
 
@@ -256,21 +178,10 @@ function syncSelectedSkin(skinIdx: number, sendProfile = true): void {
   if (p) {
     p.paletteIndex = selectedPalette;
   }
-
-  if (sendProfile && wsMgr.connected) {
-    wsMgr.sendSetProfile(playerName, selectedPalette);
-  }
 }
 
-inputPlayerName.addEventListener('input', () => syncPlayerName(inputPlayerName.value));
-inputLobbyName.addEventListener('input', () => syncPlayerName(inputLobbyName.value));
-
-document.querySelectorAll<HTMLButtonElement>('#lobby-skin-picker .skin-swatch').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    audio.unlock();
-    syncSelectedSkin(Number(btn.dataset.skin));
-  });
-});
+inputPlayerName?.addEventListener('input', () => syncPlayerName(inputPlayerName.value));
+inputSettingsName?.addEventListener('input', () => syncPlayerName(inputSettingsName.value));
 
 let wakeLockSentinel: {
   release: () => Promise<void>;
@@ -306,416 +217,23 @@ function releaseScreenWakeLock(): void {
 }
 
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && wsMgr.connected) {
+  if (document.visibilityState === 'visible' && !menuOpen) {
     void requestScreenWakeLock();
   }
 });
 
-// Periodic background check to guarantee screen never turns off on mobile
 window.setInterval(() => {
-  if (document.visibilityState === 'visible' && (wsMgr.connected || wsMgr.isStickClient)) {
+  if (document.visibilityState === 'visible' && !menuOpen) {
     void requestScreenWakeLock();
   }
 }, 20000);
 
-function setStickMode(active: boolean): void {
-  appShellEl.classList.toggle('stick-controller-mode', active);
-  stickHudBar.classList.toggle('hidden', !active);
-  if (active) {
-    void requestScreenWakeLock();
-  }
-}
-
-function updateStickHud(): void {
-  if (!wsMgr.isStickClient) return;
-  const p = getLocalPlayer();
-  const surv = state.survival;
-  if (p) {
-    const pal = PLAYER_PALETTES[p.paletteIndex % PLAYER_PALETTES.length];
-    stickPlayerBadge.textContent = p.id.toUpperCase();
-    stickPlayerBadge.style.background = pal.accent;
-    stickPlayerName.textContent = p.name.toUpperCase();
-    const hpPct = Math.max(0, Math.min(100, (p.hp / Math.max(1, p.maxHp)) * 100));
-    stickHpFill.style.width = `${hpPct}%`;
-    stickHpText.textContent = `${Math.ceil(p.hp)}/${p.maxHp}`;
-    stickUltText.textContent = `ULT ${Math.floor(p.ult)}%`;
-    stickCoinsText.textContent = `🪙 ${p.coins}`;
-    vbtnStickShop.classList.toggle('shop-ready', canOpenWarung(state, p));
-  }
-  if (surv) {
-    stickWavePill.textContent = surv.phase === 'intermission' ? `W${surv.wave} ⏱${Math.ceil(surv.intermissionTimer)}s` : `W${surv.wave}`;
-  }
-  stickPingPill.textContent = wsMgr.pingMs > 0 ? `${wsMgr.pingMs}ms ${wsMgr.transportMode}` : wsMgr.transportMode;
-}
-
-// ===== HYBRID WEBRTC UDP P2P + CLOUDFLARE WSS FALLBACK MANAGER =====
-const wsMgr = new WsManager({
-  onStatus(text, isError) {
-    lobbyStatusEl.textContent = text;
-    lobbyStatusEl.style.color = isError ? '#f87171' : '#94a3b8';
-  },
-  onLobbyUpdate(roomCode, players, localId, isHost) {
-    renderLobbyRoster(roomCode, players, localId, isHost);
-  },
-  onGameStart() {
-    audio.unlock();
-    // CRITICAL GUARD: If match is ALREADY playing, NEVER destroy active match and reset to Wave 1!
-    if (state && state.mode === 'survival' && state.status === 'playing' && !lobbyOpen && !menuOpen) {
-      console.warn('[onGameStart] Match already in progress, ignoring duplicate reset to Wave 1');
-      return;
-    }
-    const usedPalettes = new Set<number>();
-    const roster = wsMgr.lobbyPlayers
-      .filter((p) => p.role !== 'monitor')
-      .map((p) => {
-        let pal = Math.abs(Math.floor(p.paletteIndex)) % PLAYER_PALETTES.length;
-        if (usedPalettes.has(pal)) {
-          for (let i = 0; i < PLAYER_PALETTES.length; i++) {
-            if (!usedPalettes.has(i)) {
-              pal = i;
-              break;
-            }
-          }
-        }
-        usedPalettes.add(pal);
-        return {
-          id: p.id,
-          paletteIndex: pal,
-          name: p.customName,
-        };
-      });
-    state = createSurvivalState(selectedPalette, roster, playerName);
-    snapshotAccum = 0;
-    menuOpen = false;
-    lobbyOpen = false;
-    shopOpen = false;
-    buffModalOpen = false;
-    ultModalOpen = false;
-    pauseOpen = false;
-    storyDialogueOpen = false;
-    lastBuffSig = '';
-    resultShown = false;
-    menuOverlay.classList.add('hidden');
-    lobbyOverlay.classList.add('hidden');
-    shopOverlay.classList.add('hidden');
-    buffOverlay.classList.add('hidden');
-    ultOverlay.classList.add('hidden');
-    sandboxSkillsBar?.classList.add('hidden');
-    pauseOverlay.classList.add('hidden');
-    storyDialogueOverlay.classList.add('hidden');
-    resultOverlay.classList.add('hidden');
-
-    resetSkillAcks();
-    setStickMode(wsMgr.isStickClient);
-    updateStickHud();
-    void requestScreenWakeLock();
-
-    if (wsMgr.isHost) {
-      wsMgr.broadcastCompactSnapshot(state, []);
-    }
-  },
-  onMatchResume() {
-    audio.unlock();
-    resetSkillAcks();
-    menuOpen = false;
-    lobbyOpen = false;
-    shopOpen = false;
-    buffModalOpen = false;
-    ultModalOpen = false;
-    pauseOpen = false;
-    storyDialogueOpen = false;
-    menuOverlay.classList.add('hidden');
-    lobbyOverlay.classList.add('hidden');
-    shopOverlay.classList.add('hidden');
-    buffOverlay.classList.add('hidden');
-    ultOverlay.classList.add('hidden');
-    sandboxSkillsBar?.classList.add('hidden');
-    pauseOverlay.classList.add('hidden');
-    storyDialogueOverlay.classList.add('hidden');
-    resultOverlay.classList.add('hidden');
-
-    setStickMode(wsMgr.isStickClient);
-    updateStickHud();
-    void requestScreenWakeLock();
-  },
-  onCompactSnapshot(snap) {
-    wsMgr.mergeSnapshot(state, snap);
-    const local = getLocalPlayer();
-    if (local) {
-      if (ultChoiceAwaitingAck) {
-        const myRow = snap.pl.find((r) => r[0] === local.id);
-        if (myRow && (myRow[21] === 0 || myRow[21] === undefined)) {
-          ultChoiceAwaitingAck = false;
-          if (ultChoiceAckTimeout) {
-            clearTimeout(ultChoiceAckTimeout);
-            ultChoiceAckTimeout = null;
-          }
-        } else {
-          local.pendingUltChoice = false;
-        }
-      }
-      if (buffChoiceAwaitingAck) {
-        const myRow = snap.pl.find((r) => r[0] === local.id);
-        const hasBuffs =
-          (myRow && myRow[17] && myRow[17].length > 0) ||
-          (snap.pb && snap.pb[local.id] && snap.pb[local.id].length > 0);
-        if (!hasBuffs) {
-          buffChoiceAwaitingAck = false;
-          if (buffChoiceAckTimeout) {
-            clearTimeout(buffChoiceAckTimeout);
-            buffChoiceAckTimeout = null;
-          }
-        } else {
-          local.pendingBuffChoices = [];
-        }
-      }
-    }
-    if (snap.snd.length > 0 && !wsMgr.isStickClient) {
-      audio.playQueue(snap.snd);
-    }
-    if (wsMgr.isStickClient) {
-      updateStickHud();
-    }
-    if (shopOpen) {
-      refreshShopUI();
-    }
-    checkPendingBuffModal();
-    checkPendingUltModal();
-    showResultIfNeeded();
-  },
-  onRemoteBuy(playerId, itemId) {
-    const p = state.players.find((pl) => pl.id === playerId);
-    if (!p) return { ok: false, message: 'Pemain tidak ditemukan' };
-    const res = buyShopItem(state, p, itemId);
-    if (itemId.startsWith('ult_')) {
-      p.pendingUltChoice = false;
-      p.ult = p.maxUlt;
-    }
-    wsMgr.broadcastCompactSnapshot(state, state.soundQueue);
-    state.soundQueue.length = 0;
-    return res;
-  },
-  onRemoteBuff(playerId, buffId) {
-    const p = state.players.find((pl) => pl.id === playerId);
-    if (!p) return;
-    applyPlayerBuff(state, p, buffId);
-    wsMgr.broadcastCompactSnapshot(state, state.soundQueue);
-    state.soundQueue.length = 0;
-  },
-  onRemoteSkip() {
-    skipIntermission(state);
-    wsMgr.broadcastCompactSnapshot(state, []);
-  },
-  onShopResult(ok, message) {
-    shopFeedbackEl.textContent = message;
-    shopFeedbackEl.style.color = ok ? '#4ade80' : '#f87171';
-    refreshShopUI();
-  },
-  onPeerLeft(peerId) {
-    const idx = state.players.findIndex((p) => p.id === peerId);
-    if (idx !== -1) {
-      const leftPlayer = state.players[idx];
-      state.players.splice(idx, 1);
-      state.soundQueue.push('player_hurt');
-      state.floatingTexts.push({
-        x: leftPlayer.x,
-        y: leftPlayer.y - 45,
-        vy: -40,
-        text: `${leftPlayer.name} KELUAR!`,
-        color: '#ef4444',
-        scale: 1.05,
-        life: 1.5,
-        maxLife: 1.5,
-      });
-      if (wsMgr.isHost) {
-        wsMgr.broadcastCompactSnapshot(state, ['player_hurt']);
-      }
-    }
-  },
-  onDisconnect(reason) {
-    setStickMode(false);
-    releaseScreenWakeLock();
-    state.shakeTimer = 0;
-    state.shakeIntensity = 0;
-    state.hitstopTimer = 0;
-    shopOpen = false;
-    buffModalOpen = false;
-    pauseOpen = false;
-    resultShown = false;
-    buffOverlay.classList.add('hidden');
-    pauseOverlay.classList.add('hidden');
-    openLobby();
-    lobbyStatusEl.textContent = reason;
-    lobbyStatusEl.style.color = '#f87171';
-  },
-});
-
-function setLocalPlayStyle(style: LocalPlayStyle): void {
-  if (wsMgr.connected) {
-    wsMgr.disconnect(true);
-    renderLobbyRoster('', [], 'p1', false);
-  }
-  wsMgr.localPlayStyle = style;
-  localStyleNormalBtn.classList.toggle('active', style === 'normal');
-  localStyleMonitorBtn.classList.toggle('active', style === 'monitor');
-
-  if (style === 'monitor') {
-    hotspotGuideTitle.textContent = 'Cara Mabar Mode Monitor + Stick HP (Satu Jaringan):';
-    hotspotGuideStep1.innerHTML =
-      '1. Pastikan Monitor &amp; semua HP berada di <b>satu jaringan yang sama</b> (Wi-Fi / Hotspot HP siapa saja / Bluetooth).';
-    hotspotGuideStep2.innerHTML =
-      '2. Perangkat <b>Monitor</b> (Laptop/Tablet/HP utama) klik <b>Buat Room Monitor</b> (tidak harus pemilik Hotspot).';
-    hotspotGuideStep3.innerHTML =
-      '3. HP teman masukkan <b>Kode Room (H---)</b> — HP teman otomatis jadi <b>Stick Gamepad</b>!';
-    if (wsMgr.connectionMode === 'hotspot') {
-      labelHostModeEl.textContent = 'HOST MONITOR (LAYAR UTAMA)';
-      btnCreateRoom.textContent = 'BUAT ROOM MONITOR';
-    }
-  } else {
-    hotspotGuideTitle.textContent = 'Cara Mabar Local (Satu Jaringan Wi-Fi / Hotspot / Bluetooth):';
-    hotspotGuideStep1.innerHTML =
-      '1. Pastikan semua perangkat berada di <b>satu jaringan yang sama</b> (Wi-Fi, Hotspot HP siapa saja, atau Bluetooth Tethering).';
-    hotspotGuideStep2.innerHTML =
-      '2. <b>Siapa saja</b> boleh jadi Host (tidak harus perangkat yang menyalakan Hotspot).';
-    hotspotGuideStep3.innerHTML =
-      '3. Host klik <b>Buat Room Local</b> (Kode <code>H---</code>), lalu teman masukkan kode itu!';
-    if (wsMgr.connectionMode === 'hotspot') {
-      labelHostModeEl.textContent = 'HOST LOCAL (SATU JARINGAN)';
-      btnCreateRoom.textContent = 'BUAT ROOM LOCAL';
-    }
-  }
-}
-
-localStyleNormalBtn.addEventListener('click', () => {
-  audio.unlock();
-  setLocalPlayStyle('normal');
-});
-
-localStyleMonitorBtn.addEventListener('click', () => {
-  audio.unlock();
-  setLocalPlayStyle('monitor');
-});
-
-btnStickExit.addEventListener('click', () => {
-  audio.unlock();
-  openPauseMenu();
-});
-
-function setConnectionMode(mode: ConnectionMode): void {
-  if (wsMgr.connected) {
-    wsMgr.disconnect(true);
-    renderLobbyRoster('', [], 'p1', false);
-  }
-  wsMgr.connectionMode = mode;
-  tabConnOnline.classList.toggle('active', mode === 'online');
-  tabConnHotspot.classList.toggle('active', mode === 'hotspot');
-  hotspotGuideEl.classList.toggle('hidden', mode !== 'hotspot');
-
-  if (mode === 'hotspot') {
-    setLocalPlayStyle(wsMgr.localPlayStyle);
-    inputRoomCode.placeholder = 'H---';
-    lobbyStatusEl.textContent =
-      'Pastikan semua di 1 jaringan (Wi-Fi / Hotspot siapa saja / Bluetooth). Siapa saja boleh Buat/Gabung Room!';
-  } else {
-    labelHostModeEl.textContent = 'JADI HOST ONLINE';
-    btnCreateRoom.textContent = 'BUAT ROOM BARU';
-    inputRoomCode.placeholder = 'KODE';
-    lobbyStatusEl.textContent =
-      'Buat Room baru atau masukkan Kode Room 4 karakter dari temanmu.';
-  }
-  lobbyStatusEl.style.color = '#94a3b8';
-}
-
-tabConnOnline.addEventListener('click', () => {
-  audio.unlock();
-  setConnectionMode('online');
-});
-
-tabConnHotspot.addEventListener('click', () => {
-  audio.unlock();
-  setConnectionMode('hotspot');
-});
-
-inputHotspotIp.addEventListener('input', () => {
-  wsMgr.customHotspotHost = inputHotspotIp.value.trim();
-});
-
-function getLocalPlayer() {
-  return state.players.find((p) => p.id === wsMgr.localPlayerId) ?? state.players[0];
-}
-
-function renderLobbyRoster(
-  roomCode: string,
-  players: LobbyPlayer[],
-  localId: string,
-  isHost: boolean
-): void {
-  const fighters = players.filter((p) => p.role !== 'monitor');
-  const me = players.find((p) => p.id === localId);
-  if (me && me.role !== 'monitor' && me.paletteIndex !== selectedPalette) {
-    syncSelectedSkin(me.paletteIndex, false);
-  }
-
-  const takenByOthers = new Set(
-    fighters.filter((p) => p.id !== localId).map((p) => p.paletteIndex)
-  );
-  document.querySelectorAll<HTMLButtonElement>('#lobby-skin-picker .skin-swatch').forEach((btn) => {
-    const idx = Number(btn.dataset.skin);
-    const taken = takenByOthers.has(idx);
-    btn.disabled = taken;
-    btn.classList.toggle('taken', taken);
-  });
-
-  if (roomCode && players.length > 0) {
-    hostCodeWrap.classList.remove('hidden');
-    lobbyRoomCodeEl.textContent = roomCode;
-    qrModalCodeVal.textContent = roomCode;
-    qrModalTitle.textContent = `ROOM ${roomCode}`;
-
-    const inviteUrl = buildInviteUrl(roomCode, wsMgr.connectionMode, true);
-    if (qrCodeCanvas) {
-      void renderQrCodeToCanvas(qrCodeCanvas, inviteUrl, { width: 96 });
-    }
-    if (qrModalCanvas) {
-      void renderQrCodeToCanvas(qrModalCanvas, inviteUrl, { width: 240 });
-    }
-
-    const isMonitorHost = me?.role === 'monitor';
-    btnStartMabar.classList.toggle('hidden', !isHost);
-    btnStartMabar.disabled = isMonitorHost && fighters.length === 0;
-    btnStartMabar.textContent =
-      isMonitorHost && fighters.length === 0
-        ? 'MENUNGGU STICK HP GABUNG...'
-        : 'MULAI MABAR SURVIVAL ➔';
-  } else {
-    hostCodeWrap.classList.add('hidden');
-    btnStartMabar.classList.add('hidden');
-    btnStartMabar.disabled = false;
-  }
-
-  lobbyPlayerCountEl.textContent = `${fighters.length}/5`;
-  if (players.length === 0) {
-    lobbyRosterEl.innerHTML = '<div class="roster-empty">Belum ada room aktif.</div>';
-    return;
-  }
-
-  lobbyRosterEl.innerHTML = players
-    .map((p) => {
-      const isMon = p.role === 'monitor';
-      const dotColor = isMon
-        ? '#38bdf8'
-        : PLAYER_PALETTES[p.paletteIndex % PLAYER_PALETTES.length].accent;
-      const you = p.id === localId ? ' (KAMU)' : '';
-      return `<div class="roster-chip"><span class="roster-dot" style="background:${dotColor}"></span>${p.name}${you}</div>`;
-    })
-    .join('');
-}
-
 function refreshMenuProgress(): void {
   const prog = loadStoryProgress();
   ([1, 2, 3] as const).forEach((num) => {
-    const btn = document.getElementById(`btn-stage-${num}`) as HTMLButtonElement;
-    const statusEl = document.getElementById(`status-stage-${num}`) as HTMLSpanElement;
+    const btn = document.getElementById(`btn-stage-${num}`) as HTMLButtonElement | null;
+    const statusEl = document.getElementById(`status-stage-${num}`) as HTMLSpanElement | null;
+    if (!btn || !statusEl) return;
     const unlocked = num <= prog.unlockedStage;
     const cleared = prog.clearedStages.includes(num);
 
@@ -725,7 +243,9 @@ function refreshMenuProgress(): void {
   });
 
   const bestWave = loadBestWave();
-  menuBestWaveEl.textContent = bestWave > 0 ? `(REKOR: W${bestWave})` : '';
+  if (menuBestWaveEl) {
+    menuBestWaveEl.textContent = bestWave > 0 ? `(REKOR: W${bestWave})` : '';
+  }
 }
 
 function refreshShopUI(): void {
@@ -822,26 +342,11 @@ function refreshShopUI(): void {
 }
 
 /**
- * Checks if the local player has a pending every-10-wave Jurus Ultimate choice
+ * Checks if the player has a pending every-10-wave Jurus Ultimate milestone choice
  * and displays the 4 Jurus cards modal.
  */
 function checkPendingUltModal(): void {
-  if (
-    state.mode !== 'survival' ||
-    state.status !== 'playing' ||
-    menuOpen ||
-    lobbyOpen ||
-    wsMgr.isMonitor
-  ) {
-    if (ultModalOpen) {
-      ultModalOpen = false;
-      ultOverlay.classList.add('hidden');
-    }
-    return;
-  }
-
-  // If local player already submitted their choice and is awaiting server ack, do not reopen!
-  if (ultChoiceAwaitingAck) {
+  if (state.mode !== 'survival' || state.status !== 'playing' || menuOpen) {
     if (ultModalOpen) {
       ultModalOpen = false;
       ultOverlay.classList.add('hidden');
@@ -858,7 +363,7 @@ function checkPendingUltModal(): void {
     return;
   }
 
-  // Auto-close shop/warung if open so it never collides with milestone modal
+  // Auto-close shop/warung if open
   if (shopOpen) {
     shopOpen = false;
     shopOverlay.classList.add('hidden');
@@ -885,7 +390,7 @@ function checkPendingUltModal(): void {
 
 function pickUltChoice(ultType: UltType): void {
   const now = Date.now();
-  if (now - lastSkillPickTime < 350) return; // Debounce rapid click / touch
+  if (now - lastSkillPickTime < 350) return;
   lastSkillPickTime = now;
 
   const player = getLocalPlayer();
@@ -908,44 +413,21 @@ function pickUltChoice(ultType: UltType): void {
     maxLife: 1.5,
   });
 
-  if (wsMgr.connected && !wsMgr.isHost) {
-    wsMgr.sendBuy(('ult_' + ultType) as ShopItemId);
-    ultChoiceAwaitingAck = true;
-    if (ultChoiceAckTimeout) clearTimeout(ultChoiceAckTimeout);
-    ultChoiceAckTimeout = window.setTimeout(() => {
-      ultChoiceAwaitingAck = false;
-    }, 5000);
-  } else if (wsMgr.connected && wsMgr.isHost) {
-    wsMgr.broadcastCompactSnapshot(state, state.soundQueue);
-    state.soundQueue.length = 0;
-    ultChoiceAwaitingAck = false;
-  } else {
-    ultChoiceAwaitingAck = false;
-  }
-
   ultModalOpen = false;
   ultOverlay.classList.add('hidden');
   haptic.ultimate();
 
-  // Clean transition: If there are also pending 3-buff cards (e.g. at Wave 10, 20, 30...),
-  // smoothly pop the buff modal right after with zero overlap!
   setTimeout(() => {
     checkPendingBuffModal();
   }, 220);
 }
 
 /**
- * Checks if the local player has a pending every-2-wave Buff choice
- * and displays the 3 random Buff cards modal (Player picks 1!).
+ * Checks if the player has a pending every-2-wave Buff choice
+ * and displays the 3 random Buff cards modal.
  */
 function checkPendingBuffModal(): void {
-  if (
-    state.mode !== 'survival' ||
-    state.status !== 'playing' ||
-    menuOpen ||
-    lobbyOpen ||
-    wsMgr.isMonitor
-  ) {
+  if (state.mode !== 'survival' || state.status !== 'playing' || menuOpen) {
     if (buffModalOpen) {
       buffModalOpen = false;
       buffOverlay.classList.add('hidden');
@@ -953,18 +435,8 @@ function checkPendingBuffModal(): void {
     return;
   }
 
-  // If local player already submitted their buff pick and is awaiting server ack, do not reopen!
-  if (buffChoiceAwaitingAck) {
-    if (buffModalOpen) {
-      buffModalOpen = false;
-      buffOverlay.classList.add('hidden');
-    }
-    return;
-  }
-
-  // Sequencing guard: If Ultimate Jurus Milestone is pending, open, or awaiting ack, wait for it to finish first!
   const player = getLocalPlayer();
-  if (ultModalOpen || player?.pendingUltChoice || ultChoiceAwaitingAck) {
+  if (ultModalOpen || player?.pendingUltChoice) {
     if (buffModalOpen) {
       buffModalOpen = false;
       buffOverlay.classList.add('hidden');
@@ -1019,30 +491,15 @@ function checkPendingBuffModal(): void {
 
 function pickBuffChoice(buffId: BuffId): void {
   const now = Date.now();
-  if (now - lastSkillPickTime < 350) return; // Debounce rapid click / touch
+  if (now - lastSkillPickTime < 350) return;
   lastSkillPickTime = now;
 
   const player = getLocalPlayer();
   if (!player) return;
 
-  if (wsMgr.connected && !wsMgr.isHost) {
-    wsMgr.sendPickBuff(buffId);
-    player.pendingBuffChoices = [];
-    buffChoiceAwaitingAck = true;
-    if (buffChoiceAckTimeout) clearTimeout(buffChoiceAckTimeout);
-    buffChoiceAckTimeout = window.setTimeout(() => {
-      buffChoiceAwaitingAck = false;
-    }, 5000);
-  } else {
-    applyPlayerBuff(state, player, buffId);
-    audio.playQueue(state.soundQueue);
-    state.soundQueue.length = 0;
-    if (wsMgr.connected && wsMgr.isHost) {
-      wsMgr.broadcastCompactSnapshot(state, state.soundQueue);
-      state.soundQueue.length = 0;
-    }
-    buffChoiceAwaitingAck = false;
-  }
+  applyPlayerBuff(state, player, buffId);
+  audio.playQueue(state.soundQueue);
+  state.soundQueue.length = 0;
 
   buffModalOpen = false;
   lastBuffSig = '';
@@ -1054,11 +511,8 @@ function toggleWarung(): void {
   if (
     state.mode !== 'survival' ||
     menuOpen ||
-    lobbyOpen ||
     buffModalOpen ||
     ultModalOpen ||
-    ultChoiceAwaitingAck ||
-    buffChoiceAwaitingAck ||
     state.status !== 'playing'
   ) {
     return;
@@ -1073,10 +527,6 @@ function toggleWarung(): void {
   }
 
   if (!canOpenWarung(state, player)) {
-    if (wsMgr.isStickClient) {
-      showStickToast('DEKATI POS WARKOP / TUNGGU JEDA 20 DETIK!');
-      return;
-    }
     state.floatingTexts.push({
       x: player.x,
       y: player.y - player.z - 54,
@@ -1105,19 +555,12 @@ function showMenuView(view: 'home' | 'play' | 'settings' | 'story' | 'credits' |
   menuChangelogView.classList.toggle('hidden', view !== 'changelog');
 }
 
-const inputSettingsName = document.getElementById('input-settings-name') as HTMLInputElement;
-const setSfxBtn = document.getElementById('set-sfx-btn') as HTMLButtonElement;
-const setBgmBtn = document.getElementById('set-bgm-btn') as HTMLButtonElement;
-const setHapticBtn = document.getElementById('set-haptic-btn') as HTMLButtonElement;
-const setLowBwBtn = document.getElementById('set-lowbw-btn') as HTMLButtonElement;
-
 let gfxQuality: 'low' | 'med' | 'high' =
-  (localStorage.getItem('arek_slayer_gfx_v1') as 'low' | 'med' | 'high') || 'med';
-let hapticEnabled = localStorage.getItem('arek_slayer_haptic_v1') !== '0';
-wsMgr.lowBandwidthMode = localStorage.getItem('arek_slayer_lowbw_v1') === '1';
+  (localStorage.getItem(GFX_STORAGE_KEY) as 'low' | 'med' | 'high') || 'med';
+let hapticEnabled = localStorage.getItem(HAPTIC_STORAGE_KEY) !== '0';
 
 function refreshSettingsUI(): void {
-  inputSettingsName.value = playerName;
+  if (inputSettingsName) inputSettingsName.value = playerName;
   const sfxMuted = btnSfx ? btnSfx.classList.contains('muted') : audio.isSfxMuted();
   setSfxBtn.textContent = sfxMuted ? 'MATI' : 'NYALA';
   setSfxBtn.classList.toggle('active', !sfxMuted);
@@ -1126,8 +569,6 @@ function refreshSettingsUI(): void {
   setBgmBtn.classList.toggle('active', !bgmOff);
   setHapticBtn.textContent = hapticEnabled ? 'NYALA' : 'MATI';
   setHapticBtn.classList.toggle('active', hapticEnabled);
-  setLowBwBtn.textContent = wsMgr.lowBandwidthMode ? 'HEMAT 1 MBPS (10Hz)' : 'NORMAL (UDP+WSS)';
-  setLowBwBtn.classList.toggle('active', wsMgr.lowBandwidthMode);
   if (setAutoFsBtn) {
     const autofs = isAutoFullscreenEnabled();
     setAutoFsBtn.textContent = autofs ? 'AKTIF (LEGA)' : 'NONAKTIF';
@@ -1142,6 +583,11 @@ document.getElementById('btn-open-play')?.addEventListener('click', () => {
   audio.unlock();
   refreshMenuProgress();
   showMenuView('play');
+});
+
+document.getElementById('btn-home-sandbox')?.addEventListener('click', () => {
+  audio.unlock();
+  startSandbox();
 });
 
 document.getElementById('btn-open-settings')?.addEventListener('click', () => {
@@ -1159,13 +605,6 @@ document.getElementById('btn-back-home-settings')?.addEventListener('click', () 
   audio.unlock();
   showMenuView('home');
 });
-
-document.getElementById('btn-quick-survival')?.addEventListener('click', () => {
-  audio.unlock();
-  startSoloSurvival();
-});
-
-inputSettingsName.addEventListener('input', () => syncPlayerName(inputSettingsName.value));
 
 document.querySelectorAll<HTMLButtonElement>('#settings-skin-picker .skin-swatch').forEach((btn) => {
   btn.addEventListener('click', () => {
@@ -1190,6 +629,9 @@ setBgmBtn.addEventListener('click', () => {
 setHapticBtn.addEventListener('click', () => {
   hapticEnabled = !hapticEnabled;
   haptic.setEnabled(hapticEnabled);
+  try {
+    localStorage.setItem(HAPTIC_STORAGE_KEY, hapticEnabled ? '1' : '0');
+  } catch {}
   if (hapticEnabled) {
     haptic.tap();
   }
@@ -1201,23 +643,13 @@ document.querySelectorAll<HTMLButtonElement>('#set-gfx-group .seg-btn').forEach(
     const q = (btn.dataset.gfx as 'low' | 'med' | 'high') || 'med';
     gfxQuality = q;
     try {
-      localStorage.setItem('arek_slayer_gfx_v1', q);
+      localStorage.setItem(GFX_STORAGE_KEY, q);
     } catch {
       // Ignore
     }
     resizeCanvas();
     refreshSettingsUI();
   });
-});
-
-setLowBwBtn.addEventListener('click', () => {
-  wsMgr.lowBandwidthMode = !wsMgr.lowBandwidthMode;
-  try {
-    localStorage.setItem('arek_slayer_lowbw_v1', wsMgr.lowBandwidthMode ? '1' : '0');
-  } catch {
-    // Ignore
-  }
-  refreshSettingsUI();
 });
 
 setAutoFsBtn?.addEventListener('click', () => {
@@ -1235,36 +667,21 @@ btnFullscreenToggle?.addEventListener('click', () => {
   void toggleFullscreen();
 });
 
-btnLobbyFullscreen?.addEventListener('click', () => {
-  audio.unlock();
-  void toggleFullscreen();
-});
-
 document.addEventListener('fullscreenchange', () => {
   const fs = isFullscreen();
   if (btnFullscreenToggle) {
     btnFullscreenToggle.textContent = fs ? '🗗' : '⛶';
     btnFullscreenToggle.title = fs ? 'Keluar Layar Penuh [Esc]' : 'Layar Penuh / Fullscreen [F11]';
   }
-  if (btnLobbyFullscreen) {
-    btnLobbyFullscreen.textContent = fs ? '🗗 KELUAR FULLSCREEN' : '⛶ FULLSCREEN';
-  }
   setTimeout(resizeCanvas, 80);
 });
 
 function openPauseMenu(): void {
-  if (menuOpen || lobbyOpen || resultShown) return;
+  if (menuOpen || resultShown) return;
   pauseOpen = true;
-  if (wsMgr.connected) {
-    pauseEyebrow.textContent = 'MENU JEDA MABAR';
-    pauseSub.textContent =
-      'Room tetap aktif. Pilih Lanjutkan agar tidak keluar dari permainan!';
-    btnPauseRestart.classList.toggle('hidden', !wsMgr.isHost);
-  } else {
-    pauseEyebrow.textContent = 'PERMAINAN DIJEDA';
-    pauseSub.textContent = 'Simulasi dijeda sementara. Ambil napas dulu rek!';
-    btnPauseRestart.classList.remove('hidden');
-  }
+  pauseEyebrow.textContent = 'PERMAINAN DIJEDA';
+  pauseSub.textContent = 'Simulasi dijeda sementara. Ambil napas dulu rek!';
+  btnPauseRestart.classList.remove('hidden');
   pauseOverlay.classList.remove('hidden');
 }
 
@@ -1284,11 +701,7 @@ btnPauseRestart.addEventListener('click', () => {
   if (state.mode === 'story') {
     startStoryStage(state.stageNumber);
   } else if (state.mode === 'survival') {
-    if (wsMgr.connected && wsMgr.isHost) {
-      wsMgr.sendStartGame();
-    } else {
-      startSoloSurvival();
-    }
+    startSoloSurvival();
   } else {
     startSandbox();
   }
@@ -1357,11 +770,6 @@ btnStorySkip.addEventListener('click', () => {
 });
 
 window.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && qrModalOverlay && !qrModalOverlay.classList.contains('hidden')) {
-    e.preventDefault();
-    qrModalOverlay.classList.add('hidden');
-    return;
-  }
   if (storyDialogueOpen) {
     if (e.code === 'Space' || e.code === 'Enter' || e.code === 'KeyJ' || e.code === 'KeyZ') {
       e.preventDefault();
@@ -1374,7 +782,7 @@ window.addEventListener('keydown', (e) => {
       return;
     }
   }
-  if (e.key === 'Escape' && !menuOpen && !lobbyOpen && !resultShown) {
+  if (e.key === 'Escape' && !menuOpen && !resultShown) {
     if (shopOpen) {
       shopOpen = false;
       shopOverlay.classList.add('hidden');
@@ -1412,15 +820,11 @@ window.addEventListener('keydown', (e) => {
 });
 
 function openMenu(): void {
-  setStickMode(false);
   releaseScreenWakeLock();
-  wsMgr.disconnect(true);
-  resetSkillAcks();
   state.shakeTimer = 0;
   state.shakeIntensity = 0;
   state.hitstopTimer = 0;
   menuOpen = true;
-  lobbyOpen = false;
   shopOpen = false;
   buffModalOpen = false;
   ultModalOpen = false;
@@ -1429,7 +833,6 @@ function openMenu(): void {
   resultShown = false;
   refreshMenuProgress();
   showMenuView('home');
-  lobbyOverlay.classList.add('hidden');
   shopOverlay.classList.add('hidden');
   buffOverlay.classList.add('hidden');
   ultOverlay.classList.add('hidden');
@@ -1440,33 +843,11 @@ function openMenu(): void {
   menuOverlay.classList.remove('hidden');
 }
 
-function openLobby(): void {
-  audio.unlock();
-  resetSkillAcks();
-  menuOpen = false;
-  lobbyOpen = true;
-  shopOpen = false;
-  buffModalOpen = false;
-  ultModalOpen = false;
-  resultShown = false;
-  menuOverlay.classList.add('hidden');
-  shopOverlay.classList.add('hidden');
-  buffOverlay.classList.add('hidden');
-  ultOverlay.classList.add('hidden');
-  sandboxSkillsBar?.classList.add('hidden');
-  resultOverlay.classList.add('hidden');
-  lobbyOverlay.classList.remove('hidden');
-  renderLobbyRoster(wsMgr.roomCode, wsMgr.lobbyPlayers, wsMgr.localPlayerId, wsMgr.isHost);
-}
-
 function startStoryStage(stage: 1 | 2 | 3): void {
   audio.unlock();
   triggerAutoFullscreenIfEnabled();
-  wsMgr.disconnect(true);
-  resetSkillAcks();
   state = createStoryState(stage, selectedPalette, playerName);
   menuOpen = false;
-  lobbyOpen = false;
   shopOpen = false;
   buffModalOpen = false;
   ultModalOpen = false;
@@ -1475,7 +856,6 @@ function startStoryStage(stage: 1 | 2 | 3): void {
   storyOutroDone = false;
   resultShown = false;
   menuOverlay.classList.add('hidden');
-  lobbyOverlay.classList.add('hidden');
   shopOverlay.classList.add('hidden');
   buffOverlay.classList.add('hidden');
   ultOverlay.classList.add('hidden');
@@ -1483,16 +863,14 @@ function startStoryStage(stage: 1 | 2 | 3): void {
   pauseOverlay.classList.add('hidden');
   resultOverlay.classList.add('hidden');
   openStoryCutscene('intro');
+  void requestScreenWakeLock();
 }
 
 function startSoloSurvival(): void {
   audio.unlock();
   triggerAutoFullscreenIfEnabled();
-  wsMgr.disconnect(true);
-  resetSkillAcks();
   state = createSurvivalState(selectedPalette, undefined, playerName);
   menuOpen = false;
-  lobbyOpen = false;
   shopOpen = false;
   buffModalOpen = false;
   ultModalOpen = false;
@@ -1501,7 +879,6 @@ function startSoloSurvival(): void {
   lastBuffSig = '';
   resultShown = false;
   menuOverlay.classList.add('hidden');
-  lobbyOverlay.classList.add('hidden');
   shopOverlay.classList.add('hidden');
   buffOverlay.classList.add('hidden');
   ultOverlay.classList.add('hidden');
@@ -1515,15 +892,12 @@ function startSoloSurvival(): void {
 function startSandbox(): void {
   audio.unlock();
   triggerAutoFullscreenIfEnabled();
-  wsMgr.disconnect(true);
-  resetSkillAcks();
   state = createSandboxState(selectedPalette, playerName);
   const p0 = state.players[0];
   if (p0) {
     p0.ult = p0.maxUlt; // Ready to test instantly!
   }
   menuOpen = false;
-  lobbyOpen = false;
   shopOpen = false;
   buffModalOpen = false;
   ultModalOpen = false;
@@ -1531,7 +905,6 @@ function startSandbox(): void {
   storyDialogueOpen = false;
   resultShown = false;
   menuOverlay.classList.add('hidden');
-  lobbyOverlay.classList.add('hidden');
   shopOverlay.classList.add('hidden');
   buffOverlay.classList.add('hidden');
   ultOverlay.classList.add('hidden');
@@ -1570,8 +943,12 @@ document.querySelectorAll<HTMLButtonElement>('.stage-btn[data-stage]').forEach((
   });
 });
 
+document.getElementById('btn-quick-survival')?.addEventListener('click', () => {
+  audio.unlock();
+  startSoloSurvival();
+});
+
 document.getElementById('btn-play-survival')!.addEventListener('click', () => startSoloSurvival());
-document.getElementById('btn-open-lobby')!.addEventListener('click', () => openLobby());
 document.getElementById('btn-play-sandbox')!.addEventListener('click', () => startSandbox());
 
 document.getElementById('btn-unlock-all')!.addEventListener('click', () => {
@@ -1580,79 +957,11 @@ document.getElementById('btn-unlock-all')!.addEventListener('click', () => {
   refreshMenuProgress();
 });
 
-// Lobby Buttons
-btnCreateRoom.addEventListener('click', () => {
-  audio.unlock();
-  triggerAutoFullscreenIfEnabled();
-  wsMgr.createRoom(selectedPalette, playerName);
-});
-
-document.getElementById('btn-copy-link')!.addEventListener('click', () => {
-  if (!wsMgr.roomCode) return;
-  const url = buildInviteUrl(wsMgr.roomCode, wsMgr.connectionMode, false);
-  navigator.clipboard?.writeText(url).catch(() => {});
-  lobbyStatusEl.textContent = `Link undangan disalin: ${url}`;
-  lobbyStatusEl.style.color = '#4ade80';
-});
-
-btnEnlargeQr?.addEventListener('click', () => {
-  audio.unlock();
-  qrModalOverlay.classList.remove('hidden');
-});
-
-btnOpenBigQr?.addEventListener('click', () => {
-  audio.unlock();
-  qrModalOverlay.classList.remove('hidden');
-});
-
-btnCloseQrModal?.addEventListener('click', () => {
-  qrModalOverlay.classList.add('hidden');
-});
-
-qrModalOverlay?.addEventListener('click', (e) => {
-  if (e.target === qrModalOverlay) {
-    qrModalOverlay.classList.add('hidden');
-  }
-});
-
-document.getElementById('btn-join-room')!.addEventListener('click', () => {
-  audio.unlock();
-  triggerAutoFullscreenIfEnabled();
-  wsMgr.joinRoom(inputRoomCode.value, selectedPalette, playerName);
-});
-
-inputRoomCode.addEventListener('input', () => {
-  inputRoomCode.value = inputRoomCode.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 4);
-});
-
-inputRoomCode.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') {
-    e.preventDefault();
-    audio.unlock();
-    triggerAutoFullscreenIfEnabled();
-    wsMgr.joinRoom(inputRoomCode.value, selectedPalette, playerName);
-  }
-});
-
-btnStartMabar.addEventListener('click', () => {
-  if (!wsMgr.isHost) return;
-  triggerAutoFullscreenIfEnabled();
-  wsMgr.sendStartGame();
-});
-
-document.getElementById('btn-close-lobby')!.addEventListener('click', () => openMenu());
-
 // Shop & Ultimate Jurus Buttons
 document.querySelectorAll<HTMLButtonElement>('.shop-item-btn[data-item], .shop-ult-btn[data-item]').forEach((btn) => {
   btn.addEventListener('click', () => {
     audio.unlock();
     const itemId = btn.dataset.item as ShopItemId;
-
-    if (wsMgr.connected && !wsMgr.isHost) {
-      wsMgr.sendBuy(itemId);
-      return;
-    }
-
     const player = getLocalPlayer();
     if (!player) return;
     const res = buyShopItem(state, player, itemId);
@@ -1666,11 +975,7 @@ document.querySelectorAll<HTMLButtonElement>('.shop-item-btn[data-item], .shop-u
 
 btnSkipIntermission.addEventListener('click', () => {
   audio.unlock();
-  if (wsMgr.connected && !wsMgr.isHost) {
-    wsMgr.sendSkipIntermission();
-  } else {
-    skipIntermission(state);
-  }
+  skipIntermission(state);
   shopOpen = false;
   shopOverlay.classList.add('hidden');
 });
@@ -1693,17 +998,7 @@ btnRetryStage.addEventListener('click', () => {
   if (state.mode === 'story') {
     startStoryStage(state.stageNumber);
   } else if (state.mode === 'survival') {
-    if (wsMgr.connected) {
-      if (wsMgr.isHost) {
-        wsMgr.sendStartGame();
-      } else {
-        setStickMode(false);
-        wsMgr.disconnect(true);
-        openLobby();
-      }
-    } else {
-      startSoloSurvival();
-    }
+    startSoloSurvival();
   } else {
     startSandbox();
   }
@@ -1832,15 +1127,6 @@ if (sandboxSkillsBar) {
   });
 }
 
-// HUD Quick Buttons
-const btnWarungHud = document.getElementById('btn-warung-hud') as HTMLButtonElement;
-const btnMenu = document.getElementById('btn-menu') as HTMLButtonElement;
-const btnPalette = document.getElementById('btn-palette') as HTMLButtonElement | null;
-const btnTouch = document.getElementById('btn-touch-toggle') as HTMLButtonElement | null;
-const btnSfx = document.getElementById('btn-sfx') as HTMLButtonElement | null;
-const btnBgm = document.getElementById('btn-bgm') as HTMLButtonElement | null;
-const btnForceLandscape = document.getElementById('btn-force-landscape') as HTMLButtonElement | null;
-
 syncSelectedSkin(selectedPalette);
 
 btnWarungHud.addEventListener('click', () => {
@@ -1924,11 +1210,7 @@ function showResultIfNeeded(): void {
   buffOverlay.classList.add('hidden');
   pauseOverlay.classList.add('hidden');
 
-  if (wsMgr.connected) {
-    btnRetryStage.textContent = wsMgr.isHost ? 'MAIN LAGI (HOST)' : 'KELUAR KE LOBI';
-  } else {
-    btnRetryStage.textContent = 'MAIN LAGI';
-  }
+  btnRetryStage.textContent = 'MAIN LAGI';
 
   if (state.mode === 'survival' && state.survival) {
     saveBestWave(state.survival.wave);
@@ -1951,7 +1233,7 @@ function showResultIfNeeded(): void {
     resultDesc.textContent =
       state.survival.core.hp <= 0
         ? `Pos Warkop Pusat jebol diserbu zombie! Total KO: ${state.koCount}`
-        : `Tim Arek Suroboyo tumbang di Wave ${state.survival.wave}! Total KO: ${state.koCount}`;
+        : `Arek Suroboyo tumbang di Wave ${state.survival.wave}! Total KO: ${state.koCount}`;
     btnNextStage.classList.add('hidden');
   } else {
     resultEyebrow.textContent = 'GAME OVER';
@@ -1994,35 +1276,7 @@ window.addEventListener('orientationchange', () => setTimeout(resizeCanvas, 80))
 resizeCanvas();
 refreshMenuProgress();
 
-// Auto-open Mabar Lobby if user opened an invite link (?room=XXXX)
-const urlParams = new URLSearchParams(window.location.search);
-const inviteRoom = urlParams.get('room');
-const inviteMode = urlParams.get('mode');
-const autoJoin = urlParams.get('autojoin') === '1';
-
-if (inviteRoom && inviteRoom.trim().length === 4) {
-  const code = inviteRoom.trim().toUpperCase();
-  if (inviteMode === 'hotspot' || code.startsWith('H')) {
-    setConnectionMode('hotspot');
-  }
-  inputRoomCode.value = code;
-  openLobby();
-
-  if (autoJoin) {
-    lobbyStatusEl.textContent = `⚡ Scan QR terdeteksi! Menggabungkan ke Room ${code}...`;
-    lobbyStatusEl.style.color = '#38bdf8';
-    setTimeout(() => {
-      audio.unlock();
-      triggerAutoFullscreenIfEnabled();
-      void wsMgr.joinRoom(code, selectedPalette, playerName);
-    }, 350);
-  } else {
-    lobbyStatusEl.textContent = `Kode undangan ${code} terdeteksi! Klik GABUNG untuk masuk.`;
-    lobbyStatusEl.style.color = '#4ade80';
-  }
-}
-
-// Fixed-timestep 60Hz Loop + Live FPS & Ping Meter
+// Fixed-timestep 60Hz Loop
 let lastTime = performance.now();
 let accumulator = 0;
 let fpsFrames = 0;
@@ -2047,110 +1301,25 @@ function frame(now: number): void {
       sampled.shopPressed &&
       state.mode === 'survival' &&
       !menuOpen &&
-      !lobbyOpen &&
       !buffModalOpen &&
+      !ultModalOpen &&
       state.status === 'playing'
     ) {
       toggleWarung();
     }
 
-    if (menuOpen || lobbyOpen) {
+    if (menuOpen) {
       state.time += FIXED_DT;
     }
 
-    if (!menuOpen && !lobbyOpen && state.status === 'playing') {
-      if (wsMgr.connected && !wsMgr.isHost) {
-        // Client: 0ms Local Action & Movement Prediction + Delta Input + 60 FPS Lerp
-        const netInput =
-          shopOpen || buffModalOpen || ultModalOpen || pauseOpen || storyDialogueOpen
-            ? {
-                up: false,
-                down: false,
-                left: false,
-                right: false,
-                jumpPressed: false,
-                dashPressed: false,
-                meleePressed: false,
-                projPressed: false,
-                ultPressed: false,
-                shopPressed: false,
-              }
-            : sampled;
-        wsMgr.sendDeltaInput(netInput);
-        if (!wsMgr.isStickClient) {
-          wsMgr.applyPredictionAndLerp(state, netInput, FIXED_DT, (ev) => audio.play(ev));
-        } else {
-          updateStickHud();
-        }
-      } else if (wsMgr.connected && wsMgr.isHost) {
-        // Host: Authoritative 60Hz Simulation + 20Hz Compact Snapshot over UDP/WSS
-        const allInputs: Record<string, PlayerInput> = {};
-        if (!wsMgr.isMonitor) {
-          allInputs[wsMgr.localPlayerId] =
-            shopOpen || buffModalOpen || ultModalOpen || pauseOpen || storyDialogueOpen
-              ? {
-                  up: false,
-                  down: false,
-                  left: false,
-                  right: false,
-                  jumpPressed: false,
-                  dashPressed: false,
-                  meleePressed: false,
-                  projPressed: false,
-                  ultPressed: false,
-                  shopPressed: false,
-                }
-              : sampled;
-        }
-        for (const p of state.players) {
-          if (p.id === wsMgr.localPlayerId) continue;
-          const rem = wsMgr.getRemoteInput(p.id);
-          if (rem) allInputs[p.id] = rem;
-        }
-        stepSurvival(state, allInputs, FIXED_DT);
-        if (state.soundQueue.includes('player_hurt')) {
-          haptic.damage();
-        }
-        audio.playQueue(state.soundQueue);
-        checkPendingBuffModal();
-        checkPendingUltModal();
-
-        const endedNow = state.status !== 'playing';
-        if (endedNow) {
-          state.shakeTimer = 0;
-          state.shakeIntensity = 0;
-          state.hitstopTimer = 0;
-          wsMgr.broadcastCompactSnapshot(state, state.soundQueue);
-          showResultIfNeeded();
-        } else {
-          snapshotAccum += FIXED_DT;
-          // Dynamic adaptive rate:
-          // Local/Hotspot or fast ping (<60ms): 25Hz (0.04s) for fluid 60 FPS rendering!
-          // Normal online: 20Hz (0.05s)
-          // High latency (>120ms) or Low-BW: 12-15Hz (0.066-0.08s)
-          const isLocalOrFast = wsMgr.connectionMode === 'hotspot' || wsMgr.pingMs < 60;
-          const snapInterval =
-            wsMgr.lowBandwidthMode
-              ? 0.08
-              : isLocalOrFast
-                ? 0.04
-                : wsMgr.pingMs > 120
-                  ? 0.08
-                  : 0.05;
-          if (snapshotAccum >= snapInterval) {
-            snapshotAccum = 0;
-            wsMgr.broadcastCompactSnapshot(state, state.soundQueue);
-          }
-        }
-      } else if (!shopOpen && !buffModalOpen && !ultModalOpen && !pauseOpen && !storyDialogueOpen) {
-        // Offline Solo Mode
+    if (!menuOpen && state.status === 'playing') {
+      if (!shopOpen && !buffModalOpen && !ultModalOpen && !pauseOpen && !storyDialogueOpen) {
         if (state.mode === 'story') {
           stepStory(state, sampled, FIXED_DT);
           if (!storyBossShown && state.storyZones?.some((z) => z.isBossZone && z.triggered && !z.cleared)) {
             storyBossShown = true;
             openStoryCutscene('boss');
           }
-          // Check victory after step (cast to bypass narrow from outer playing-guard)
           const storyStatus = (state as GameState).status;
           if (storyStatus === 'victory' && !storyOutroDone) {
             storyOutroDone = true;
@@ -2163,6 +1332,7 @@ function frame(now: number): void {
         } else {
           stepSandbox(state, sampled, FIXED_DT);
         }
+
         if (state.soundQueue.includes('player_hurt')) {
           haptic.damage();
         }
@@ -2178,28 +1348,21 @@ function frame(now: number): void {
     accumulator -= FIXED_DT;
   }
 
-  if (!wsMgr.isStickClient) {
-    renderGame(ctx, state, wsMgr.localPlayerId, wsMgr.isMonitor);
-  }
+  renderGame(ctx, state, 'p1', false);
 
-  // Strictly enforce: Jurus tester dock ONLY appears in Dojo Latihan (Camp Sandbox).
-  // In Multiplayer, Solo Survival, and Story Mode, it is ALWAYS hidden!
   if (sandboxSkillsBar) {
     const isSandboxActive =
       state.mode === 'sandbox' &&
       state.status === 'playing' &&
       !menuOpen &&
-      !lobbyOpen &&
       !pauseOpen &&
       !resultShown;
     sandboxSkillsBar.classList.toggle('hidden', !isSandboxActive);
     sandboxSkillsBar.style.display = isSandboxActive ? 'flex' : 'none';
   }
 
-  const perfText = wsMgr.connected
-    ? `${currentFps} FPS • ${wsMgr.pingMs}ms ${wsMgr.transportMode}`
-    : `${currentFps} FPS`;
-  hud.update(state, wsMgr.localPlayerId, perfText, wsMgr.isMonitor);
+  const perfText = `${currentFps} FPS`;
+  hud.update(state, 'p1', perfText);
   requestAnimationFrame(frame);
 }
 
