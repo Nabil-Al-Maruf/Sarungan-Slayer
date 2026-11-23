@@ -610,26 +610,26 @@ function setLocalPlayStyle(style: 'normal' | 'coop' | 'monitor'): void {
   localStyleMonitorBtn.classList.toggle('active', style === 'monitor');
 
   if (style === 'monitor') {
-    hotspotGuideTitle.textContent = 'Cara Mabar Mode Monitor + HP Stick (Satu Jaringan):';
+    hotspotGuideTitle.textContent = '📺 Cara Mabar 1 Monitor + HP Dadi Stik (0 Kuota):';
     hotspotGuideStep1.innerHTML =
-      '1. Hubungkan Monitor & semua HP ke <b>Wi-Fi / Hotspot yang sama</b>.';
+      '1. Konekno TV/Laptop & kabeh HP nang <b>Wi-Fi / Hotspot HP seng podo</b>.';
     hotspotGuideStep2.innerHTML =
-      '2. Perangkat <b>Monitor</b> (Laptop/Tablet/TV/HP utama) klik <b>BUAT ROOM MONITOR</b>.';
+      '2. Layar Monitor (Laptop/Tablet/TV) pencet <b>BUAT ROOM MONITOR</b>.';
     hotspotGuideStep3.innerHTML =
-      '3. HP teman masukkan <b>Kode Room</b> — layar HP teman otomatis jadi <b>Stick Gamepad</b>!';
-    labelHostModeEl.textContent = 'HOST MONITOR (LAYAR UTAMA)';
-    btnCreateRoom.textContent = 'BUAT ROOM MONITOR';
+      '3. HP konco lebokno <b>Kode Room</b> — layar HP konco otomatis dadi <b>Stick Gamepad</b>!';
+    labelHostModeEl.textContent = '👑 HOST MONITOR (LAYAR UTAMA)';
+    btnCreateRoom.textContent = 'BUAT ROOM MONITOR ➔';
     btnRoleStick.click();
   } else {
-    hotspotGuideTitle.textContent = 'Cara Mabar Layar Sendiri-Sendiri (Co-op Local):';
+    hotspotGuideTitle.textContent = '📱 Cara Mabar Keroyokan Layar Dewe (Co-op Local):';
     hotspotGuideStep1.innerHTML =
-      '1. Semua HP/Laptop terhubung ke <b>Wi-Fi atau Hotspot yang sama</b>.';
+      '1. Kabeh HP/Laptop konek nang <b>Wi-Fi utawa Hotspot HP seng podo</b>.';
     hotspotGuideStep2.innerHTML =
-      '2. Satu orang klik <b>BUAT ROOM CO-OP</b>, lalu bagikan kode room ke teman.';
+      '2. Siji arek klik <b>BUAT ROOM CO-OP</b>, duduhno kode room / QR nang konco.';
     hotspotGuideStep3.innerHTML =
-      '3. Teman masukkan kode itu lalu klik <b>GABUNG ROOM</b>!';
-    labelHostModeEl.textContent = 'HOST CO-OP (LAYAR SENDIRI)';
-    btnCreateRoom.textContent = 'BUAT ROOM CO-OP';
+      '3. Konco ketik kode room terus pencet <b>GABUNG ROOM</b>!';
+    labelHostModeEl.textContent = '👑 HOST CO-OP (LAYAR DEWE)';
+    btnCreateRoom.textContent = 'BUAT ROOM CO-OP ➔';
     btnRoleCoop.click();
   }
 }
@@ -1380,6 +1380,7 @@ btnCloseLobby?.addEventListener('click', () => {
 function startStoryStage(stage: 1 | 2 | 3): void {
   audio.unlock();
   triggerAutoFullscreenIfEnabled();
+  setStickMode(false);
   localPeer.disconnect();
   state = createStoryState(stage, selectedPalette, playerName);
   menuOpen = false;
@@ -1406,6 +1407,7 @@ function startStoryStage(stage: 1 | 2 | 3): void {
 function startSoloSurvival(): void {
   audio.unlock();
   triggerAutoFullscreenIfEnabled();
+  setStickMode(false);
   localPeer.disconnect();
   state = createSurvivalState(selectedPalette, undefined, playerName);
   menuOpen = false;
@@ -1432,6 +1434,7 @@ function startSoloSurvival(): void {
 function startSandbox(): void {
   audio.unlock();
   triggerAutoFullscreenIfEnabled();
+  setStickMode(false);
   localPeer.disconnect();
   state = createSandboxState(selectedPalette, playerName);
   const p0 = state.players[0];
@@ -1809,7 +1812,12 @@ function resizeCanvas(): void {
   canvas.style.width = `${Math.floor(displayW)}px`;
   canvas.style.height = `${Math.floor(displayH)}px`;
 
-  const maxDpr = gfxQuality === 'low' ? 1.0 : gfxQuality === 'high' ? 1.5 : 1.25;
+  const isTouchDevice =
+    'ontouchstart' in window ||
+    (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0);
+  const maxDpr = isTouchDevice
+    ? (gfxQuality === 'low' ? 1.0 : gfxQuality === 'high' ? 1.25 : 1.1)
+    : (gfxQuality === 'low' ? 1.0 : gfxQuality === 'high' ? 1.5 : 1.25);
   const dpr = Math.min(window.devicePixelRatio || 1, maxDpr);
   const targetW = Math.round(VIRTUAL_WIDTH * dpr);
   const targetH = Math.round(VIRTUAL_HEIGHT * dpr);
@@ -2022,7 +2030,12 @@ function frame(now: number): void {
   const perfText = localPeer.connected
     ? `${currentFps} FPS • ${localPeer.pingMs}ms LAN`
     : `${currentFps} FPS`;
-  hud.update(state, localPeer.localPlayerId, perfText);
+  hud.update(
+    state,
+    localPeer.localPlayerId,
+    perfText,
+    localPeer.connected && localPeer.localRole === 'monitor'
+  );
   requestAnimationFrame(frame);
 }
 

@@ -115,11 +115,19 @@ export function renderGame(
     addRenderItem(player.y, RenderType.PLAYER, player);
   }
 
-  const activeItems = renderPool.slice(0, poolCount);
-  activeItems.sort((a, b) => a.sortY - b.sortY);
+  // Zero-allocation insertion sort on pooled render items (avoids 60 array allocations/sec!)
+  for (let i = 1; i < poolCount; i++) {
+    const key = renderPool[i];
+    let j = i - 1;
+    while (j >= 0 && renderPool[j].sortY > key.sortY) {
+      renderPool[j + 1] = renderPool[j];
+      j--;
+    }
+    renderPool[j + 1] = key;
+  }
 
-  for (let i = 0; i < activeItems.length; i++) {
-    const item = activeItems[i];
+  for (let i = 0; i < poolCount; i++) {
+    const item = renderPool[i];
     switch (item.type) {
       case RenderType.OBSTACLE:
         drawTopDownObstacle(ctx, item.ref);

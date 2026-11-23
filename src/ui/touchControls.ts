@@ -267,6 +267,8 @@ export function bindTouchControls(
   for (const btn of buttons) {
     const action = btn.dataset.action as VirtualAction;
     let isPressed = false;
+    let boundPointerId: number | null = null;
+    let boundTouchId: number | null = null;
 
     const startPress = () => {
       if (isPressed) return;
@@ -308,6 +310,8 @@ export function bindTouchControls(
     const endPress = () => {
       if (!isPressed) return;
       isPressed = false;
+      boundPointerId = null;
+      boundTouchId = null;
       btn.classList.remove('pressed');
       if (action !== 'shop') {
         input.setVirtualAction(action, false);
@@ -316,21 +320,37 @@ export function bindTouchControls(
 
     btn.addEventListener('pointerdown', (e: PointerEvent) => {
       e.preventDefault();
+      boundPointerId = e.pointerId;
       startPress();
     });
 
     btn.addEventListener('pointerup', (e: PointerEvent) => {
       e.preventDefault();
-      endPress();
+      if (boundPointerId === null || boundPointerId === e.pointerId) {
+        endPress();
+      }
     });
 
-    btn.addEventListener('pointercancel', () => endPress());
-    btn.addEventListener('pointerleave', () => endPress());
+    btn.addEventListener('pointercancel', (e: PointerEvent) => {
+      if (boundPointerId === null || boundPointerId === e.pointerId) {
+        endPress();
+      }
+    });
+
+    btn.addEventListener('pointerleave', (e: PointerEvent) => {
+      if (boundPointerId === e.pointerId) {
+        endPress();
+      }
+    });
 
     btn.addEventListener(
       'touchstart',
       (e: TouchEvent) => {
         e.preventDefault();
+        const t = e.changedTouches[0];
+        if (t) {
+          boundTouchId = t.identifier;
+        }
         startPress();
       },
       { passive: false }
@@ -340,14 +360,36 @@ export function bindTouchControls(
       'touchend',
       (e: TouchEvent) => {
         e.preventDefault();
-        endPress();
+        for (let i = 0; i < e.changedTouches.length; i++) {
+          if (boundTouchId === null || e.changedTouches[i].identifier === boundTouchId) {
+            endPress();
+            break;
+          }
+        }
       },
       { passive: false }
     );
 
     btn.addEventListener('touchcancel', () => endPress(), { passive: true });
 
-    window.addEventListener('pointerup', () => endPress());
+    // Global window events only release if the matching pointer/touch released
+    window.addEventListener('pointerup', (e: PointerEvent) => {
+      if (boundPointerId !== null && boundPointerId === e.pointerId) {
+        endPress();
+      }
+    });
+
+    window.addEventListener('touchend', (e: TouchEvent) => {
+      if (boundTouchId !== null) {
+        for (let i = 0; i < e.changedTouches.length; i++) {
+          if (e.changedTouches[i].identifier === boundTouchId) {
+            endPress();
+            break;
+          }
+        }
+      }
+    });
+
     window.addEventListener('blur', () => endPress());
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) endPress();

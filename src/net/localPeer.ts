@@ -127,9 +127,7 @@ export class LocalPeerManager {
     });
 
     this.peer.on('open', () => {
-      const conn = this.peer!.connect(targetPeerId, {
-        reliable: false, // Low-latency UDP data channel for real-time game inputs!
-      });
+      const conn = this.peer!.connect(targetPeerId);
       this.hostConnection = conn;
 
       conn.on('open', () => {
@@ -254,9 +252,11 @@ export class LocalPeerManager {
       case 'snap':
         this.callbacks.onSnapshot(msg.snap);
         break;
-      case 'stick_snap':
-        this.callbacks.onStickSnapshot(msg.snap);
+      case 'stick_snap': {
+        const payload = (msg as any).snap || msg;
+        this.callbacks.onStickSnapshot(payload);
         break;
+      }
       case 'prompt_skill':
         this.callbacks.onSkillPrompt(msg.kind, msg.choices);
         break;
@@ -327,7 +327,7 @@ export class LocalPeerManager {
             canShop: snap.phase === 'intermission',
             soundCue: snap.sounds[0],
           };
-          conn.send(stickSnap);
+          conn.send({ t: 'stick_snap', snap: stickSnap } as NetMessage);
         }
       } else {
         // Full snapshot for coop screen players

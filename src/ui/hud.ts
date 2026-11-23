@@ -2,18 +2,21 @@ import { PLAYER_PALETTES, PROJ_COOLDOWN } from '../core/constants';
 import type { GameState } from '../core/types';
 
 export class HudController {
-  private badgeEl = document.getElementById('hud-player-badge')!;
-  private hpFillEl = document.getElementById('hud-hp-fill')!;
-  private hpTextEl = document.getElementById('hud-hp-text')!;
-  private ultFillEl = document.getElementById('hud-ult-fill')!;
-  private ultTextEl = document.getElementById('hud-ult-text')!;
-  private projFillEl = document.getElementById('hud-proj-fill')!;
-  private projTextEl = document.getElementById('hud-proj-text')!;
-  private perfEl = document.getElementById('hud-perf')!;
-  private coinsEl = document.getElementById('hud-coins')!;
-  private warungHudBtn = document.getElementById('btn-warung-hud')!;
-  private koCountEl = document.getElementById('hud-ko-count')!;
-  private modeTitleEl = document.getElementById('hud-mode-title')!;
+  private badgeEl = document.getElementById('hud-player-badge');
+  private personalBarsEl = document.getElementById('hud-personal-bars');
+  private monitorTeamStripEl = document.getElementById('monitor-team-strip');
+  private pecutPillEl = document.getElementById('hud-pecut-pill');
+  private hpFillEl = document.getElementById('hud-hp-fill');
+  private hpTextEl = document.getElementById('hud-hp-text');
+  private ultFillEl = document.getElementById('hud-ult-fill');
+  private ultTextEl = document.getElementById('hud-ult-text');
+  private projFillEl = document.getElementById('hud-proj-fill');
+  private projTextEl = document.getElementById('hud-proj-text');
+  private perfEl = document.getElementById('hud-perf');
+  private coinsEl = document.getElementById('hud-coins');
+  private warungHudBtn = document.getElementById('btn-warung-hud');
+  private koCountEl = document.getElementById('hud-ko-count');
+  private modeTitleEl = document.getElementById('hud-mode-title');
 
   private vbtnUltEl = document.getElementById('vbtn-ult');
   private vbtnProjEl = document.getElementById('vbtn-proj');
@@ -32,12 +35,17 @@ export class HudController {
   private lastCoinsText = '';
   private lastIsSurvival = false;
   private lastPerfText = '';
+  private lastMonitorHtml = '';
+  private lastWasMonitor: boolean | null = null;
 
   public update(
     state: GameState,
     localPlayerId = 'p1',
-    perfText = '60 FPS'
+    perfText = '60 FPS',
+    isMonitor = false
   ): void {
+    if (!this.perfEl || !this.modeTitleEl || !this.koCountEl) return;
+
     if (this.lastPerfText !== perfText) {
       this.lastPerfText = perfText;
       this.perfEl.textContent = perfText;
@@ -54,25 +62,62 @@ export class HudController {
       this.koCountEl.textContent = koTxt;
     }
 
-    const player = state.players.find((p) => p.id === localPlayerId) ?? state.players[0];
+    // Monitor Screen Layout Toggle
+    if (this.lastWasMonitor !== isMonitor) {
+      this.lastWasMonitor = isMonitor;
+      if (this.personalBarsEl) this.personalBarsEl.classList.toggle('hidden', isMonitor);
+      if (this.monitorTeamStripEl) this.monitorTeamStripEl.classList.toggle('hidden', !isMonitor);
+      if (this.pecutPillEl) this.pecutPillEl.classList.toggle('hidden', isMonitor);
+      if (isMonitor && this.badgeEl) {
+        this.lastBadge = 'TV';
+        this.badgeEl.textContent = '📺';
+        this.badgeEl.style.background = '#0284c7';
+      }
+    }
+
+    // Monitor Mode: Display all connected players' status cards across top
+    if (isMonitor) {
+      if (this.monitorTeamStripEl) {
+        const stripHtml = state.players
+          .map((pl) => {
+            const pal = PLAYER_PALETTES[pl.paletteIndex % PLAYER_PALETTES.length];
+            const hpPct = Math.max(0, Math.min(100, (pl.hp / Math.max(1, pl.maxHp)) * 100));
+            const ultPct = Math.max(0, Math.min(100, (pl.ult / Math.max(1, pl.maxUlt)) * 100));
+            const dead = pl.hp <= 0 || pl.knockedDown;
+            const ultReady = ultPct >= 100;
+            return `<div class="mon-card${dead ? ' dead' : ''}"><div class="mon-card-header"><span class="mon-avatar" style="background:${pal.accent}">${pal.label}</span><span class="mon-name">${pl.name}</span><span class="mon-coin">🪙 ${pl.coins}</span></div><div class="mon-meter-row"><span class="mon-meter-label">HP</span><div class="mon-meter-track"><div class="mon-hp-fill" style="width:${hpPct.toFixed(0)}%;background:${hpPct > 40 ? pal.accent : '#ef4444'}"></div></div><span class="mon-meter-val">${Math.ceil(pl.hp)}/${pl.maxHp}</span></div><div class="mon-meter-row"><span class="mon-meter-label">ULT</span><div class="mon-meter-track"><div class="mon-ult-fill${ultReady ? ' ready' : ''}" style="width:${ultPct.toFixed(0)}%"></div></div><span class="mon-meter-val${ultReady ? ' ready' : ''}">${ultReady ? 'SIAP! 🔥' : `${ultPct.toFixed(0)}%`}</span></div>${dead ? '<div class="mon-down-badge">⚠️ PINGSAN!</div>' : ''}</div>`;
+          })
+          .join('');
+        if (this.lastMonitorHtml !== stripHtml) {
+          this.lastMonitorHtml = stripHtml;
+          this.monitorTeamStripEl.innerHTML = stripHtml;
+        }
+      }
+      return;
+    }
+
+    const resolvedId = localPlayerId || 'p1';
+    const player = state.players.find((p) => p.id === resolvedId) ?? state.players[0];
     if (!player) return;
 
-    const palette = PLAYER_PALETTES[player.paletteIndex % PLAYER_PALETTES.length];
-    if (this.lastBadge !== palette.label) {
-      this.lastBadge = palette.label;
-      this.badgeEl.textContent = palette.label;
-      this.badgeEl.style.background = palette.accent;
+    if (this.badgeEl) {
+      const palette = PLAYER_PALETTES[player.paletteIndex % PLAYER_PALETTES.length];
+      if (this.lastBadge !== palette.label) {
+        this.lastBadge = palette.label;
+        this.badgeEl.textContent = palette.label;
+        this.badgeEl.style.background = palette.accent;
+      }
     }
 
     // HP Bar
     const hpPct = Math.max(0, Math.min(100, (player.hp / player.maxHp) * 100));
     const hpW = `${hpPct.toFixed(1)}%`;
     const hpTxt = `${Math.ceil(player.hp)}/${player.maxHp}`;
-    if (this.lastHpWidth !== hpW) {
+    if (this.hpFillEl && this.lastHpWidth !== hpW) {
       this.lastHpWidth = hpW;
       this.hpFillEl.style.width = hpW;
     }
-    if (this.lastHpText !== hpTxt) {
+    if (this.hpTextEl && this.lastHpText !== hpTxt) {
       this.lastHpText = hpTxt;
       this.hpTextEl.textContent = hpTxt;
     }
@@ -100,16 +145,16 @@ export class HudController {
           ? `${ultLabelName} SIAP!`
           : `${Math.floor(ultPct)}%`;
 
-    if (this.lastUltWidth !== ultW) {
+    if (this.ultFillEl && this.lastUltWidth !== ultW) {
       this.lastUltWidth = ultW;
       this.ultFillEl.style.width = ultW;
     }
-    if (this.lastUltReady !== ultReady) {
+    if (this.ultFillEl && this.lastUltReady !== ultReady) {
       this.lastUltReady = ultReady;
       this.ultFillEl.classList.toggle('ready', ultReady);
       if (this.vbtnUltEl) this.vbtnUltEl.classList.toggle('ready', ultReady);
     }
-    if (this.lastUltText !== ultTxt) {
+    if (this.ultTextEl && this.lastUltText !== ultTxt) {
       this.lastUltText = ultTxt;
       this.ultTextEl.textContent = ultTxt;
     }
@@ -121,11 +166,11 @@ export class HudController {
     const cdW = `${(cdRatio * 100).toFixed(1)}%`;
     const cdLabel = cd > 0 ? `${cd.toFixed(1)}s` : 'SIAP';
 
-    if (this.lastProjWidth !== cdW) {
+    if (this.projFillEl && this.lastProjWidth !== cdW) {
       this.lastProjWidth = cdW;
       this.projFillEl.style.width = cdW;
     }
-    if (this.lastProjText !== cdLabel) {
+    if (this.projTextEl && this.lastProjText !== cdLabel) {
       this.lastProjText = cdLabel;
       this.projTextEl.textContent = cdLabel;
       if (this.vbtnProjEl) this.vbtnProjEl.classList.toggle('cooling', cd > 0);
@@ -134,12 +179,12 @@ export class HudController {
 
     // Survival Coins/Warung button
     const isSurvival = state.mode === 'survival';
-    if (this.lastIsSurvival !== isSurvival) {
+    if (this.coinsEl && this.lastIsSurvival !== isSurvival) {
       this.lastIsSurvival = isSurvival;
       this.coinsEl.classList.toggle('hidden', !isSurvival);
-      this.warungHudBtn.classList.toggle('hidden', !isSurvival);
+      if (this.warungHudBtn) this.warungHudBtn.classList.toggle('hidden', !isSurvival);
     }
-    if (isSurvival) {
+    if (isSurvival && this.coinsEl) {
       const coinsTxt = `Rp ${player.coins}`;
       if (this.lastCoinsText !== coinsTxt) {
         this.lastCoinsText = coinsTxt;

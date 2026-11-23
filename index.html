@@ -34,6 +34,7 @@
                 <span id="hud-ult-text" class="bar-val">0%</span>
               </div>
             </div>
+            <div id="monitor-team-strip" class="monitor-team-strip hidden"></div>
           </div>
 
           <div class="hud-center">
@@ -499,37 +500,37 @@
           <div class="modal-card lobby-card">
             <div class="lobby-title-row">
               <div>
-                <div class="modal-eyebrow">📶 MABAR SATU JARINGAN (LOCAL P2P)</div>
-                <h2 class="modal-title">LOBI MABAR AREK</h2>
+                <div class="modal-eyebrow">☕ WARKOP MABAR SUROBOYO • 0 KUOTA INTERNET</div>
+                <h2 class="modal-title">WARUNG MABAR AREK</h2>
               </div>
               <button id="btn-lobby-fullscreen" class="lobby-fs-btn" title="Toggle Fullscreen">
                 ⛶ FULLSCREEN
               </button>
             </div>
             <p class="modal-sub">
-              Main bareng di Wi-Fi yang sama atau Hotspot HP • Latensi 1–5ms • 0 Kuota saat main
+              Main bareng sak jaringan Wi-Fi / Hotspot HP • Latensi 1ms Josss • Bebas kuota!
             </p>
 
             <!-- Mode Selector: Mode 1 (Layar Sendiri) vs Mode 2 (Monitor + HP Stick) -->
             <div class="mabar-mode-selector-wrap">
               <span class="mabar-selector-label">PILIH MODE MABAR:</span>
               <div class="setting-seg local-style-seg" id="local-style-group">
-                <button id="local-style-normal" class="seg-btn active" title="Semua pemain melihat layar masing-masing">
-                  📱 1. LAYAR MASING-MASING
+                <button id="local-style-normal" class="seg-btn active" title="Kabeh pemain ndelok layar HP masing-masing">
+                  📱 1. KEROYOKAN LAYAR DEWE
                 </button>
-                <button id="local-style-monitor" class="seg-btn" title="1 Layar jadi Monitor utama, HP teman jadi Stick Gamepad">
-                  📺 2. 1 MONITOR + HP STICK
+                <button id="local-style-monitor" class="seg-btn" title="1 Layar dadi Monitor utama, HP konco dadi Stick Gamepad">
+                  📺 2. 1 MONITOR + HP DADI STIK
                 </button>
               </div>
             </div>
 
             <!-- Petunjuk Singkat Koneksi -->
             <div class="hotspot-guide-box" id="hotspot-guide">
-              <strong id="hotspot-guide-title">Cara Mabar Satu Jaringan (Wi-Fi / Hotspot):</strong>
+              <strong id="hotspot-guide-title">📱 Cara Mabar Keroyokan Layar Dewe (Co-op Local):</strong>
               <ol>
-                <li id="hotspot-guide-step1">Semua HP/Laptop terhubung ke <b>Wi-Fi atau Hotspot HP yang sama</b>.</li>
-                <li id="hotspot-guide-step2">Satu orang klik <b>BUAT ROOM</b>, bagikan <b>Kode 4 Huruf</b> atau tunjukkan <b>QR Code</b>.</li>
-                <li id="hotspot-guide-step3">Teman masukkan kode itu lalu klik <b>GABUNG ROOM</b>!</li>
+                <li id="hotspot-guide-step1">Kabeh HP/Laptop konek nang <b>Wi-Fi utawa Hotspot HP seng podo</b>.</li>
+                <li id="hotspot-guide-step2">Siji arek klik <b>BUAT ROOM CO-OP</b>, duduhno kode room / QR nang konco.</li>
+                <li id="hotspot-guide-step3">Konco ketik kode room terus pencet <b>GABUNG ROOM</b>!</li>
               </ol>
             </div>
 
@@ -557,8 +558,8 @@
             <div class="lobby-actions-row">
               <!-- Kolom Kiri: Host -->
               <div class="lobby-box">
-                <span class="lobby-box-title" id="label-host-mode">JADI HOST (BUAT ROOM)</span>
-                <button id="btn-create-room" class="mabar-btn">BUAT ROOM BARU</button>
+                <span class="lobby-box-title" id="label-host-mode">👑 HOST CO-OP (LAYAR DEWE)</span>
+                <button id="btn-create-room" class="mabar-btn">BUAT ROOM CO-OP ➔</button>
 
                 <div id="host-code-wrap" class="host-code-wrap hidden">
                   <div class="qr-host-container">
@@ -570,7 +571,7 @@
                       <span class="qr-code-tag">KODE ROOM:</span>
                       <div class="room-code-badge" id="lobby-room-code">----</div>
                       <button id="btn-copy-link" class="ghost-btn mini-btn">📋 SALIN LINK</button>
-                      <span class="qr-code-note">Teman bisa scan QR di atas atau masukkan kode di sebelah kanan!</span>
+                      <span class="qr-code-note">Konco iso scan QR utawa ketik kode nang sebelah tengen!</span>
                     </div>
                   </div>
                   <button id="btn-start-mabar" class="primary-btn hidden">MULAI MABAR SURVIVAL ➔</button>
@@ -579,11 +580,11 @@
 
               <!-- Kolom Kanan: Client -->
               <div class="lobby-box">
-                <span class="lobby-box-title">GABUNG ROOM TEMAN</span>
+                <span class="lobby-box-title">🤝 GABUNG ROOM KONCO</span>
                 <div class="join-role-selector">
-                  <span class="join-role-label">Peran Saat Gabung:</span>
+                  <span class="join-role-label">Peran Pas Gabung:</span>
                   <div class="setting-seg join-role-seg">
-                    <button id="btn-role-coop" class="seg-btn active" data-role="coop">📱 Layar Sendiri</button>
+                    <button id="btn-role-coop" class="seg-btn active" data-role="coop">📱 Layar Dewe</button>
                     <button id="btn-role-stick" class="seg-btn" data-role="stick">🎮 Stick Gamepad</button>
                   </div>
                 </div>
@@ -596,18 +597,18 @@
                   autocomplete="off"
                   autocapitalize="characters"
                 />
-                <button id="btn-join-room" class="secondary-btn">GABUNG ROOM ➔</button>
+                <button id="btn-join-room" class="secondary-btn">GAS GABUNG ROOM ➔</button>
               </div>
             </div>
 
             <!-- Roster & Status -->
             <div class="lobby-roster-wrap">
               <div class="roster-header">
-                <span>Pemain di Room:</span>
+                <span>Arek seng wis Nang Room:</span>
                 <span id="lobby-player-count">0/5</span>
               </div>
               <div id="lobby-roster" class="lobby-roster">
-                <div class="roster-empty">Belum ada room aktif.</div>
+                <div class="roster-empty">Durung ono arek mlebu.</div>
               </div>
             </div>
 
@@ -850,28 +851,33 @@
 
       <!-- Virtual Controls (Ergonomic 360° Analog Thumbstick + Arc Action Pad) -->
       <section id="controls-deck" class="controls-deck" aria-label="Kontrol Virtual">
-        <!-- Stick-only Mini HUD Bar (Top of controller) -->
+        <!-- Stick-only Mini HUD Bar (Top of controller) — Suroboyoan Style -->
         <div id="stick-hud-bar" class="stick-hud-bar hidden">
+          <!-- Left: Player badge + name + wave -->
           <div class="stick-hud-left">
-            <span id="stick-player-badge" class="stick-player-badge">P1</span>
-            <span id="stick-player-name" class="stick-player-name">AREK</span>
-            <span id="stick-wave-pill" class="stick-pill">W1</span>
-          </div>
-          <div id="stick-toast" class="stick-toast hidden"></div>
-          <div class="stick-hud-mid">
-            <div class="stick-bar-wrap">
-              <div id="stick-hp-fill" class="stick-hp-fill" style="width: 100%"></div>
+            <span id="stick-player-badge" class="stick-badge">P1</span>
+            <div class="stick-identity">
+              <span id="stick-player-name" class="stick-player-name">AREK</span>
+              <span id="stick-wave-pill" class="stick-wave-badge">W1</span>
             </div>
-            <span id="stick-hp-text" class="stick-bar-text">100/100</span>
           </div>
+          <!-- Center: HP bar large -->
+          <div class="stick-hud-mid">
+            <div class="stick-hp-label">HP</div>
+            <div class="stick-hp-track">
+              <div id="stick-hp-fill" class="stick-hp-fill" style="width: 100%"></div>
+              <span id="stick-hp-text" class="stick-hp-overlay-text">100/100</span>
+            </div>
+          </div>
+          <!-- Right: Ult / Coins / Ping / Buttons -->
           <div class="stick-hud-right">
-            <span id="stick-ult-text" class="stick-pill pill-ult">ULT 0%</span>
-            <span id="stick-coins-text" class="stick-pill pill-coins">🪙 0</span>
-            <span id="stick-ping-pill" class="stick-pill pill-ping">⚡ 0ms</span>
-            <button class="vbtn util-btn" data-action="shop" id="vbtn-stick-shop" title="Buka Warung">
+            <span id="stick-ult-text" class="stick-stat-pill pill-ult">🌀 0%</span>
+            <span id="stick-coins-text" class="stick-stat-pill pill-coins">🪙 0</span>
+            <span id="stick-ping-pill" class="stick-stat-pill pill-ping">⚡ LAN</span>
+            <button class="stick-action-btn shop-ready-btn" data-action="shop" id="vbtn-stick-shop" title="Buka Warung">
               🏪 WARUNG
             </button>
-            <button id="btn-stick-exit" class="secondary-btn stick-pause-btn" title="Pause / Menu">
+            <button id="btn-stick-exit" class="stick-action-btn stick-pause-btn" title="Pause / Menu">
               ⏸ JEDA
             </button>
           </div>
