@@ -372,11 +372,11 @@
                 </div>
                 <div class="credit-row">
                   <span class="credit-role">TEKNOLOGI</span>
-                  <strong>TypeScript • HTML5 Canvas 2D • PCM Audio • Cloudflare Durable Objects</strong>
+                  <strong>TypeScript • HTML5 Canvas 2D • PCM Audio • Node.js + Socket.IO</strong>
                 </div>
                 <div class="credit-row">
                   <span class="credit-role">VERSI RILIS</span>
-                  <strong>v1.7.0 — Official Full Release (Suroboyo Edition)</strong>
+                  <strong>v1.8.0 — Tawuran Smash Bros &amp; LAN Server Edition</strong>
                 </div>
               </div>
               <div class="menu-footer-actions">
@@ -387,6 +387,18 @@
             <!-- View 4: Info Update / Changelog -->
             <div id="menu-changelog-view" class="menu-view scenic-subpanel hidden">
               <div class="changelog-box">
+                <div class="changelog-entry">
+                  <div class="changelog-head">
+                    <span class="version-badge">v1.8.0</span>
+                    <strong>Super Smash Bros Tawuran (6 Pemain/Bot) &amp; Node.js + Socket.IO Server</strong>
+                  </div>
+                  <ul class="changelog-list">
+                    <li><b>Mode Super Smash Bros Tawuran (Max 6 Pemain):</b> Pertarungan arena platform bebas dengan ring-out blast zones, 3-stock lives, soft platform drop (bawah + lompat), dan podium juara 1, 2, 3!</li>
+                    <li><b>6 Hero Suroboyo Unik:</b> Cak Bima (All-Rounder Pecut), Mat Clurit (Speed Assassin), Bang Bambang (Heavy Tank Paving), Gus Dimas (Mage Sholawat &amp; Petir), Pak RT Karbit (Trapper Bazooka), dan Mbak Sri (Agile Broom Rusher).</li>
+                    <li><b>Server Local Node.js + Socket.IO:</b> Jalankan <code>npm start</code> di laptop/PC, langsung mabar lancar jaya di Wi-Fi / Hotspot tanpa kuota server internet (ping &lt; 2ms, anti-cloudflare)!</li>
+                    <li><b>Bot AI Cerdas:</b> Tambah / kurangi bot AI di lobi untuk mengisi slot hingga 6 pemain.</li>
+                  </ul>
+                </div>
                 <div class="changelog-entry">
                   <div class="changelog-head">
                     <span class="version-badge">v1.7.0</span>
@@ -444,7 +456,7 @@
                     <strong>Realtime Anti-Lag (WebRTC UDP P2P + 0ms Prediksi + 100% Gratis)</strong>
                   </div>
                   <ul class="changelog-list">
-                    <li><b>Jalur Ganda WebRTC UDP + WSS Fallback:</b> Koneksi mabar otomatis memakai <b>UDP DataChannel langsung</b> (2–10ms di Hotspot/WiFi, 0 kuota server saat main!) dan otomatis fallback ke Cloudflare WSS jika diblokir NAT.</li>
+                    <li><b>Jalur Ganda LAN Socket.IO + WebRTC P2P:</b> Koneksi mabar otomatis memakai <b>Socket.IO LAN langsung</b> (0–2ms di Hotspot/WiFi, 0 kuota server saat main!) dan otomatis fallback ke WebRTC DataChannel.</li>
                     <li><b>Prediksi Aksi 0ms &amp; Non-Destructive Merge:</b> Kibas, Pecut, Dash &amp; Lompat langsung muncul instan 0ms di layar tanpa nunggu balasan jaringan.</li>
                     <li><b>Paket Kompak 15x Lebih Ringan:</b> Snapshot dikompres dari ~6 KB menjadi ~400 byte + indikator <b>FPS &amp; Ping (ms)</b> live di HUD.</li>
                   </ul>
@@ -476,10 +488,10 @@
                 <div class="changelog-entry">
                   <div class="changelog-head">
                     <span class="version-badge">v1.1.0</span>
-                    <strong>Migrasi Mabar ke Cloudflare Workers + Durable Objects (WSS)</strong>
+                    <strong>Sistem Mabar Realtime &amp; Slim Snapshot</strong>
                   </div>
                   <ul class="changelog-list">
-                    <li>Migrasi penuh ke Cloudflare Edge WebSocket (<code>wss://sarungan-slayer.pages.dev</code>) + Slim Snapshot 20 Hz, Delta Input &amp; Lerp 60 FPS.</li>
+                    <li>Sinkronisasi mabar lokal realtime + Slim Snapshot 20 Hz, Delta Input &amp; Lerp 60 FPS.</li>
                   </ul>
                 </div>
               </div>
