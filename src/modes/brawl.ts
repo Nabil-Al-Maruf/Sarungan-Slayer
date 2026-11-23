@@ -28,8 +28,8 @@ export interface BrawlRosterMember {
 const BRAWL_GRAVITY = 980; // px/s² downward acceleration
 const BRAWL_MAX_FALL = 680; // terminal fall velocity
 const BRAWL_FAST_FALL = 840; // holding down while falling
-const BRAWL_JUMP_IMPULSE = -470; // ground jump launch velocity
-const BRAWL_DOUBLE_JUMP_IMPULSE = -430; // air jump launch velocity
+const BRAWL_JUMP_IMPULSE = -495; // ground jump launch velocity (clears side platforms cleanly)
+const BRAWL_DOUBLE_JUMP_IMPULSE = -450; // air jump launch velocity
 
 export function createBrawlState(
   roster: BrawlRosterMember[],
@@ -111,6 +111,7 @@ export function createBrawlState(
       meleeSwingId: 0,
       meleeComboStep: 0,
       meleeAngle: 0,
+      comboResetTimer: 0,
 
       projCooldown: 0,
 
@@ -131,10 +132,10 @@ export function createBrawlState(
     platforms,
     itemSpawnTimer: 8,
     ringOutBound: {
-      minX: -60,
-      maxX: 1020,
-      minY: -90,
-      maxY: 560,
+      minX: -80,
+      maxX: 1040,
+      minY: -260,
+      maxY: 580,
     },
   };
 
@@ -166,7 +167,7 @@ export function createBrawlState(
     particles: [],
     slashes: [],
     floatingTexts: [],
-    soundQueue: ['jump'],
+    soundQueue: [],
     shakeTimer: 0,
     shakeIntensity: 0,
     hitstopTimer: 0,
@@ -181,7 +182,7 @@ export function createBrawlState(
  * Intelligent Bot AI for Solo / Fill-in Smash Brawl
  * Supports:
  * - Edge-recovery jumping back to stage when airborne outside stage bounds
- * - Platform vertical tracking (jumping up or dropping through)
+ * - Platform vertical tracking (jumping up or dropping through soft platforms)
  * - Melee combos, projectile kiting, and ultimate triggers
  */
 function computeBotInput(bot: PlayerState, state: GameState, dt: number): PlayerInput {
@@ -253,15 +254,23 @@ function computeBotInput(bot: PlayerState, state: GameState, dt: number): Player
   else if (dx < -36) inp.left = true;
 
   // Vertical tracking: Jump to reach opponent on higher platform
-  if (dy < -50 && (bot.botJumpTimer ?? 0) <= 0 && (bot.isGrounded || bot.jumpsRemaining > 0)) {
-    if (Math.random() < 0.12) {
+  if (dy < -45 && (bot.botJumpTimer ?? 0) <= 0 && (bot.isGrounded || bot.jumpsRemaining > 0)) {
+    if (Math.random() < 0.15) {
       inp.jumpPressed = true;
       bot.botJumpTimer = 0.42;
     }
   }
 
   // Drop down from soft platform if opponent is well below
-  if (dy > 65 && bot.isGrounded && Math.random() < 0.1) {
+  const botOnSoftPlat = state.brawl?.platforms.some(
+    (plat) =>
+      plat.dropThrough &&
+      bot.x + bot.radius * 0.7 > plat.x &&
+      bot.x - bot.radius * 0.7 < plat.x + plat.w &&
+      Math.abs(bot.y - plat.y) <= 5
+  );
+
+  if (dy > 65 && bot.isGrounded && botOnSoftPlat && Math.random() < 0.1) {
     inp.down = true;
     inp.jumpPressed = true;
   }
@@ -290,8 +299,32 @@ export function stepBrawl(
   const br = state.brawl;
   if (!br) return;
 
+  // Clear frame sound queue at start of step
+  state.soundQueue.length = 0;
+
+  if (state.status !== 'playing') {
+    state.slashes.length = 0;
+    state.shakeTimer = 0;
+    state.shakeIntensity = 0;
+    state.hitstopTimer = 0;
+    return;
+  }
+
+  // Screen shake decay (subtle & smoothly fades out)
+  if (state.shakeTimer > 0) {
+    state.shakeTimer = Math.max(0, state.shakeTimer - dt);
+    if (state.shakeTimer === 0) {
+      state.shakeIntensity = 0;
+    }
+  }
+
+  // Hitstop pause (impact freeze frame)
+  if (state.hitstopTimer > 0) {
+    state.hitstopTimer = Math.max(0, state.hitstopTimer - dt);
+    return;
+  }
+
   state.time += dt;
-  if (state.status !== 'playing') return;
 
   // Match timer
   br.remainingTime -= dt;
@@ -344,8 +377,19 @@ export function stepBrawl(
     if (player.hitFlashTimer > 0) player.hitFlashTimer = Math.max(0, player.hitFlashTimer - dt);
     if (player.dashCooldown > 0) player.dashCooldown = Math.max(0, player.dashCooldown - dt);
     if (player.meleeCooldown > 0) player.meleeCooldown = Math.max(0, player.meleeCooldown - dt);
+    if (player.meleeTimer > 0) player.meleeTimer = Math.max(0, player.meleeTimer - dt);
     if (player.projCooldown > 0) player.projCooldown = Math.max(0, player.projCooldown - dt);
     if ((player.dropThroughTimer ?? 0) > 0) player.dropThroughTimer = Math.max(0, (player.dropThroughTimer ?? 0) - dt);
+
+    // Combo window countdown (resets combo chain if no follow-up attack within window)
+    if ((player.comboResetTimer ?? 0) > 0) {
+      player.comboResetTimer = Math.max(0, (player.comboResetTimer ?? 0) - dt);
+      if (player.comboResetTimer === 0) {
+        player.meleeComboStep = 0;
+      }
+    }
+
+    const inHitstun = (player.hitFlashTimer ?? 0) > 0;
 
     // Active Ultimate timer
     if (player.ultActiveTimer > 0) {
@@ -369,13 +413,15 @@ export function stepBrawl(
       if (inp.right) mx += 1;
     }
 
-    if (mx > 0.1) player.dirX = 1;
-    else if (mx < -0.1) player.dirX = -1;
+    if (!inHitstun) {
+      if (mx > 0.1) player.dirX = 1;
+      else if (mx < -0.1) player.dirX = -1;
+    }
 
     const isHoldingDown = inp.down || (inp.moveY !== undefined && inp.moveY > 0.45);
 
     // Dash Action
-    if (inp.dashPressed && player.dashCooldown <= 0) {
+    if (inp.dashPressed && player.dashCooldown <= 0 && !inHitstun) {
       player.dashTimer = 0.22;
       player.dashCooldown = 0.75 * hDef.cdMult;
       player.dashDirX = player.dirX;
@@ -386,23 +432,35 @@ export function stepBrawl(
     }
 
     // Jump / Drop Through Action
-    if (inp.jumpPressed) {
-      if (player.isGrounded && isHoldingDown) {
+    if (inp.jumpPressed && !inHitstun) {
+      const onSoftPlatform = br.platforms.some(
+        (plat) =>
+          plat.dropThrough &&
+          player.x + player.radius * 0.7 > plat.x &&
+          player.x - player.radius * 0.7 < plat.x + plat.w &&
+          Math.abs(player.y - plat.y) <= 5
+      );
+
+      if (player.isGrounded && isHoldingDown && onSoftPlatform) {
         // Drop through current soft platform!
-        player.dropThroughTimer = 0.26;
+        player.dropThroughTimer = 0.28;
         player.isGrounded = false;
-        player.y += 5;
-        player.vy = 120;
+        player.y += 6;
+        player.vy = 80;
       } else if (player.isGrounded) {
         // Ground Jump
         player.isGrounded = false;
         player.vy = BRAWL_JUMP_IMPULSE;
         player.jumpsRemaining = hDef.maxJumps - 1;
+        player.scaleX = 0.85;
+        player.scaleY = 1.25;
         state.soundQueue.push('jump');
       } else if (player.jumpsRemaining > 0) {
         // Air Double / Triple Jump
         player.vy = BRAWL_DOUBLE_JUMP_IMPULSE;
         player.jumpsRemaining--;
+        player.scaleX = 0.88;
+        player.scaleY = 1.22;
         state.soundQueue.push('double_jump');
 
         // Air jump particle ring
@@ -441,17 +499,27 @@ export function stepBrawl(
         });
       }
     } else {
-      // Horizontal acceleration / friction
       const targetVx = mx * hDef.moveSpeed;
-      if (player.isGrounded) {
-        player.vx += (targetVx - player.vx) * Math.min(1, dt * 18);
+      if (inHitstun) {
+        // DI steering during knockback
+        player.vx += mx * 180 * dt;
+        player.vx *= Math.pow(0.95, dt * 60);
+      } else if (player.isGrounded) {
+        // Grounded movement & landing slide friction
+        if (Math.abs(player.vx) > hDef.moveSpeed * 1.2) {
+          player.vx *= Math.pow(0.82, dt * 60);
+        } else {
+          player.vx += (targetVx - player.vx) * Math.min(1, dt * 20);
+        }
       } else {
-        // Air drift
-        player.vx += (targetVx - player.vx) * Math.min(1, dt * 8);
+        // Airborne movement & knockback trajectory
+        if (Math.abs(player.vx) > hDef.moveSpeed) {
+          player.vx *= Math.pow(0.94, dt * 60);
+          player.vx += mx * 220 * dt;
+        } else {
+          player.vx += (targetVx - player.vx) * Math.min(1, dt * 9);
+        }
       }
-
-      // Air resistance on knockback momentum
-      player.vx *= Math.pow(0.92, dt * 60);
 
       // Gravity
       if (!player.isGrounded) {
@@ -461,33 +529,48 @@ export function stepBrawl(
       }
     }
 
+    // Squash & Stretch visual recovery
+    player.scaleX += (1 - player.scaleX) * Math.min(1, dt * 15);
+    player.scaleY += (1 - player.scaleY) * Math.min(1, dt * 15);
+
+    // Animation Clock
+    const speed = Math.hypot(player.vx, player.vy);
+    if (player.ultActiveTimer > 0) {
+      player.animTime += dt * 24;
+    } else if (speed > 20 && player.isGrounded) {
+      player.animTime += dt * 14;
+    } else {
+      player.animTime += dt * 3.5;
+    }
+
     // Integrate Position
+    const prevX = player.x;
     const prevY = player.y;
     player.x += player.vx * dt;
     player.y += player.vy * dt;
     player.z = 0; // Brawl is 2D side-scrolling, z kept at 0
 
     // Platform Collision Resolution
-    handle2DPlatforms(player, prevY, br.platforms, isHoldingDown);
+    handle2DPlatforms(player, prevX, prevY, br.platforms, isHoldingDown, dt);
 
     // Melee attack trigger
-    if (inp.meleePressed && player.meleeCooldown <= 0 && player.dashTimer <= 0) {
+    if (inp.meleePressed && player.meleeCooldown <= 0 && player.dashTimer <= 0 && !inHitstun) {
       executeHeroMelee(state, player, hDef);
     }
 
     // Projectile skill trigger
-    if (inp.projPressed && player.projCooldown <= 0 && player.dashTimer <= 0) {
+    if (inp.projPressed && player.projCooldown <= 0 && player.dashTimer <= 0 && !inHitstun) {
       executeHeroProjectile(state, player, hDef);
     }
 
     // Ultimate trigger
-    if (inp.ultPressed && player.ult >= player.maxUlt && player.ultActiveTimer <= 0) {
+    if (inp.ultPressed && player.ult >= player.maxUlt && player.ultActiveTimer <= 0 && !inHitstun) {
       player.ultActiveTimer = 3.2;
       player.ultTickTimer = 0.1;
       player.invulnTimer = 3.2;
       state.soundQueue.push('ult_start');
-      state.shakeTimer = 0.45;
-      state.shakeIntensity = 9;
+      state.shakeTimer = 0.16;
+      state.shakeIntensity = 2.6;
       state.floatingTexts.push({
         x: player.x,
         y: player.y - 65,
@@ -512,9 +595,64 @@ export function stepBrawl(
     checkBrawlRingOut(state, player, br);
   }
 
+  // Gentle horizontal separation push between living grounded players (prevents sprite stacking)
+  for (let i = 0; i < state.players.length; i++) {
+    const p1 = state.players[i];
+    if ((p1.brawlStocks ?? 0) <= 0) continue;
+    for (let j = i + 1; j < state.players.length; j++) {
+      const p2 = state.players[j];
+      if ((p2.brawlStocks ?? 0) <= 0) continue;
+      if (Math.abs(p1.y - p2.y) < 20) {
+        const minSep = p1.radius * 1.35; // ~24px
+        const dx = p2.x - p1.x;
+        const dist = Math.abs(dx);
+        if (dist < minSep) {
+          const overlap = (minSep - dist) * 0.5;
+          const pushDir = dx >= 0 ? 1 : -1;
+          p1.x -= pushDir * overlap * 0.45;
+          p2.x += pushDir * overlap * 0.45;
+        }
+      }
+    }
+  }
+
   // Update projectiles & crates
   updateBrawlProjectiles(state, dt);
   updateBrawlCratesAndPickups(state, dt);
+
+  // Update visual slashes (fixes bug where slashes stayed stuck on screen!)
+  for (let i = state.slashes.length - 1; i >= 0; i--) {
+    state.slashes[i].life -= dt;
+    if (state.slashes[i].life <= 0) {
+      state.slashes.splice(i, 1);
+    }
+  }
+
+  // Update particles
+  for (let i = state.particles.length - 1; i >= 0; i--) {
+    const p = state.particles[i];
+    p.life -= dt;
+    if (p.life <= 0) {
+      state.particles.splice(i, 1);
+      continue;
+    }
+    p.vy += (p.gravity ?? 0) * dt;
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.alpha = Math.max(0, p.life / p.maxLife);
+  }
+
+  // Update floating texts
+  for (let i = state.floatingTexts.length - 1; i >= 0; i--) {
+    const ft = state.floatingTexts[i];
+    ft.life -= dt;
+    if (ft.life <= 0) {
+      state.floatingTexts.splice(i, 1);
+      continue;
+    }
+    ft.y += ft.vy * dt;
+    ft.vy *= Math.pow(0.25, dt);
+  }
 }
 
 /**
@@ -522,48 +660,71 @@ export function stepBrawl(
  * Supports:
  * - Solid ground with top landing, ceiling bonk, and side-push
  * - Soft platforms with drop-through and smooth top landing
- * - Edge detection (walking off edges enters airborne state)
+ * - Edge detection (walking off edges enters airborne state with preserved air jump)
  */
 function handle2DPlatforms(
   player: PlayerState,
+  prevX: number,
   prevY: number,
   platforms: BrawlPlatform[],
-  isHoldingDown: boolean
+  isHoldingDown: boolean,
+  dt: number
 ): void {
-  let wasGrounded = player.isGrounded;
+  const wasGrounded = player.isGrounded;
   player.isGrounded = false;
+  const hDef = getHeroDef(player.heroId);
 
   for (const plat of platforms) {
-    const inX =
-      player.x + player.radius * 0.7 > plat.x &&
-      player.x - player.radius * 0.7 < plat.x + plat.w;
+    const footSpan = player.radius * 0.7;
+    const inX = player.x + footSpan > plat.x && player.x - footSpan < plat.x + plat.w;
 
     if (!plat.dropThrough) {
       // Solid Main Platform (plat.y: 390, plat.w: 620, plat.h: 32)
+      const platTop = plat.y;
+      const platBottom = plat.y + plat.h;
+
       // 1. Top Landing
-      if (inX && prevY <= plat.y + 6 && player.y >= plat.y - 2 && player.vy >= 0) {
-        player.y = plat.y;
+      const maxFallStep = Math.max(18, player.vy * dt + 10);
+      if (
+        inX &&
+        prevY <= platTop + 4 &&
+        player.y >= platTop - 2 &&
+        player.y <= platTop + maxFallStep &&
+        player.vy >= 0
+      ) {
+        player.y = platTop;
         player.vy = 0;
         player.isGrounded = true;
-        player.jumpsRemaining = getHeroDef(player.heroId).maxJumps;
+        player.jumpsRemaining = hDef.maxJumps;
+        player.dropThroughTimer = 0;
+        if (!wasGrounded) {
+          player.scaleX = 1.18;
+          player.scaleY = 0.85;
+        }
         continue;
       }
 
       // 2. Ceiling bonk
-      if (inX && player.y - 42 < plat.y + plat.h && prevY - 42 >= plat.y + plat.h - 10 && player.vy < 0) {
-        player.y = plat.y + plat.h + 42;
+      const headPrevY = prevY - 44;
+      const headY = player.y - 44;
+      if (inX && headPrevY >= platBottom - 6 && headY <= platBottom + 2 && player.vy < 0) {
+        player.y = platBottom + 44;
         player.vy = 0;
+        player.scaleX = 1.15;
+        player.scaleY = 0.88;
       }
 
       // 3. Side walls
-      if (player.y > plat.y + 4 && player.y - 32 < plat.y + plat.h) {
+      const bodyTop = player.y - 36;
+      const bodyBottom = player.y;
+      if (bodyTop < platBottom && bodyBottom > platTop + 4) {
         // Left ledge push
-        if (player.x > plat.x - player.radius && player.x < plat.x + 12) {
+        if (prevX + player.radius <= plat.x + 6 && player.x + player.radius >= plat.x) {
           player.x = plat.x - player.radius;
           if (player.vx > 0) player.vx = 0;
         }
         // Right ledge push
-        if (player.x < plat.x + plat.w + player.radius && player.x > plat.x + plat.w - 12) {
+        else if (prevX - player.radius >= plat.x + plat.w - 6 && player.x - player.radius <= plat.x + plat.w) {
           player.x = plat.x + plat.w + player.radius;
           if (player.vx < 0) player.vx = 0;
         }
@@ -574,30 +735,46 @@ function handle2DPlatforms(
         continue; // Dropping through
       }
 
-      // Land on top edge if falling downward
-      if (inX && prevY <= plat.y + 5 && player.y >= plat.y - 3 && player.vy >= 0) {
+      // Land on top edge if falling downward and not holding down
+      const maxFallStep = Math.max(18, player.vy * dt + 10);
+      if (
+        inX &&
+        prevY <= plat.y + 4 &&
+        player.y >= plat.y - 2 &&
+        player.y <= plat.y + maxFallStep &&
+        player.vy >= 0
+      ) {
         if (!isHoldingDown) {
           player.y = plat.y;
           player.vy = 0;
           player.isGrounded = true;
-          player.jumpsRemaining = getHeroDef(player.heroId).maxJumps;
+          player.jumpsRemaining = hDef.maxJumps;
+          player.dropThroughTimer = 0;
+          if (!wasGrounded) {
+            player.scaleX = 1.15;
+            player.scaleY = 0.88;
+          }
         }
       }
     }
   }
 
-  // If walking along platform, remain grounded
-  if (wasGrounded && !player.isGrounded && Math.abs(player.vy) < 1) {
+  // 4. Ground maintenance: If walking along platform and didn't jump or drop-through, stay grounded
+  if (wasGrounded && !player.isGrounded && player.vy >= 0 && (player.dropThroughTimer ?? 0) <= 0) {
     for (const plat of platforms) {
-      const inX =
-        player.x + player.radius * 0.7 > plat.x &&
-        player.x - player.radius * 0.7 < plat.x + plat.w;
-      if (inX && Math.abs(player.y - plat.y) < 4) {
+      if (plat.dropThrough && (player.dropThroughTimer ?? 0) > 0) continue;
+      const footSpan = player.radius * 0.7;
+      const inX = player.x + footSpan > plat.x && player.x - footSpan < plat.x + plat.w;
+      if (inX && Math.abs(player.y - plat.y) <= 5) {
         player.y = plat.y;
         player.vy = 0;
         player.isGrounded = true;
         break;
       }
+    }
+    // If walked off platform ledge, transition cleanly to air
+    if (!player.isGrounded) {
+      player.jumpsRemaining = Math.min(player.jumpsRemaining, hDef.maxJumps - 1);
     }
   }
 }
@@ -608,8 +785,10 @@ function checkBrawlRingOut(
   br: BrawlState
 ): void {
   const b = br.ringOutBound;
+  // Ceiling blast zone only KOs if fighter was launched in hitstun/knockback, preventing self-jump suicides
+  const hitCeilingBlast = player.y < b.minY && (player.hitFlashTimer > 0 || player.vy < -250);
   const isOut =
-    player.x < b.minX || player.x > b.maxX || player.y < b.minY || player.y > b.maxY;
+    player.x < b.minX || player.x > b.maxX || hitCeilingBlast || player.y > b.maxY;
 
   if (isOut) {
     // Blast Zone Hit!
@@ -635,15 +814,15 @@ function checkBrawlRingOut(
     }
 
     state.soundQueue.push('ko');
-    state.shakeTimer = 0.5;
-    state.shakeIntensity = 12;
+    state.shakeTimer = 0.18;
+    state.shakeIntensity = 2.8;
 
-    // Spawn massive blast particles
+    // Spawn blast particles
     const blastX = Math.max(30, Math.min(930, player.x));
     const blastY = Math.max(30, Math.min(510, player.y));
-    for (let i = 0; i < 32; i++) {
-      const angle = (Math.PI * 2 * i) / 32;
-      const spd = 140 + Math.random() * 280;
+    for (let i = 0; i < 24; i++) {
+      const angle = (Math.PI * 2 * i) / 24;
+      const spd = 140 + Math.random() * 260;
       state.particles.push({
         x: blastX,
         y: blastY,
@@ -651,16 +830,17 @@ function checkBrawlRingOut(
         vx: Math.cos(angle) * spd,
         vy: Math.sin(angle) * spd,
         vz: 0,
-        size: 5 + Math.random() * 6,
+        size: 5 + Math.random() * 5,
         color: i % 2 === 0 ? '#ef4444' : '#fde047',
         alpha: 1,
-        life: 0.6 + Math.random() * 0.4,
-        maxLife: 1.0,
+        life: 0.5 + Math.random() * 0.3,
+        maxLife: 0.8,
         gravity: 0,
       });
     }
 
     if (player.brawlStocks > 0) {
+      const hDef = getHeroDef(player.heroId);
       // Respawn at revival hover point with 2.5s invulnerability
       player.x = 480;
       player.y = 150;
@@ -669,6 +849,17 @@ function checkBrawlRingOut(
       player.vy = 0;
       player.vz = 0;
       player.isGrounded = false;
+      player.jumpsRemaining = hDef.maxJumps;
+      player.hitFlashTimer = 0;
+      player.dropThroughTimer = 0;
+      player.meleeTimer = 0;
+      player.meleeCooldown = 0;
+      player.dashTimer = 0;
+      player.dashCooldown = 0;
+      player.afterimages = [];
+      player.comboResetTimer = 0;
+      player.scaleX = 1;
+      player.scaleY = 1;
       player.hp = player.maxHp;
       player.invulnTimer = 2.5;
       player.lastHitBy = undefined;
@@ -701,6 +892,7 @@ function executeHeroMelee(
   player.meleeComboStep = (player.meleeComboStep % 3) + 1;
   player.meleeTimer = 0.22;
   player.meleeCooldown = 0.35 * hDef.cdMult;
+  player.comboResetTimer = 0.75 * hDef.cdMult; // Combo window remains open
   player.meleeSwingId++;
   player.meleeAngle = player.dirX > 0 ? 0 : Math.PI;
 
@@ -735,7 +927,7 @@ function executeHeroMelee(
       const isFinisher = player.meleeComboStep === 3;
       const baseDmg = (isFinisher ? 28 : 14) * hDef.dmgMult;
       other.hp = Math.max(0, other.hp - baseDmg);
-      other.hitFlashTimer = 0.18;
+      other.hitFlashTimer = isFinisher ? 0.22 : 0.14;
       other.lastHitBy = player.id;
       other.lastHitTime = state.time;
 
@@ -744,23 +936,29 @@ function executeHeroMelee(
       // Smash Knockback scaling: lower remaining HP = MASSIVE launch!
       const damagePercent = Math.max(1, (other.maxHp - other.hp) / 14);
 
-      other.isGrounded = false;
       if (isFinisher) {
         // SMASH LAUNCH FINISHER: 45-degree upward launch trajectory!
+        other.isGrounded = false;
         const launchPower = (360 + hDef.knockbackMult * 90) * damagePercent;
         other.vx = player.dirX * (launchPower * 0.82);
         other.vy = -launchPower * 0.68;
-        state.shakeTimer = 0.22;
-        state.shakeIntensity = 7;
-        state.hitstopTimer = 0.07;
+        state.shakeTimer = 0.12;
+        state.shakeIntensity = 2.2;
+        state.hitstopTimer = 0.05;
       } else {
-        // Light stagger jab
-        const jabPower = 170 * hDef.knockbackMult * damagePercent;
-        other.vx = player.dirX * jabPower;
-        other.vy = -140;
-        state.shakeTimer = 0.1;
-        state.shakeIntensity = 3;
-        state.hitstopTimer = 0.04;
+        // Light stagger jab (keeps grounded opponent grounded for combo connection)
+        if (other.isGrounded) {
+          const jabPower = (110 + 20 * player.meleeComboStep) * hDef.knockbackMult * Math.min(1.6, damagePercent);
+          other.vx = player.dirX * jabPower;
+          other.vy = 0;
+        } else {
+          // Light juggle pop in air
+          other.vx = player.dirX * (120 * hDef.knockbackMult);
+          other.vy = -90;
+        }
+        state.shakeTimer = 0.04;
+        state.shakeIntensity = 0.8;
+        state.hitstopTimer = 0.02;
       }
 
       state.soundQueue.push('hit');
@@ -843,7 +1041,7 @@ function executeHeroUltTick(
     if (d < ultRadius) {
       const tickDmg = 16 * hDef.dmgMult;
       other.hp = Math.max(0, other.hp - tickDmg);
-      other.hitFlashTimer = 0.14;
+      other.hitFlashTimer = 0.16;
       other.lastHitBy = player.id;
       other.lastHitTime = state.time;
       other.isGrounded = false;
@@ -880,15 +1078,21 @@ function updateBrawlProjectiles(state: GameState, dt: number): void {
 
     // Check hit against other players
     for (const other of state.players) {
-      if (other.id === pr.ownerId || (other.brawlStocks ?? 0) <= 0 || other.invulnTimer > 0) {
+      if (
+        other.id === pr.ownerId ||
+        (other.brawlStocks ?? 0) <= 0 ||
+        other.invulnTimer > 0 ||
+        pr.hitIds.includes(other.id)
+      ) {
         continue;
       }
 
-      const d = Math.hypot(other.x - pr.x, other.y - pr.y);
+      const d = Math.hypot(other.x - pr.x, other.y - 18 - pr.y);
       if (d < pr.radius + other.radius) {
         // Projectile hit player!
+        pr.hitIds.push(other.id);
         other.hp = Math.max(0, other.hp - pr.damage);
-        other.hitFlashTimer = 0.15;
+        other.hitFlashTimer = 0.16;
         other.lastHitBy = pr.ownerId;
         other.lastHitTime = state.time;
         other.isGrounded = false;
@@ -907,18 +1111,39 @@ function updateBrawlProjectiles(state: GameState, dt: number): void {
         }
       }
     }
+
+    // Check hit against crates
+    for (const crate of state.crates) {
+      if (pr.life <= 0 || pr.pierceLeft <= 0) break;
+      const cd = Math.hypot(crate.x - pr.x, crate.y - pr.y);
+      if (cd < pr.radius + crate.radius) {
+        crate.hp -= pr.damage;
+        crate.hitFlashTimer = 0.15;
+        state.soundQueue.push('crate_hit');
+        pr.pierceLeft--;
+        if (pr.pierceLeft <= 0) {
+          state.projectiles.splice(i, 1);
+          break;
+        }
+      }
+    }
   }
 }
 
 function spawnBrawlItem(state: GameState): void {
-  const x = 240 + Math.random() * 480;
+  const br = state.brawl;
+  const platforms = br?.platforms ?? [];
+  const targetPlat = platforms.length > 0 ? platforms[Math.floor(Math.random() * platforms.length)] : null;
+  const x = targetPlat
+    ? targetPlat.x + 20 + Math.random() * Math.max(10, targetPlat.w - 40)
+    : 240 + Math.random() * 480;
   const isCrate = Math.random() < 0.5;
 
   if (isCrate) {
     state.crates.push({
       id: state.nextEntityId++,
       x,
-      y: 220,
+      y: 120,
       z: 0,
       vz: 0,
       radius: 18,
@@ -933,7 +1158,7 @@ function spawnBrawlItem(state: GameState): void {
       id: state.nextEntityId++,
       kind: Math.random() < 0.6 ? 'es_teh' : 'kopi_giras',
       x,
-      y: 220,
+      y: 120,
       z: 0,
       vx: (Math.random() - 0.5) * 60,
       vy: 0,
@@ -946,13 +1171,31 @@ function spawnBrawlItem(state: GameState): void {
 }
 
 function updateBrawlCratesAndPickups(state: GameState, dt: number): void {
+  const br = state.brawl;
+  const platforms = br?.platforms ?? [];
+
   // Update Crates
   for (let i = state.crates.length - 1; i >= 0; i--) {
     const crate = state.crates[i];
-    // Drop down until landing on a platform
-    if (crate.y < 380) {
-      crate.y += 180 * dt;
+    let groundY: number | null = null;
+    for (const plat of platforms) {
+      if (crate.x >= plat.x && crate.x <= plat.x + plat.w && plat.y >= crate.y - 4) {
+        if (groundY === null || plat.y < groundY) groundY = plat.y;
+      }
     }
+    if (groundY !== null) {
+      if (crate.y < groundY) {
+        crate.y = Math.min(groundY, crate.y + 180 * dt);
+      }
+    } else {
+      // Over void: fall down into abyss
+      crate.y += 180 * dt;
+      if (crate.y > 600) {
+        state.crates.splice(i, 1);
+        continue;
+      }
+    }
+
     if (crate.hp <= 0) {
       state.soundQueue.push('crate_break');
       state.pickups.push({
@@ -980,14 +1223,29 @@ function updateBrawlCratesAndPickups(state: GameState, dt: number): void {
       state.pickups.splice(i, 1);
       continue;
     }
-    if (pic.y < 385) {
+    let groundY: number | null = null;
+    for (const plat of platforms) {
+      if (pic.x >= plat.x && pic.x <= plat.x + plat.w && plat.y >= pic.y - 4) {
+        if (groundY === null || plat.y < groundY) groundY = plat.y;
+      }
+    }
+    if (groundY !== null) {
+      if (pic.y < groundY) {
+        pic.y = Math.min(groundY, pic.y + 160 * dt);
+      }
+    } else {
+      // Over void: fall down into abyss
       pic.y += 160 * dt;
+      if (pic.y > 600) {
+        state.pickups.splice(i, 1);
+        continue;
+      }
     }
 
     // Check player collection
     for (const p of state.players) {
       if ((p.brawlStocks ?? 0) <= 0) continue;
-      const dist = Math.hypot(p.x - pic.x, p.y - pic.y);
+      const dist = Math.hypot(p.x - pic.x, p.y - 18 - pic.y);
       if (dist < p.radius + pic.radius) {
         if (pic.kind === 'es_teh') {
           p.hp = Math.min(p.maxHp, p.hp + 35);
@@ -1021,5 +1279,6 @@ function determineBrawlWinner(state: GameState): void {
     br.winnerName = winner.name;
     state.status = 'victory';
     state.soundQueue.push('ult_start');
+    state.slashes.length = 0;
   }
 }

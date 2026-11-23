@@ -137,6 +137,7 @@ export interface PlayerState {
   dropThroughTimer?: number;
   botJumpTimer?: number;
   isGrounded?: boolean;
+  comboResetTimer?: number;
 
   // Visual squash & stretch + walk cycle
   scaleX: number;
@@ -189,7 +190,7 @@ export interface ProjectileState {
   radius: number;
   damage: number;
   pierceLeft: number;
-  hitIds: number[];
+  hitIds: (number | string)[];
   life: number;
   maxLife: number;
   color: string;

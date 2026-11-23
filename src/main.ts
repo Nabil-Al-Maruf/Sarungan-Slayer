@@ -2317,7 +2317,9 @@ function frame(now: number): void {
           checkPendingBuffModal();
           checkPendingUltModal();
         } else if (state.mode === 'brawl') {
-          stepBrawl(state, { p1: sampled }, FIXED_DT);
+          const brawlInputs: Record<string, PlayerInput> = {};
+          if (state.players[0]) brawlInputs[state.players[0].id] = sampled;
+          stepBrawl(state, brawlInputs, FIXED_DT);
         } else {
           stepSandbox(state, sampled, FIXED_DT);
         }
@@ -2326,6 +2328,7 @@ function frame(now: number): void {
           haptic.damage();
         }
         audio.playQueue(state.soundQueue);
+        state.soundQueue.length = 0;
         if (state.status !== 'playing') {
           state.shakeTimer = 0;
           state.shakeIntensity = 0;

@@ -656,7 +656,10 @@ export function stepSurvival(
   const surv = state.survival;
   if (!surv || state.status !== 'playing') return;
 
-  if (state.shakeTimer > 0) state.shakeTimer = Math.max(0, state.shakeTimer - dt);
+  if (state.shakeTimer > 0) {
+    state.shakeTimer = Math.max(0, state.shakeTimer - dt);
+    if (state.shakeTimer === 0) state.shakeIntensity = 0;
+  }
   if (surv.core.hitFlashTimer > 0) surv.core.hitFlashTimer = Math.max(0, surv.core.hitFlashTimer - dt);
   if (surv.mapBannerTimer > 0) surv.mapBannerTimer = Math.max(0, surv.mapBannerTimer - dt);
   for (const bar of surv.barricades) {

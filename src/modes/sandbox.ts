@@ -60,6 +60,7 @@ export function stepSandbox(state: GameState, input: PlayerInput, dt: number): v
 
   if (state.shakeTimer > 0) {
     state.shakeTimer = Math.max(0, state.shakeTimer - dt);
+    if (state.shakeTimer === 0) state.shakeIntensity = 0;
   }
 
   if (state.hitstopTimer > 0) {

@@ -58,9 +58,12 @@ export function renderGame(
   let shakeX = 0;
   let shakeY = 0;
   if (state.status === 'playing' && state.shakeTimer > 0) {
-    const mag = state.shakeIntensity * (state.shakeTimer / 0.15);
-    shakeX = (Math.random() - 0.5) * 2 * Math.min(state.shakeIntensity, mag);
-    shakeY = (Math.random() - 0.5) * 2 * Math.min(state.shakeIntensity, mag);
+    // Subtle, integer-rounded screen vibration (crisp, not jarring, zero canvas anti-alias blur)
+    const decay = Math.min(1, state.shakeTimer / 0.12);
+    const amp = Math.min(1.5, state.shakeIntensity * 0.22) * decay;
+    const phase = state.shakeTimer * 85;
+    shakeX = Math.round((Math.sin(phase) * 0.8 + Math.sin(phase * 2.1) * 0.2) * amp);
+    shakeY = Math.round((Math.cos(phase * 1.3) * 0.8 + Math.cos(phase * 2.5) * 0.2) * (amp * 0.6));
   }
 
   // ===== WORLD SPACE =====
@@ -117,6 +120,7 @@ export function renderGame(
 
   for (let i = 0; i < state.players.length; i++) {
     const player = state.players[i];
+    if (state.mode === 'brawl' && (player.brawlStocks ?? 0) <= 0) continue;
     addRenderItem(player.y, RenderType.PLAYER, player);
   }
 

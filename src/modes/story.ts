@@ -288,7 +288,10 @@ export function stepStory(state: GameState, input: PlayerInput, dt: number): voi
     return;
   }
 
-  if (state.shakeTimer > 0) state.shakeTimer = Math.max(0, state.shakeTimer - dt);
+  if (state.shakeTimer > 0) {
+    state.shakeTimer = Math.max(0, state.shakeTimer - dt);
+    if (state.shakeTimer === 0) state.shakeIntensity = 0;
+  }
   if (state.goPromptTimer > 0) state.goPromptTimer = Math.max(0, state.goPromptTimer - dt);
 
   if (state.hitstopTimer > 0) {
