@@ -134,6 +134,9 @@ export interface PlayerState {
   isBot?: boolean;
   lastHitBy?: string;
   lastHitTime?: number;
+  dropThroughTimer?: number;
+  botJumpTimer?: number;
+  isGrounded?: boolean;
 
   // Visual squash & stretch + walk cycle
   scaleX: number;

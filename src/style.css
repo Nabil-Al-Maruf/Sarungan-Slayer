@@ -3494,16 +3494,31 @@ body {
 /* ===== TAWURAN SMASH BRAWL (6 PLAYERS + HERO SYSTEM) ===== */
 .brawl-scoreboard-strip {
   position: absolute;
-  top: 44px;
-  left: 0;
-  right: 0;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
   justify-content: center;
+  align-items: center;
   gap: 6px;
   pointer-events: none;
-  z-index: 15;
-  padding: 4px 8px;
-  flex-wrap: wrap;
+  z-index: 10;
+  padding: 4px 6px;
+  flex-wrap: nowrap;
+  max-width: calc(100% - 320px);
+}
+
+@media (max-width: 768px) {
+  .brawl-scoreboard-strip {
+    bottom: auto;
+    top: 44px;
+    max-width: 100%;
+    transform: none;
+    left: 0;
+    right: 0;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
 }
 
 .brawl-fighter-card {

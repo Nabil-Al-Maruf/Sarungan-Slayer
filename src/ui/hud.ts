@@ -50,6 +50,9 @@ export class HudController {
   ): void {
     if (!this.perfEl || !this.modeTitleEl || !this.koCountEl) return;
 
+    const resolvedId = localPlayerId || 'p1';
+    const player = state.players.find((p) => p.id === resolvedId) ?? state.players[0];
+
     if (this.lastPerfText !== perfText) {
       this.lastPerfText = perfText;
       this.perfEl.textContent = perfText;
@@ -66,8 +69,9 @@ export class HudController {
       this.modeTitleEl.textContent = currentTitle;
     }
 
-    const koTxt = `KO: ${state.koCount}`;
-    if (this.lastKoText !== koTxt) {
+    const currentKo = state.mode === 'brawl' ? (player?.brawlKos ?? 0) : state.koCount;
+    const koTxt = `KO: ${currentKo}`;
+    if (this.koCountEl && this.lastKoText !== koTxt) {
       this.lastKoText = koTxt;
       this.koCountEl.textContent = koTxt;
     }
@@ -76,6 +80,7 @@ export class HudController {
     if (this.brawlStripEl) {
       if (state.mode === 'brawl') {
         this.brawlStripEl.classList.remove('hidden');
+        document.getElementById('desktop-hints')?.classList.add('hidden');
         const cardsHtml = state.players
           .map((pl) => {
             const hero = getHeroDef(pl.heroId);
@@ -111,6 +116,7 @@ export class HudController {
         }
       } else {
         this.brawlStripEl.classList.add('hidden');
+        document.getElementById('desktop-hints')?.classList.remove('hidden');
       }
     }
 
@@ -148,8 +154,6 @@ export class HudController {
       return;
     }
 
-    const resolvedId = localPlayerId || 'p1';
-    const player = state.players.find((p) => p.id === resolvedId) ?? state.players[0];
     if (!player) return;
 
     if (this.badgeEl) {

@@ -452,14 +452,14 @@ const localPeer = new LocalPeerManager({
       if (!state.brawl) {
         state.brawl = {
           platforms: [
-            { x: 170, y: 390, w: 620, h: 32 },
-            { x: 210, y: 280, w: 160, h: 14, dropThrough: true },
-            { x: 590, y: 280, w: 160, h: 14, dropThrough: true },
-            { x: 390, y: 190, w: 180, h: 14, dropThrough: true },
+            { x: 170, y: 390, w: 620, h: 32, dropThrough: false },
+            { x: 210, y: 275, w: 160, h: 14, dropThrough: true },
+            { x: 590, y: 275, w: 160, h: 14, dropThrough: true },
+            { x: 390, y: 175, w: 180, h: 14, dropThrough: true },
           ],
           initialStocks: 3,
           matchDuration: 180,
-          ringOutBound: { minX: -50, maxX: 1010, minY: -100, maxY: 580 },
+          ringOutBound: { minX: -60, maxX: 1020, minY: -90, maxY: 560 },
           itemSpawnTimer: 15,
           remainingTime: snap.brawlRemainingTime || 180,
           winnerId: snap.brawlWinnerId,
