@@ -2847,6 +2847,18 @@ body {
   display: none;
 }
 
+.rotate-device-overlay.dismissed,
+.rotate-device-overlay.hidden {
+  display: none !important;
+}
+
+.rotate-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
 @media (max-width: 950px) and (orientation: portrait) {
   .rotate-device-overlay {
     display: flex !important;

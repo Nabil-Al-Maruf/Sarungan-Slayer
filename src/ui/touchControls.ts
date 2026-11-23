@@ -35,6 +35,15 @@ export function bindTouchControls(
   const appEl = document.getElementById('app')!;
   let currentMode = getStoredTouchMode();
 
+  const detectTouchDevice = (): boolean => {
+    return (
+      'ontouchstart' in window ||
+      (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0) ||
+      window.matchMedia('(pointer: coarse)').matches ||
+      window.matchMedia('(any-pointer: coarse)').matches
+    );
+  };
+
   const applyTouchState = (mode: TouchDisplayMode): boolean => {
     currentMode = mode;
     try {
@@ -49,11 +58,10 @@ export function bindTouchControls(
     } else if (mode === 'off') {
       active = false;
     } else {
-      // 'auto': On wide screens (laptops, PCs, TVs, monitor tablets > 1024px),
-      // default to OFF to keep the screen uncluttered. On mobile phones/tablets <= 1024px with touch, default ON.
-      const isCoarse = window.matchMedia('(pointer: coarse)').matches;
-      const isNarrow = window.innerWidth <= 1024 || window.innerHeight <= 600;
-      active = isCoarse && isNarrow;
+      // 'auto': If device supports touch, or is on mobile/tablet dimensions (<= 1024px), enable touch controls!
+      const hasTouch = detectTouchDevice();
+      const isMobileOrTablet = window.innerWidth <= 1024 || window.innerHeight <= 768;
+      active = hasTouch || isMobileOrTablet;
     }
 
     appEl.classList.toggle('touch-active', active);
@@ -61,6 +69,43 @@ export function bindTouchControls(
   };
 
   applyTouchState(currentMode);
+
+  // Dynamic auto-activation: if the user touches the screen on any touch-capable device, activate controls!
+  window.addEventListener(
+    'touchstart',
+    () => {
+      if (currentMode !== 'off' && !appEl.classList.contains('touch-active')) {
+        appEl.classList.add('touch-active');
+      }
+    },
+    { passive: true }
+  );
+
+  window.addEventListener(
+    'pointerdown',
+    (e) => {
+      if (
+        (e.pointerType === 'touch' || e.pointerType === 'pen') &&
+        currentMode !== 'off' &&
+        !appEl.classList.contains('touch-active')
+      ) {
+        appEl.classList.add('touch-active');
+      }
+    },
+    { passive: true }
+  );
+
+  window.addEventListener('resize', () => {
+    if (currentMode === 'auto') {
+      applyTouchState('auto');
+    }
+  });
+
+  window.addEventListener('orientationchange', () => {
+    if (currentMode === 'auto') {
+      applyTouchState('auto');
+    }
+  });
 
   // 1. Bind 360° Analog Thumbstick
   const joyZone = document.getElementById('joystick-zone');
