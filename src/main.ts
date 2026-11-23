@@ -66,6 +66,24 @@ let lobbyOpen = false;
 let shopOpen = false;
 let buffModalOpen = false;
 let ultModalOpen = false;
+let ultChoiceAwaitingAck = false;
+let buffChoiceAwaitingAck = false;
+let lastSkillPickTime = 0;
+let ultChoiceAckTimeout: number | null = null;
+let buffChoiceAckTimeout: number | null = null;
+
+function resetSkillAcks(): void {
+  ultChoiceAwaitingAck = false;
+  buffChoiceAwaitingAck = false;
+  if (ultChoiceAckTimeout) {
+    clearTimeout(ultChoiceAckTimeout);
+    ultChoiceAckTimeout = null;
+  }
+  if (buffChoiceAckTimeout) {
+    clearTimeout(buffChoiceAckTimeout);
+    buffChoiceAckTimeout = null;
+  }
+}
 let pauseOpen = false;
 let storyDialogueOpen = false;
 let storyQueue: StoryLine[] = [];
@@ -384,6 +402,7 @@ const wsMgr = new WsManager({
     pauseOverlay.classList.add('hidden');
     resultOverlay.classList.add('hidden');
 
+    resetSkillAcks();
     setStickMode(wsMgr.isStickClient);
     updateStickHud();
     void requestScreenWakeLock();
@@ -394,6 +413,7 @@ const wsMgr = new WsManager({
   },
   onMatchResume() {
     audio.unlock();
+    resetSkillAcks();
     menuOpen = false;
     lobbyOpen = false;
     menuOverlay.classList.add('hidden');
@@ -411,6 +431,36 @@ const wsMgr = new WsManager({
   },
   onCompactSnapshot(snap) {
     wsMgr.mergeSnapshot(state, snap);
+    const local = getLocalPlayer();
+    if (local) {
+      if (ultChoiceAwaitingAck) {
+        const myRow = snap.pl.find((r) => r[0] === local.id);
+        if (myRow && (myRow[21] === 0 || myRow[21] === undefined)) {
+          ultChoiceAwaitingAck = false;
+          if (ultChoiceAckTimeout) {
+            clearTimeout(ultChoiceAckTimeout);
+            ultChoiceAckTimeout = null;
+          }
+        } else {
+          local.pendingUltChoice = false;
+        }
+      }
+      if (buffChoiceAwaitingAck) {
+        const myRow = snap.pl.find((r) => r[0] === local.id);
+        const hasBuffs =
+          (myRow && myRow[17] && myRow[17].length > 0) ||
+          (snap.pb && snap.pb[local.id] && snap.pb[local.id].length > 0);
+        if (!hasBuffs) {
+          buffChoiceAwaitingAck = false;
+          if (buffChoiceAckTimeout) {
+            clearTimeout(buffChoiceAckTimeout);
+            buffChoiceAckTimeout = null;
+          }
+        } else {
+          local.pendingBuffChoices = [];
+        }
+      }
+    }
     if (snap.snd.length > 0 && !wsMgr.isStickClient) {
       audio.playQueue(snap.snd);
     }
@@ -428,6 +478,10 @@ const wsMgr = new WsManager({
     const p = state.players.find((pl) => pl.id === playerId);
     if (!p) return { ok: false, message: 'Pemain tidak ditemukan' };
     const res = buyShopItem(state, p, itemId);
+    if (itemId.startsWith('ult_')) {
+      p.pendingUltChoice = false;
+      p.ult = p.maxUlt;
+    }
     wsMgr.broadcastCompactSnapshot(state, state.soundQueue);
     state.soundQueue.length = 0;
     return res;
@@ -777,6 +831,15 @@ function checkPendingUltModal(): void {
     return;
   }
 
+  // If local player already submitted their choice and is awaiting server ack, do not reopen!
+  if (ultChoiceAwaitingAck) {
+    if (ultModalOpen) {
+      ultModalOpen = false;
+      ultOverlay.classList.add('hidden');
+    }
+    return;
+  }
+
   const player = getLocalPlayer();
   if (!player || !player.pendingUltChoice) {
     if (ultModalOpen) {
@@ -784,6 +847,12 @@ function checkPendingUltModal(): void {
       ultOverlay.classList.add('hidden');
     }
     return;
+  }
+
+  // Auto-close shop/warung if open so it never collides with milestone modal
+  if (shopOpen) {
+    shopOpen = false;
+    shopOverlay.classList.add('hidden');
   }
 
   // Sequencing: If buff modal is open, suppress it while Ultimate choice is made
@@ -806,6 +875,10 @@ function checkPendingUltModal(): void {
 }
 
 function pickUltChoice(ultType: UltType): void {
+  const now = Date.now();
+  if (now - lastSkillPickTime < 350) return; // Debounce rapid click / touch
+  lastSkillPickTime = now;
+
   const player = getLocalPlayer();
   if (!player) return;
 
@@ -828,6 +901,17 @@ function pickUltChoice(ultType: UltType): void {
 
   if (wsMgr.connected && !wsMgr.isHost) {
     wsMgr.sendBuy(('ult_' + ultType) as ShopItemId);
+    ultChoiceAwaitingAck = true;
+    if (ultChoiceAckTimeout) clearTimeout(ultChoiceAckTimeout);
+    ultChoiceAckTimeout = window.setTimeout(() => {
+      ultChoiceAwaitingAck = false;
+    }, 5000);
+  } else if (wsMgr.connected && wsMgr.isHost) {
+    wsMgr.broadcastCompactSnapshot(state, state.soundQueue);
+    state.soundQueue.length = 0;
+    ultChoiceAwaitingAck = false;
+  } else {
+    ultChoiceAwaitingAck = false;
   }
 
   ultModalOpen = false;
@@ -860,9 +944,18 @@ function checkPendingBuffModal(): void {
     return;
   }
 
-  // Sequencing guard: If Ultimate Jurus Milestone is pending or open, wait for it to finish first!
+  // If local player already submitted their buff pick and is awaiting server ack, do not reopen!
+  if (buffChoiceAwaitingAck) {
+    if (buffModalOpen) {
+      buffModalOpen = false;
+      buffOverlay.classList.add('hidden');
+    }
+    return;
+  }
+
+  // Sequencing guard: If Ultimate Jurus Milestone is pending, open, or awaiting ack, wait for it to finish first!
   const player = getLocalPlayer();
-  if (ultModalOpen || player?.pendingUltChoice) {
+  if (ultModalOpen || player?.pendingUltChoice || ultChoiceAwaitingAck) {
     if (buffModalOpen) {
       buffModalOpen = false;
       buffOverlay.classList.add('hidden');
@@ -880,6 +973,12 @@ function checkPendingBuffModal(): void {
     return;
   }
 
+  // Auto-close shop/warung if open
+  if (shopOpen) {
+    shopOpen = false;
+    shopOverlay.classList.add('hidden');
+  }
+
   const sig = choices.join(',');
   if (buffModalOpen && sig === lastBuffSig) return;
 
@@ -891,6 +990,7 @@ function checkPendingBuffModal(): void {
     const def = BUFF_DEFS[buffId];
     if (!def) continue;
     const btn = document.createElement('button');
+    btn.type = 'button';
     btn.className = 'buff-choice-btn';
     btn.innerHTML = `
       <span class="buff-icon">${def.icon}</span>
@@ -909,16 +1009,30 @@ function checkPendingBuffModal(): void {
 }
 
 function pickBuffChoice(buffId: BuffId): void {
+  const now = Date.now();
+  if (now - lastSkillPickTime < 350) return; // Debounce rapid click / touch
+  lastSkillPickTime = now;
+
   const player = getLocalPlayer();
   if (!player) return;
 
   if (wsMgr.connected && !wsMgr.isHost) {
     wsMgr.sendPickBuff(buffId);
     player.pendingBuffChoices = [];
+    buffChoiceAwaitingAck = true;
+    if (buffChoiceAckTimeout) clearTimeout(buffChoiceAckTimeout);
+    buffChoiceAckTimeout = window.setTimeout(() => {
+      buffChoiceAwaitingAck = false;
+    }, 5000);
   } else {
     applyPlayerBuff(state, player, buffId);
     audio.playQueue(state.soundQueue);
     state.soundQueue.length = 0;
+    if (wsMgr.connected && wsMgr.isHost) {
+      wsMgr.broadcastCompactSnapshot(state, state.soundQueue);
+      state.soundQueue.length = 0;
+    }
+    buffChoiceAwaitingAck = false;
   }
 
   buffModalOpen = false;
@@ -933,6 +1047,9 @@ function toggleWarung(): void {
     menuOpen ||
     lobbyOpen ||
     buffModalOpen ||
+    ultModalOpen ||
+    ultChoiceAwaitingAck ||
+    buffChoiceAwaitingAck ||
     state.status !== 'playing'
   ) {
     return;
@@ -1289,6 +1406,7 @@ function openMenu(): void {
   setStickMode(false);
   releaseScreenWakeLock();
   wsMgr.disconnect(true);
+  resetSkillAcks();
   state.shakeTimer = 0;
   state.shakeIntensity = 0;
   state.hitstopTimer = 0;
@@ -1315,6 +1433,7 @@ function openMenu(): void {
 
 function openLobby(): void {
   audio.unlock();
+  resetSkillAcks();
   menuOpen = false;
   lobbyOpen = true;
   shopOpen = false;
@@ -1335,6 +1454,7 @@ function startStoryStage(stage: 1 | 2 | 3): void {
   audio.unlock();
   triggerAutoFullscreenIfEnabled();
   wsMgr.disconnect(true);
+  resetSkillAcks();
   state = createStoryState(stage, selectedPalette, playerName);
   menuOpen = false;
   lobbyOpen = false;
@@ -1360,6 +1480,7 @@ function startSoloSurvival(): void {
   audio.unlock();
   triggerAutoFullscreenIfEnabled();
   wsMgr.disconnect(true);
+  resetSkillAcks();
   state = createSurvivalState(selectedPalette, undefined, playerName);
   menuOpen = false;
   lobbyOpen = false;
@@ -1381,6 +1502,7 @@ function startSandbox(): void {
   audio.unlock();
   triggerAutoFullscreenIfEnabled();
   wsMgr.disconnect(true);
+  resetSkillAcks();
   state = createSandboxState(selectedPalette, playerName);
   const p0 = state.players[0];
   if (p0) {

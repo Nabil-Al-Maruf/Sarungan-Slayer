@@ -436,10 +436,9 @@ export function buyShopItem(
 
   if (itemId.startsWith('ult_')) {
     const newUlt = itemId.replace('ult_', '') as UltType;
-    if (player.ultType === newUlt) {
-      return { ok: false, message: 'Jurus ini sudah aktif!' };
-    }
     player.ultType = newUlt;
+    player.ult = player.maxUlt; // Always refill to 100% as milestone reward!
+    player.pendingUltChoice = false; // Critical: clear pending milestone choice!
     state.soundQueue.push('pickup_kopi');
     const def = ULT_DEFS[newUlt];
     state.floatingTexts.push({
@@ -452,7 +451,7 @@ export function buyShopItem(
       life: 1.4,
       maxLife: 1.4,
     });
-    return { ok: true, message: `Jurus diganti: ${def.title}!` };
+    return { ok: true, message: `Jurus aktif: ${def.title}!` };
   }
 
   if (itemId === 'tower_pos') {
