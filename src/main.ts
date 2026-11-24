@@ -203,7 +203,6 @@ const btnPalette = document.getElementById('btn-palette') as HTMLButtonElement |
 const btnTouch = document.getElementById('btn-touch-toggle') as HTMLButtonElement | null;
 const btnSfx = document.getElementById('btn-sfx') as HTMLButtonElement | null;
 const btnBgm = document.getElementById('btn-bgm') as HTMLButtonElement | null;
-const btnForceLandscape = document.getElementById('btn-force-landscape') as HTMLButtonElement | null;
 
 // Tawuran Smash Brawl & Hero Picker DOM references
 const btnPlayBrawl = document.getElementById('btn-play-brawl') as HTMLButtonElement | null;
@@ -2341,40 +2340,6 @@ if (btnBgm) {
     btnBgm?.classList.toggle('muted', !enabled);
   });
 }
-
-async function lockLandscapeOrientation(): Promise<void> {
-  try {
-    if (document.documentElement.requestFullscreen && !document.fullscreenElement) {
-      await document.documentElement.requestFullscreen().catch(() => {});
-    }
-    if (screen.orientation && 'lock' in screen.orientation) {
-      await (screen.orientation as any).lock('landscape').catch(() => {});
-    }
-  } catch {}
-}
-
-const rotateOverlay = document.getElementById('rotate-device-overlay') as HTMLDivElement | null;
-const btnDismissRotate = document.getElementById('btn-dismiss-rotate') as HTMLButtonElement | null;
-
-btnForceLandscape?.addEventListener('click', async () => {
-  audio.unlock();
-  await lockLandscapeOrientation();
-  rotateOverlay?.classList.add('dismissed');
-});
-
-btnDismissRotate?.addEventListener('click', () => {
-  audio.unlock();
-  rotateOverlay?.classList.add('dismissed');
-  try {
-    sessionStorage.setItem('dismiss_rotate_overlay', '1');
-  } catch {}
-});
-
-try {
-  if (sessionStorage.getItem('dismiss_rotate_overlay') === '1') {
-    rotateOverlay?.classList.add('dismissed');
-  }
-} catch {}
 
 function showResultIfNeeded(): void {
   if (resultShown || state.status === 'playing' || storyDialogueOpen) return;

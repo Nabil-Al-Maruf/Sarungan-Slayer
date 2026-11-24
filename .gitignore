@@ -8,3 +8,5 @@ worker-dist/
 .env.*
 
 .chrome-test-profile/
+.agents/
+skills-lock.json
