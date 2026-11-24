@@ -19,6 +19,9 @@ export class HudController {
   private warungHudBtn = document.getElementById('btn-warung-hud');
   private koCountEl = document.getElementById('hud-ko-count');
   private modeTitleEl = document.getElementById('hud-mode-title');
+  private elementPillEl = document.getElementById('hud-element-pill');
+  private elementIconEl = document.getElementById('hud-element-icon');
+  private elementNameEl = document.getElementById('hud-element-name');
 
   private vbtnUltEl = document.getElementById('vbtn-ult');
   private vbtnProjEl = document.getElementById('vbtn-proj');
@@ -41,6 +44,7 @@ export class HudController {
   private lastBrawlHtml = '';
   private lastWasMonitor: boolean | null = null;
   private lastProjName = '';
+  private lastElementText = '';
 
   public update(
     state: GameState,
@@ -256,6 +260,27 @@ export class HudController {
       if (this.lastCoinsText !== coinsTxt) {
         this.lastCoinsText = coinsTxt;
         this.coinsEl.textContent = coinsTxt;
+      }
+    }
+
+    // Active Slash Element Pill
+    const elem = player.slashElement || 'none';
+    const elemLv = player.slashElementLevel || 1;
+    const elemInfoMap: Record<string, { icon: string; name: string }> = {
+      none: { icon: '⚪', name: 'NORMAL' },
+      petir: { icon: '⚡', name: `PETIR Lv.${elemLv}` },
+      api: { icon: '🔥', name: `API Lv.${elemLv}` },
+      badai: { icon: '🌀', name: `BADAI Lv.${elemLv}` },
+      suci: { icon: '✨', name: `SUCI Lv.${elemLv}` },
+    };
+    const currentElemInfo = elemInfoMap[elem] || elemInfoMap.none;
+    const elemTxt = `${currentElemInfo.icon} ${currentElemInfo.name}`;
+    if (this.lastElementText !== elemTxt) {
+      this.lastElementText = elemTxt;
+      if (this.elementIconEl) this.elementIconEl.textContent = currentElemInfo.icon;
+      if (this.elementNameEl) this.elementNameEl.textContent = currentElemInfo.name;
+      if (this.elementPillEl) {
+        this.elementPillEl.className = `element-pill elem-${elem}`;
       }
     }
   }

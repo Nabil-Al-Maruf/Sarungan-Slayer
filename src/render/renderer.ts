@@ -1,4 +1,5 @@
 import { VIRTUAL_HEIGHT, VIRTUAL_WIDTH } from '../core/constants';
+import { getHeroDef } from '../core/heroes';
 import type {
   BarricadeState,
   BrawlState,
@@ -7,6 +8,8 @@ import type {
   HazardZone,
   ProjectileState,
   SlashEffect,
+  SlashElement,
+  SlashStyle,
   SurvivalCore,
 } from '../core/types';
 import { TOWER_TIER_NAME } from '../modes/survival';
@@ -661,23 +664,470 @@ function drawSlashEffect(ctx: CanvasRenderingContext2D, slash: SlashEffect): voi
   ctx.save();
   ctx.translate(slash.x, slash.y);
   ctx.rotate(slash.angle);
-  ctx.scale(1, slash.comboStep === 0 ? 1 : -1);
+  ctx.scale(1, slash.comboStep % 2 === 0 ? 1 : -1);
   ctx.globalAlpha = alpha;
 
+  const hDef = getHeroDef(slash.heroId);
+  const style: SlashStyle = slash.slashStyle || hDef.slashStyle || 'sarung_whip';
+  const elem: SlashElement = slash.element || 'none';
+  const elemLv = slash.elementLevel || 1;
+
+  // 1. Hero-Specific Signature Slash Geometry
+  switch (style) {
+    case 'clurit_crescent':
+      drawCluritCrescentSlash(ctx, slash, progress);
+      break;
+    case 'tinju_shockwave':
+      drawTinjuShockwaveSlash(ctx, slash, progress);
+      break;
+    case 'bambu_radiant':
+      drawBambuRadiantSlash(ctx, slash, progress);
+      break;
+    case 'mercon_burst':
+      drawMerconBurstSlash(ctx, slash, progress);
+      break;
+    case 'selendang_cyclone':
+      drawSelendangCycloneSlash(ctx, slash, progress);
+      break;
+    case 'sarung_whip':
+    default:
+      drawSarungWhipSlash(ctx, slash, progress);
+      break;
+  }
+
+  // 2. Active Elemental Upgrade Overlay
+  if (elem !== 'none') {
+    drawSlashElementalOverlay(ctx, slash, progress, elem, elemLv);
+  }
+
+  ctx.restore();
+}
+
+// === 1. CAK BIMA: Dynamic Braided Sarung Whip-Arcs ===
+function drawSarungWhipSlash(ctx: CanvasRenderingContext2D, slash: SlashEffect, progress: number): void {
+  const r = 40 + progress * 16;
+  const isFinisher = slash.comboStep === 3;
+
+  // Outer primary braided cloth ribbon
   ctx.strokeStyle = slash.color;
-  ctx.lineWidth = 14 * (1 - progress * 0.4);
+  ctx.lineWidth = (isFinisher ? 18 : 14) * (1 - progress * 0.35);
   ctx.lineCap = 'round';
   ctx.beginPath();
-  ctx.arc(0, 0, 38 + progress * 10, -Math.PI * 0.55, Math.PI * 0.45);
+  ctx.arc(0, 0, r, -Math.PI * 0.62, Math.PI * 0.48);
+  ctx.stroke();
+
+  // Woven diagonal stripe pattern inside
+  ctx.strokeStyle = slash.stripeColor;
+  ctx.lineWidth = 4.5;
+  ctx.setLineDash([7, 5]);
+  ctx.beginPath();
+  ctx.arc(2, 0, r - 3, -Math.PI * 0.58, Math.PI * 0.44);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Snapping cloth tassels at whip tip
+  const tipAngle = Math.PI * 0.48;
+  const tx = Math.cos(tipAngle) * r;
+  const ty = Math.sin(tipAngle) * r;
+
+  ctx.strokeStyle = slash.color;
+  ctx.lineWidth = 3.5;
+  ctx.beginPath();
+  ctx.moveTo(tx, ty);
+  ctx.quadraticCurveTo(tx + 12, ty - 6, tx + 18, ty + 4);
   ctx.stroke();
 
   ctx.strokeStyle = slash.stripeColor;
-  ctx.lineWidth = 5;
+  ctx.lineWidth = 2.2;
   ctx.beginPath();
-  ctx.arc(2, 0, 34 + progress * 10, -Math.PI * 0.48, Math.PI * 0.38);
+  ctx.moveTo(tx, ty);
+  ctx.quadraticCurveTo(tx + 8, ty - 12, tx + 16, ty - 8);
   ctx.stroke();
 
+  if (isFinisher) {
+    // Twin braided ribbon trailing behind
+    ctx.strokeStyle = slash.color;
+    ctx.lineWidth = 8 * (1 - progress * 0.4);
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 0.72, -Math.PI * 0.52, Math.PI * 0.38);
+    ctx.stroke();
+  }
+}
+
+// === 2. MAT CLURIT: Razor-Sharp Dual Sickle Crescent Sweeps ===
+function drawCluritCrescentSlash(ctx: CanvasRenderingContext2D, slash: SlashEffect, progress: number): void {
+  const r = 44 + progress * 14;
+
+  // High-gloss Chrome Silver Outer Cutting Edge
+  ctx.strokeStyle = '#f8fafc';
+  ctx.lineWidth = 6 * (1 - progress * 0.25);
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.arc(0, 0, r, -Math.PI * 0.52, Math.PI * 0.42);
+  ctx.stroke();
+
+  // Crimson / Sakera Blood Red Cutting Wake
+  ctx.strokeStyle = slash.color || '#3b82f6';
+  ctx.lineWidth = 13 * (1 - progress * 0.4);
+  ctx.beginPath();
+  ctx.arc(-3, 0, r - 4, -Math.PI * 0.58, Math.PI * 0.38);
+  ctx.stroke();
+
+  // Inner Razor Spine
+  ctx.strokeStyle = '#dc2626';
+  ctx.lineWidth = 3.5;
+  ctx.beginPath();
+  ctx.arc(-1, 0, r - 2, -Math.PI * 0.48, Math.PI * 0.32);
+  ctx.stroke();
+
+  // Secondary Cross-Slashing Ghost Sickle (Dual Sickles Scissor Cut!)
+  ctx.save();
+  ctx.rotate(-0.32);
+  ctx.strokeStyle = 'rgba(248, 250, 252, 0.75)';
+  ctx.lineWidth = 4 * (1 - progress * 0.3);
+  ctx.beginPath();
+  ctx.arc(4, 0, r * 0.88, -Math.PI * 0.46, Math.PI * 0.36);
+  ctx.stroke();
   ctx.restore();
+
+  // Shining 4-point star glint at apex
+  const apexX = r - 2;
+  const glint = Math.max(0, 1 - Math.abs(progress - 0.3) * 3);
+  if (glint > 0.1) {
+    ctx.fillStyle = '#ffffff';
+    const s = 7 * glint;
+    ctx.beginPath();
+    ctx.moveTo(apexX, -s);
+    ctx.lineTo(apexX + s * 0.25, -s * 0.25);
+    ctx.lineTo(apexX + s, 0);
+    ctx.lineTo(apexX + s * 0.25, s * 0.25);
+    ctx.lineTo(apexX, s);
+    ctx.lineTo(apexX - s * 0.25, s * 0.25);
+    ctx.lineTo(apexX - s, 0);
+    ctx.lineTo(apexX - s * 0.25, -s * 0.25);
+    ctx.closePath();
+    ctx.fill();
+  }
+}
+
+// === 3. BANG BAMBANG: Heavy Tectonic Ground-Cleaving Shockwaves ===
+function drawTinjuShockwaveSlash(ctx: CanvasRenderingContext2D, slash: SlashEffect, progress: number): void {
+  const reach = 46 + progress * 32;
+
+  // Expanding Concussive Tectonic Cone with Jagged Stone Rupture Teeth
+  ctx.fillStyle = 'rgba(245, 158, 11, 0.28)';
+  ctx.strokeStyle = slash.color || '#f59e0b';
+  ctx.lineWidth = 4.5 * (1 - progress * 0.3);
+  ctx.lineJoin = 'miter';
+
+  const segments = 10;
+  const startAng = -Math.PI * 0.36;
+  const endAng = Math.PI * 0.36;
+  const span = endAng - startAng;
+
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  for (let i = 0; i <= segments; i++) {
+    const a = startAng + (span * i) / segments;
+    const jag = (i % 2 === 0 ? 6 : -4) * (1 - progress * 0.5);
+    const cr = reach + jag;
+    const vx = Math.cos(a) * cr;
+    const vy = Math.sin(a) * cr;
+    ctx.lineTo(vx, vy);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Inner Concussive Pressure Wave Ring
+  ctx.strokeStyle = '#fbbf24';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.arc(0, 0, reach * 0.55, startAng, endAng);
+  ctx.stroke();
+
+  // Flying earthen rock debris polygons
+  ctx.fillStyle = '#b45309';
+  for (let i = 0; i < 4; i++) {
+    const ra = startAng + (span * (i + 0.5)) / 4;
+    const dist = reach + 8 + progress * 14;
+    const rx = Math.cos(ra) * dist;
+    const ry = Math.sin(ra) * dist;
+    ctx.beginPath();
+    ctx.arc(rx, ry, 3.5 * (1 - progress * 0.4), 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+// === 4. GUS DIMAS: Celestial Radiant Calligraphy Arcs ===
+function drawBambuRadiantSlash(ctx: CanvasRenderingContext2D, slash: SlashEffect, progress: number): void {
+  const r = 42 + progress * 12;
+
+  // Luminous outer aura glow
+  ctx.strokeStyle = 'rgba(52, 211, 153, 0.35)';
+  ctx.lineWidth = 22 * (1 - progress * 0.3);
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.arc(0, 0, r, -Math.PI * 0.54, Math.PI * 0.44);
+  ctx.stroke();
+
+  // Flowing thick jade calligraphy brush spine
+  ctx.strokeStyle = slash.color || '#10b981';
+  ctx.lineWidth = 11 * (1 - progress * 0.4);
+  ctx.beginPath();
+  ctx.arc(0, 0, r, -Math.PI * 0.52, Math.PI * 0.42);
+  ctx.stroke();
+
+  // Auric Gold Inner Calligraphy Ribbon
+  ctx.strokeStyle = '#facc15';
+  ctx.lineWidth = 3.5;
+  ctx.beginPath();
+  ctx.arc(2, 0, r - 3, -Math.PI * 0.46, Math.PI * 0.36);
+  ctx.stroke();
+
+  // Divine radiant beam lines projecting perpendicularly
+  ctx.strokeStyle = '#6ee7b7';
+  ctx.lineWidth = 1.8;
+  const rayCount = 6;
+  for (let i = 0; i < rayCount; i++) {
+    const a = -Math.PI * 0.46 + ((Math.PI * 0.82) * i) / (rayCount - 1);
+    const x1 = Math.cos(a) * (r - 4);
+    const y1 = Math.sin(a) * (r - 4);
+    const x2 = Math.cos(a) * (r + 14 + (1 - progress) * 8);
+    const y2 = Math.sin(a) * (r + 14 + (1 - progress) * 8);
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+  }
+
+  // Floating sacred glowing motes
+  ctx.fillStyle = '#fef08a';
+  for (let i = 0; i < 3; i++) {
+    const a = -Math.PI * 0.38 + i * 0.35;
+    const mx = Math.cos(a) * (r + 6);
+    const my = Math.sin(a) * (r + 6);
+    ctx.beginPath();
+    ctx.arc(mx, my, 2.2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+// === 5. PAK RT: Explosive Bamboo Gunpowder Flashes ===
+function drawMerconBurstSlash(ctx: CanvasRenderingContext2D, slash: SlashEffect, progress: number): void {
+  const r = 40 + progress * 15;
+
+  // Expanding cluster of overlapping explosion bursts
+  const burstCount = 5;
+  const burstColors = ['#fef08a', '#f97316', slash.color || '#ef4444', '#dc2626'];
+
+  for (let i = 0; i < burstCount; i++) {
+    const a = -Math.PI * 0.48 + ((Math.PI * 0.88) * i) / (burstCount - 1);
+    const bx = Math.cos(a) * (r + (i % 2 === 0 ? 4 : -4));
+    const by = Math.sin(a) * (r + (i % 2 === 0 ? 4 : -4));
+    const rad = (9 + (i % 3) * 3) * (1 - progress * 0.35);
+
+    ctx.fillStyle = burstColors[i % burstColors.length];
+    ctx.beginPath();
+    ctx.arc(bx, by, rad, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // White-hot detonation core line
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 4 * (1 - progress * 0.5);
+  ctx.beginPath();
+  ctx.arc(0, 0, r - 2, -Math.PI * 0.45, Math.PI * 0.35);
+  ctx.stroke();
+
+  // Scattering high-velocity sparks & ember lines
+  ctx.strokeStyle = '#fef08a';
+  ctx.lineWidth = 1.8;
+  for (let i = 0; i < 8; i++) {
+    const a = -Math.PI * 0.5 + ((Math.PI * 0.95) * i) / 7;
+    const dist = r + 10 + progress * 20;
+    const sx = Math.cos(a) * dist;
+    const sy = Math.sin(a) * dist;
+    ctx.beginPath();
+    ctx.moveTo(sx * 0.88, sy * 0.88);
+    ctx.lineTo(sx, sy);
+    ctx.stroke();
+  }
+}
+
+// === 6. MBAK SRI: Swift Cyclone Wind Ribbons & Silk Sweeps ===
+function drawSelendangCycloneSlash(ctx: CanvasRenderingContext2D, slash: SlashEffect, progress: number): void {
+  const r = 42 + progress * 14;
+
+  // Double intertwined flowing silk ribbon bands
+  ctx.strokeStyle = slash.color || '#ec4899';
+  ctx.lineWidth = 14 * (1 - progress * 0.3);
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.arc(0, 0, r, -Math.PI * 0.58, Math.PI * 0.48);
+  ctx.stroke();
+
+  // White/Rose silk highlight band
+  ctx.strokeStyle = '#fdf2f8';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.arc(2, 0, r - 3, -Math.PI * 0.52, Math.PI * 0.42);
+  ctx.stroke();
+
+  // Swirling aerodynamic wind vortex spirals
+  ctx.strokeStyle = 'rgba(244, 114, 182, 0.7)';
+  ctx.lineWidth = 2.4;
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 0.76, -Math.PI * 0.48, Math.PI * 0.36);
+  ctx.stroke();
+
+  // Fluttering silk fringes & flower petals along the wake
+  ctx.fillStyle = '#f472b6';
+  for (let i = 0; i < 4; i++) {
+    const a = -Math.PI * 0.42 + i * 0.28;
+    const px = Math.cos(a) * (r + 8);
+    const py = Math.sin(a) * (r + 8);
+    ctx.beginPath();
+    ctx.ellipse(px, py, 4 * (1 - progress * 0.3), 2.2, a + 0.4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+// === ACTIVE ELEMENTAL UPGRADE OVERLAYS ===
+function drawSlashElementalOverlay(
+  ctx: CanvasRenderingContext2D,
+  _slash: SlashEffect,
+  progress: number,
+  element: SlashElement,
+  level: number
+): void {
+  const r = 40 + progress * 15;
+
+  if (element === 'petir') {
+    // === PETIR: Lightning Halilintar (Electric Arc Trails & Spark Bursts) ===
+    const boltCount = 2 + level;
+    for (let b = 0; b < boltCount; b++) {
+      const boltR = r + (b - 1) * 7;
+      const startAng = -Math.PI * 0.52;
+      const endAng = Math.PI * 0.42;
+      const segs = 7;
+
+      ctx.strokeStyle = b % 2 === 0 ? '#38bdf8' : '#facc15';
+      ctx.lineWidth = (2.8 + level * 0.6) * (1 - progress * 0.3);
+      ctx.beginPath();
+
+      for (let s = 0; s <= segs; s++) {
+        const a = startAng + ((endAng - startAng) * s) / segs;
+        const jag = Math.sin(s * 17.3 + progress * 24 + b * 5) * (5 + level * 2);
+        const bx = Math.cos(a) * (boltR + jag);
+        const by = Math.sin(a) * (boltR + jag);
+        if (s === 0) ctx.moveTo(bx, by);
+        else ctx.lineTo(bx, by);
+      }
+      ctx.stroke();
+    }
+
+    // Bright electric spark nodes at tips
+    ctx.fillStyle = '#ffffff';
+    const tipA1 = -Math.PI * 0.52;
+    const tipA2 = Math.PI * 0.42;
+    ctx.beginPath();
+    ctx.arc(Math.cos(tipA1) * r, Math.sin(tipA1) * r, 3 + level, 0, Math.PI * 2);
+    ctx.arc(Math.cos(tipA2) * r, Math.sin(tipA2) * r, 3 + level, 0, Math.PI * 2);
+    ctx.fill();
+
+  } else if (element === 'api') {
+    // === API: Kobaran Api Mercon (Flaming Streaks & Burning Embers) ===
+    const flameCount = 5 + level * 2;
+    for (let i = 0; i < flameCount; i++) {
+      const a = -Math.PI * 0.5 + ((Math.PI * 0.9) * i) / (flameCount - 1);
+      const fr = r + 4;
+      const fx = Math.cos(a) * fr;
+      const fy = Math.sin(a) * fr;
+      const tongueLen = (8 + level * 4) * (1 - progress * 0.4);
+
+      // Flickering flame tongue
+      ctx.fillStyle = i % 2 === 0 ? '#ea580c' : '#ef4444';
+      ctx.beginPath();
+      ctx.moveTo(fx - 4, fy);
+      ctx.lineTo(fx + Math.cos(a) * tongueLen, fy + Math.sin(a) * tongueLen);
+      ctx.lineTo(fx + 4, fy);
+      ctx.closePath();
+      ctx.fill();
+
+      // Yellow hot core
+      ctx.fillStyle = '#fef08a';
+      ctx.beginPath();
+      ctx.arc(fx, fy, 2.5 + level * 0.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+  } else if (element === 'badai') {
+    // === BADAI: Topan Angin (Razor Vortex Cutting Ribbons & Vacuum Rings) ===
+    const reachBonus = 18 * level;
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.85)';
+    ctx.lineWidth = 3.5;
+    ctx.beginPath();
+    ctx.arc(0, 0, r + reachBonus * 0.6, -Math.PI * 0.6, Math.PI * 0.48);
+    ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+    ctx.lineWidth = 2.0;
+    ctx.beginPath();
+    ctx.arc(0, 0, r + reachBonus, -Math.PI * 0.54, Math.PI * 0.42);
+    ctx.stroke();
+
+    // Swirling vortex mini-cyclones
+    for (let i = 0; i < 2 + level; i++) {
+      const va = -Math.PI * 0.4 + i * 0.4;
+      const vx = Math.cos(va) * (r + reachBonus * 0.5);
+      const vy = Math.sin(va) * (r + reachBonus * 0.5);
+      ctx.strokeStyle = '#e0f2fe';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.arc(vx, vy, 5 + level, 0, Math.PI * 1.6);
+      ctx.stroke();
+    }
+
+  } else if (element === 'suci') {
+    // === SUCI: Cahaya Suci Ampel (Celestial Radiant Aura & Sacred Runes) ===
+    ctx.strokeStyle = 'rgba(250, 204, 21, 0.85)';
+    ctx.lineWidth = 4 + level * 1.5;
+    ctx.beginPath();
+    ctx.arc(0, 0, r + 4, -Math.PI * 0.52, Math.PI * 0.42);
+    ctx.stroke();
+
+    // Sacred luminous sunburst rays
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2.0;
+    const rayCount = 5 + level * 2;
+    for (let i = 0; i < rayCount; i++) {
+      const a = -Math.PI * 0.48 + ((Math.PI * 0.88) * i) / (rayCount - 1);
+      const x1 = Math.cos(a) * (r + 4);
+      const y1 = Math.sin(a) * (r + 4);
+      const x2 = Math.cos(a) * (r + 14 + level * 5);
+      const y2 = Math.sin(a) * (r + 14 + level * 5);
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+    }
+
+    // Sacred glowing diamond runes
+    ctx.fillStyle = '#fef08a';
+    for (let i = 0; i < 3 + level; i++) {
+      const a = -Math.PI * 0.42 + i * 0.3;
+      const rx = Math.cos(a) * (r + 8);
+      const ry = Math.sin(a) * (r + 8);
+      ctx.beginPath();
+      ctx.moveTo(rx, ry - 3);
+      ctx.lineTo(rx + 2.5, ry);
+      ctx.lineTo(rx, ry + 3);
+      ctx.lineTo(rx - 2.5, ry);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
 }
 
 function drawProjectile(ctx: CanvasRenderingContext2D, proj: ProjectileState): void {

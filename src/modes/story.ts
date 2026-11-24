@@ -1,5 +1,5 @@
 import { VIRTUAL_HEIGHT, VIRTUAL_WIDTH } from '../core/constants';
-import type { GameState, MapTheme, Obstacle, PlayerInput, StoryZone } from '../core/types';
+import type { GameState, HeroId, MapTheme, Obstacle, PlayerInput, StoryZone } from '../core/types';
 import { resolveCombat } from '../entities/combat';
 import { spawnCrate, updateCratesAndPickups } from '../entities/crate';
 import { spawnEnemy, updateEnemies } from '../entities/enemyFactory';
@@ -234,7 +234,8 @@ function getStageConfig(stage: 1 | 2 | 3): StageConfig {
 export function createStoryState(
   stageNumber: 1 | 2 | 3,
   paletteIndex = 0,
-  customName?: string
+  customName?: string,
+  heroId?: HeroId
 ): GameState {
   const cfg = getStageConfig(stageNumber);
   const arenaWidth = VIRTUAL_WIDTH * 3; // 2880px 3-zone Surabaya corridor
@@ -254,7 +255,7 @@ export function createStoryState(
     goPromptTimer: 0,
     storyZones: cfg.zones,
     obstacles: cfg.obstacles,
-    players: [createPlayer('p1', 120, 340, paletteIndex, customName)],
+    players: [createPlayer('p1', 120, 340, paletteIndex, customName, heroId)],
     enemies: [],
     projectiles: [],
     enemyProjectiles: [],

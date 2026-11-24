@@ -39,12 +39,18 @@
 
           <div class="hud-center">
             <div id="hud-mode-title" class="mode-pill">AREK SARUNGAN SLAYER</div>
-            <div class="cooldown-pill" id="hud-pecut-pill">
-              <span>PECUT</span>
-              <div class="cd-track">
-                <div id="hud-proj-fill" class="cd-fill" style="width: 100%"></div>
+            <div class="hud-center-pills">
+              <div class="cooldown-pill" id="hud-pecut-pill">
+                <span>PECUT</span>
+                <div class="cd-track">
+                  <div id="hud-proj-fill" class="cd-fill" style="width: 100%"></div>
+                </div>
+                <span id="hud-proj-text">SIAP</span>
               </div>
-              <span id="hud-proj-text">SIAP</span>
+              <button class="element-pill elem-none" id="hud-element-pill" title="Elemen Tebasan Sarung (Klik / Tekan [Q] untuk ganti)">
+                <span id="hud-element-icon">⚪</span>
+                <span id="hud-element-name">NORMAL</span>
+              </button>
             </div>
           </div>
 
@@ -76,12 +82,30 @@
 
         <!-- Camp Latihan (Sandbox Mode) Live Jurus Tester Dock -->
         <div id="sandbox-skills-bar" class="sandbox-skills-bar hidden">
-          <span class="sandbox-skills-label">⚡ JURUS AKTIF:</span>
+          <span class="sandbox-skills-label">⚡ JURUS:</span>
           <button class="sandbox-skill-btn active" data-ult="gasing" title="Badai Gasing Suroboyo [1]">🌀 GASING</button>
           <button class="sandbox-skill-btn" data-ult="petir" title="Petir Halilintar Kenjeran [2]">⚡ PETIR</button>
           <button class="sandbox-skill-btn" data-ult="mercon" title="Meriam Bazooka Karbit [3]">💥 BAZOOKA</button>
           <button class="sandbox-skill-btn" data-ult="naga" title="Naga Barong Api [4]">🐉 NAGA BARONG</button>
-          <button class="sandbox-skill-btn refill-btn" id="btn-sandbox-refill" title="Isi 100% Bar Ult">🔥 100% ULT</button>
+          <button class="sandbox-skill-btn refill-btn" id="btn-sandbox-refill" title="Isi 100% Bar Ult">🔥 100%</button>
+
+          <div class="sandbox-divider"></div>
+          <span class="sandbox-skills-label">🗡️ ELEMEN:</span>
+          <button class="sandbox-skill-btn active" data-elem="none" title="Normal Sarung [Q]">⚪ NORMAL</button>
+          <button class="sandbox-skill-btn" data-elem="petir" title="Petir Halilintar [Q]">⚡ PETIR</button>
+          <button class="sandbox-skill-btn" data-elem="api" title="Api Kobaran [Q]">🔥 API</button>
+          <button class="sandbox-skill-btn" data-elem="badai" title="Badai Topan [Q]">🌀 BADAI</button>
+          <button class="sandbox-skill-btn" data-elem="suci" title="Cahaya Suci [Q]">✨ SUCI</button>
+          <button class="sandbox-skill-btn upgrade-btn" id="btn-sandbox-elem-lvl" title="Upgrade Level Elemen [E]">⬆️ LV.1</button>
+
+          <div class="sandbox-divider"></div>
+          <span class="sandbox-skills-label">🥋 HERO:</span>
+          <button class="sandbox-skill-btn active" data-sandbox-hero="bima" title="Cak Bima (Whip &amp; Gulung Tempur)">🧣 BIMA</button>
+          <button class="sandbox-skill-btn" data-sandbox-hero="mat_clurit" title="Mat Clurit (Sickles &amp; Sarung Celana)">🗡️ SAKERA</button>
+          <button class="sandbox-skill-btn" data-sandbox-hero="bambang" title="Bang Bambang (Tinju Shockwave &amp; Lipit Jawara)">🥊 BAMBANG</button>
+          <button class="sandbox-skill-btn" data-sandbox-hero="gus_dimas" title="Gus Dimas (Kaligrafi &amp; Jubah Wali)">🎋 DIMAS</button>
+          <button class="sandbox-skill-btn" data-sandbox-hero="pak_rt" title="Pak RT (Mercon Mesiu &amp; Lipit Dinas)">🧨 PAK RT</button>
+          <button class="sandbox-skill-btn" data-sandbox-hero="mbak_sri" title="Mbak Sri (Pusaran Angin &amp; Lilit Kebaya)">💃 SRI</button>
         </div>
 
         <!-- Animated Title Screen / Main Menu Overlay (Cartoon Scenic Style) -->
@@ -318,6 +342,35 @@
                       <button class="skin-swatch" data-skin="3" style="--sw: #10b981">RAKA</button>
                       <button class="skin-swatch" data-skin="4" style="--sw: #9333ea">YUDI</button>
                       <button class="skin-swatch" data-skin="5" style="--sw: #ea580c">FAJAR</button>
+                    </div>
+                  </div>
+                  <div class="setting-row">
+                    <span class="setting-label">Pendekar / Hero</span>
+                    <div id="settings-hero-picker" class="hero-picker-row">
+                      <button class="hero-card active" data-hero="bima" style="--hero-color: #ef4444" title="Cak Bima (Whip &amp; Gulung Tempur)">
+                        <span class="hero-card-avatar">🧣</span>
+                        <span class="hero-card-name">Bima</span>
+                      </button>
+                      <button class="hero-card" data-hero="mat_clurit" style="--hero-color: #3b82f6" title="Mat Clurit (Sickles &amp; Sarung Celana)">
+                        <span class="hero-card-avatar">🗡️</span>
+                        <span class="hero-card-name">Sakera</span>
+                      </button>
+                      <button class="hero-card" data-hero="bambang" style="--hero-color: #f59e0b" title="Bang Bambang (Tinju Shockwave &amp; Lipit Jawara)">
+                        <span class="hero-card-avatar">🥊</span>
+                        <span class="hero-card-name">Bambang</span>
+                      </button>
+                      <button class="hero-card" data-hero="gus_dimas" style="--hero-color: #10b981" title="Gus Dimas (Kaligrafi &amp; Jubah Wali)">
+                        <span class="hero-card-avatar">🎋</span>
+                        <span class="hero-card-name">Dimas</span>
+                      </button>
+                      <button class="hero-card" data-hero="pak_rt" style="--hero-color: #ea580c" title="Pak RT (Mercon Mesiu &amp; Lipit Dinas)">
+                        <span class="hero-card-avatar">🧨</span>
+                        <span class="hero-card-name">Pak RT</span>
+                      </button>
+                      <button class="hero-card" data-hero="mbak_sri" style="--hero-color: #ec4899" title="Mbak Sri (Pusaran Angin &amp; Lilit Kebaya)">
+                        <span class="hero-card-avatar">💃</span>
+                        <span class="hero-card-name">Sri</span>
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -710,6 +763,12 @@
                 <div class="hero-spec-col">
                   <strong>Ultimate:</strong> <span id="hero-spec-ult">Badai Gasing Suroboyo</span>
                 </div>
+                <div class="hero-spec-col">
+                  <strong>Gaya Slash:</strong> <span id="hero-spec-slash">Kibasan Cambuk Anyaman</span>
+                </div>
+                <div class="hero-spec-col">
+                  <strong>Bentuk Sarung:</strong> <span id="hero-spec-sarung">Gulung Tempur Di Atas Lutut</span>
+                </div>
               </div>
             </div>
 
@@ -863,6 +922,32 @@
                 <strong>Kopi Hitam Pekat</strong>
                 <small>Langsung 100% Bar Ultimate</small>
                 <span class="price-pill">160 Receh</span>
+              </button>
+            </div>
+
+            <div class="shop-section-divider">
+              <span>⚡ UPGRADE ELEMEN TEBASAN SARUNG ⚡</span>
+            </div>
+            <div class="shop-grid">
+              <button class="shop-item-btn" data-item="elem_petir" id="shop-elem-petir">
+                <strong>⚡ Sabetan Petir Halilintar</strong>
+                <small id="shop-elem-petir-desc">Sengatan listrik &amp; stun lumpuh</small>
+                <span class="price-pill" id="shop-elem-petir-cost">75 Receh</span>
+              </button>
+              <button class="shop-item-btn" data-item="elem_api" id="shop-elem-api">
+                <strong>🔥 Sabetan Api Kobaran</strong>
+                <small id="shop-elem-api-desc">Lidah api &amp; luka bakar membara</small>
+                <span class="price-pill" id="shop-elem-api-cost">75 Receh</span>
+              </button>
+              <button class="shop-item-btn" data-item="elem_badai" id="shop-elem-badai">
+                <strong>🌀 Sabetan Badai Topan</strong>
+                <small id="shop-elem-badai-desc">Jangkauan tebasan amba &amp; puyuh angin</small>
+                <span class="price-pill" id="shop-elem-badai-cost">75 Receh</span>
+              </button>
+              <button class="shop-item-btn" data-item="elem_suci" id="shop-elem-suci">
+                <strong>✨ Sabetan Cahaya Suci</strong>
+                <small id="shop-elem-suci-desc">Karomah suci, sedot darah &amp; ulti</small>
+                <span class="price-pill" id="shop-elem-suci-cost">75 Receh</span>
               </button>
             </div>
 
@@ -1060,6 +1145,9 @@
             <span id="stick-ult-text" class="stick-stat-pill pill-ult">🌀 0%</span>
             <span id="stick-coins-text" class="stick-stat-pill pill-coins">🪙 0</span>
             <span id="stick-ping-pill" class="stick-stat-pill pill-ping">⚡ LAN</span>
+            <button class="stick-action-btn stick-elem-btn" data-action="elem" id="vbtn-stick-elem" title="Ganti Elemen [Q]">
+              ⚡ ELEMEN
+            </button>
             <button class="stick-action-btn shop-ready-btn" data-action="shop" id="vbtn-stick-shop" title="Buka Warung">
               🏪 WARUNG
             </button>
@@ -1090,6 +1178,9 @@
           <div class="action-arc-zone">
             <button class="vbtn act-btn act-shop-mini" data-action="shop" id="vbtn-shop-arc" title="Buka Warung">
               <span class="act-title">🏪</span>
+            </button>
+            <button class="vbtn act-btn act-elem-mini" data-action="elem" id="vbtn-elem-arc" title="Ganti Elemen [Q]">
+              <span class="act-title">⚡</span>
             </button>
             <button class="vbtn act-btn act-ult" data-action="ult" id="vbtn-ult">
               <span class="act-title">BADAI</span>

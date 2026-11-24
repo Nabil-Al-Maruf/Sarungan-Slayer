@@ -1,11 +1,11 @@
 import { ARENA_MAX_X, ARENA_MIN_X, VIRTUAL_HEIGHT, VIRTUAL_WIDTH } from '../core/constants';
-import type { GameState, PlayerInput } from '../core/types';
+import type { GameState, HeroId, PlayerInput, PlayerState, SlashElement } from '../core/types';
 import { resolveCombat } from '../entities/combat';
 import { spawnCrate, updateCratesAndPickups } from '../entities/crate';
 import { spawnEnemy, updateEnemies } from '../entities/enemyFactory';
 import { createPlayer, updatePlayer } from '../entities/player';
 
-export function createSandboxState(paletteIndex = 0, customName?: string): GameState {
+export function createSandboxState(paletteIndex = 0, customName?: string, heroId?: HeroId): GameState {
   const state: GameState = {
     mode: 'sandbox',
     theme: 'tambak',
@@ -25,7 +25,7 @@ export function createSandboxState(paletteIndex = 0, customName?: string): GameS
       { x: 112, y: 185, w: 40, h: 28, kind: 'tree' },
       { x: 785, y: 192, w: 66, h: 34, kind: 'gerobak', label: 'TAHU TEK' },
     ],
-    players: [createPlayer('p1', 260, 345, paletteIndex, customName)],
+    players: [createPlayer('p1', 260, 345, paletteIndex, customName, heroId)],
     enemies: [],
     projectiles: [],
     enemyProjectiles: [],
@@ -148,4 +148,25 @@ export function stepSandbox(state: GameState, input: PlayerInput, dt: number): v
     ft.y += ft.vy * dt;
     ft.vy *= Math.pow(0.25, dt);
   }
+}
+
+const ELEMENT_CYCLE: SlashElement[] = ['none', 'petir', 'api', 'badai', 'suci'];
+
+export function cyclePlayerSlashElement(player: PlayerState): { element: SlashElement; level: number } {
+  const curIdx = ELEMENT_CYCLE.indexOf(player.slashElement || 'none');
+  const nextIdx = (curIdx + 1) % ELEMENT_CYCLE.length;
+  player.slashElement = ELEMENT_CYCLE[nextIdx];
+  player.slashElementLevel = player.slashElement === 'none' ? 1 : Math.min(3, Math.max(1, player.slashElementLevel || 1));
+  return { element: player.slashElement, level: player.slashElementLevel };
+}
+
+export function upgradePlayerSlashLevel(player: PlayerState): number {
+  if (!player.slashElement || player.slashElement === 'none') {
+    player.slashElement = 'petir';
+    player.slashElementLevel = 1;
+    return 1;
+  }
+  const curLv = player.slashElementLevel || 1;
+  player.slashElementLevel = (curLv % 3) + 1;
+  return player.slashElementLevel;
 }

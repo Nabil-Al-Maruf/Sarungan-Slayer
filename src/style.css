@@ -192,6 +192,61 @@ body {
   color: var(--accent-gold);
 }
 
+.hud-center-pills {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.element-pill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(11, 15, 25, 0.85);
+  border: 2px solid var(--border-ink);
+  border-radius: 999px;
+  padding: 2px 9px;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+  color: #f8fafc;
+  transition: transform 0.15s, border-color 0.2s, box-shadow 0.2s;
+  user-select: none;
+}
+
+.element-pill:hover {
+  transform: scale(1.05);
+}
+
+.element-pill.elem-none {
+  border-color: #64748b;
+  color: #94a3b8;
+}
+
+.element-pill.elem-petir {
+  border-color: #38bdf8;
+  color: #38bdf8;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+}
+
+.element-pill.elem-api {
+  border-color: #f97316;
+  color: #f97316;
+  box-shadow: 0 0 10px rgba(249, 115, 22, 0.4);
+}
+
+.element-pill.elem-badai {
+  border-color: #34d399;
+  color: #34d399;
+  box-shadow: 0 0 10px rgba(52, 211, 153, 0.4);
+}
+
+.element-pill.elem-suci {
+  border-color: #facc15;
+  color: #facc15;
+  box-shadow: 0 0 10px rgba(250, 204, 21, 0.4);
+}
+
 .cooldown-pill {
   display: flex;
   align-items: center;
@@ -3579,6 +3634,77 @@ body {
 }
 .sandbox-skill-btn.refill-btn:hover {
   background: #dc2626;
+  border-color: #f87171;
+}
+
+.sandbox-divider {
+  width: 1px;
+  height: 22px;
+  background: rgba(255, 255, 255, 0.2);
+  margin: 0 4px;
+}
+
+.sandbox-skill-btn.upgrade-btn {
+  background: #065f46;
+  border-color: #34d399;
+  color: #a7f3d0;
+}
+.sandbox-skill-btn.upgrade-btn:hover {
+  background: #047857;
+  border-color: #6ee7b7;
+}
+
+.hero-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.hero-picker-row .hero-card {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  background: #1e293b;
+  border: 1.5px solid #475569;
+  border-radius: 8px;
+  color: #f8fafc;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.hero-picker-row .hero-card:hover {
+  border-color: var(--hero-color, #38bdf8);
+  transform: translateY(-1px);
+}
+
+.hero-picker-row .hero-card.active {
+  border-color: var(--hero-color, #38bdf8);
+  background: #0f172a;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.4);
+}
+
+.hero-picker-row .hero-card-avatar {
+  font-size: 14px;
+}
+
+.stick-action-btn.stick-elem-btn {
+  background: #0284c7;
+  border-color: #38bdf8;
+  color: #f8fafc;
+}
+
+.vbtn.act-elem-mini {
+  background: rgba(14, 165, 233, 0.25);
+  border-color: #38bdf8;
+  color: #38bdf8;
+  font-size: 11px;
+  font-weight: 900;
+  width: 44px;
+  height: 44px;
 }
 
 /* ===== WARUNG JURUS STATUS CARD ===== */

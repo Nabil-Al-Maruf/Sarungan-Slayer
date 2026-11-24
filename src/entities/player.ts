@@ -19,22 +19,32 @@ import {
   ULT_DURATION,
   ULT_MAX,
 } from '../core/constants';
+import { getHeroDef } from '../core/heroes';
 import { stepTopDownPhysics } from '../core/physics';
-import type { GameState, PlayerInput, PlayerState } from '../core/types';
+import type { GameState, HeroId, PlayerInput, PlayerState } from '../core/types';
 
 export function createPlayer(
   id: string,
   x: number,
   y: number,
   paletteIndex = 0,
-  customName?: string
+  customName?: string,
+  heroId?: HeroId
 ): PlayerState {
   const pal = PLAYER_PALETTES[paletteIndex % PLAYER_PALETTES.length];
+  const resolvedHeroId: HeroId = heroId || pal.heroId || 'bima';
+  const hDef = getHeroDef(resolvedHeroId);
   const defaultName = pal.name.split(' (')[0];
   return {
     id,
-    name: (customName && customName.trim().slice(0, 14)) || defaultName,
+    name: (customName && customName.trim().slice(0, 14)) || (heroId ? hDef.name : defaultName),
     paletteIndex: paletteIndex % PLAYER_PALETTES.length,
+    heroId: resolvedHeroId,
+    slashStyle: (heroId ? hDef.slashStyle : pal.slashStyle) || hDef.slashStyle || 'sarung_whip',
+    sarungStyle: (heroId ? hDef.sarungStyle : pal.sarungStyle) || hDef.sarungStyle || 'gulung_tempur',
+    slashElement: 'none',
+    slashElementLevel: 1,
+    unlockedElements: {},
     x,
     y,
     z: 0,
@@ -44,21 +54,21 @@ export function createPlayer(
     radius: PLAYER_RADIUS,
     dirX: 1,
     dirY: 0,
-    jumpsRemaining: 2,
+    jumpsRemaining: hDef.maxJumps ?? 2,
 
-    hp: 100,
-    maxHp: 100,
+    hp: hDef.maxHp ?? 100,
+    maxHp: hDef.maxHp ?? 100,
     ult: 0,
     maxUlt: ULT_MAX,
-    ultType: 'gasing',
+    ultType: hDef.ultType ?? 'gasing',
     coins: 60,
     reviveTickets: 0,
     knockedDown: false,
     invulnTimer: 0,
     hitFlashTimer: 0,
 
-    dmgMult: 1,
-    cdMult: 1,
+    dmgMult: hDef.dmgMult ?? 1,
+    cdMult: hDef.cdMult ?? 1,
     speedMult: 1,
     ultGainMult: 1,
     coinMult: 1,
@@ -426,16 +436,97 @@ export function updatePlayer(
     player.scaleY = 0.84;
     state.soundQueue.push('kibas');
 
+    const hDef = getHeroDef(player.heroId);
+    const slashStyle = player.slashStyle || hDef.slashStyle || 'sarung_whip';
+    const slashElem = player.slashElement || 'none';
+    const slashElemLv = player.slashElementLevel || 1;
+
     state.slashes.push({
-      x: player.x + player.dirX * 26,
+      x: player.x + player.dirX * 28,
       y: player.y - player.z - 18 + player.dirY * 22,
       angle: player.meleeAngle,
-      color: palette.sarung,
+      color: hDef.slashColor || palette.sarung,
       stripeColor: palette.sarungStripe,
-      life: 0.16,
-      maxLife: 0.16,
+      life: 0.18,
+      maxLife: 0.18,
       comboStep: player.meleeComboStep,
+      heroId: player.heroId,
+      slashStyle,
+      element: slashElem,
+      elementLevel: slashElemLv,
+      ownerId: player.id,
     });
+
+    // Spawn elemental attack particles
+    if (slashElem === 'petir') {
+      for (let p = 0; p < 4 * slashElemLv; p++) {
+        state.particles.push({
+          x: player.x + player.dirX * 30 + (Math.random() - 0.5) * 20,
+          y: player.y - player.z - 18 + (Math.random() - 0.5) * 20,
+          z: 14,
+          vx: player.dirX * 180 + (Math.random() - 0.5) * 160,
+          vy: player.dirY * 180 + (Math.random() - 0.5) * 160,
+          vz: (Math.random() - 0.5) * 80,
+          size: 2.5 + Math.random() * 2,
+          color: Math.random() < 0.6 ? '#38bdf8' : '#facc15',
+          alpha: 1,
+          life: 0.14 + Math.random() * 0.1,
+          maxLife: 0.24,
+          gravity: 0,
+        });
+      }
+    } else if (slashElem === 'api') {
+      for (let p = 0; p < 5 * slashElemLv; p++) {
+        state.particles.push({
+          x: player.x + player.dirX * 28 + (Math.random() - 0.5) * 18,
+          y: player.y - player.z - 18 + (Math.random() - 0.5) * 18,
+          z: 12,
+          vx: player.dirX * 120 + (Math.random() - 0.5) * 100,
+          vy: player.dirY * 120 + (Math.random() - 0.5) * 100,
+          vz: 60 + Math.random() * 80,
+          size: 3 + Math.random() * 3,
+          color: Math.random() < 0.5 ? '#f97316' : '#ef4444',
+          alpha: 1,
+          life: 0.2 + Math.random() * 0.15,
+          maxLife: 0.35,
+          gravity: -60,
+        });
+      }
+    } else if (slashElem === 'badai') {
+      for (let p = 0; p < 4 * slashElemLv; p++) {
+        state.particles.push({
+          x: player.x + player.dirX * 34 + (Math.random() - 0.5) * 20,
+          y: player.y - player.z - 18 + (Math.random() - 0.5) * 20,
+          z: 10,
+          vx: player.dirX * 200 + (Math.random() - 0.5) * 140,
+          vy: player.dirY * 200 + (Math.random() - 0.5) * 140,
+          vz: (Math.random() - 0.5) * 60,
+          size: 2 + Math.random() * 2.5,
+          color: '#e0f2fe',
+          alpha: 0.8,
+          life: 0.18 + Math.random() * 0.1,
+          maxLife: 0.28,
+          gravity: 0,
+        });
+      }
+    } else if (slashElem === 'suci') {
+      for (let p = 0; p < 4 * slashElemLv; p++) {
+        state.particles.push({
+          x: player.x + player.dirX * 26 + (Math.random() - 0.5) * 16,
+          y: player.y - player.z - 18 + (Math.random() - 0.5) * 16,
+          z: 12,
+          vx: (Math.random() - 0.5) * 60,
+          vy: (Math.random() - 0.5) * 60 - 40,
+          vz: 40 + Math.random() * 60,
+          size: 2.5 + Math.random() * 2,
+          color: Math.random() < 0.5 ? '#fde047' : '#ffffff',
+          alpha: 1,
+          life: 0.22 + Math.random() * 0.15,
+          maxLife: 0.37,
+          gravity: -40,
+        });
+      }
+    }
   }
 
   // Secondary — Sabetan Angin Pecut (Projectile)

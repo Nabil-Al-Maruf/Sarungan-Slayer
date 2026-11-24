@@ -1,6 +1,6 @@
 import { CRATE_SIZE, PLAYER_PALETTES, ULT_RADIUS } from '../core/constants';
 import { getHeroDef } from '../core/heroes';
-import type { CrateState, EnemyState, PickupState, PlayerState } from '../core/types';
+import type { CrateState, EnemyState, PickupState, PlayerState, SarungStyle } from '../core/types';
 
 export function drawPlayer(
   ctx: CanvasRenderingContext2D,
@@ -237,44 +237,15 @@ function drawTopDownArekRig(
   ctx.lineWidth = 2.8;
   ctx.lineJoin = 'round';
 
-  ctx.fillStyle = '#1e293b';
-  ctx.beginPath();
-  ctx.roundRect(-9, -11 + legStep, 7, 11, 3);
-  ctx.fill();
-  ctx.stroke();
+  const hDef = getHeroDef(player.heroId);
+  const sarungStyle: SarungStyle =
+    player.sarungStyle || (player.heroId ? hDef.sarungStyle : palette.sarungStyle || 'gulung_tempur');
 
-  ctx.beginPath();
-  ctx.roundRect(2, -11 - legStep, 7, 11, 3);
-  ctx.fill();
-  ctx.stroke();
+  // 1. Lower Body & Physical Sarung Silhouette (Shape, Cut, Pleats, Belts, Footwear)
+  drawHeroSarungAndLowerBody(ctx, player, palette, sarungStyle, legStep, bob, time);
 
-  ctx.fillStyle = player.hitFlashTimer > 0 ? '#ffffff' : palette.shirt;
-  ctx.beginPath();
-  ctx.roundRect(-13, -31 + bob, 26, 22, 8);
-  ctx.fill();
-  ctx.stroke();
-
-  if (player.hitFlashTimer <= 0) {
-    ctx.fillStyle = palette.shirtShadow;
-    ctx.fillRect(-11, -15 + bob, 22, 4);
-  }
-
-  ctx.fillStyle = player.hitFlashTimer > 0 ? '#ffffff' : palette.sarung;
-  ctx.beginPath();
-  ctx.moveTo(-12, -30 + bob);
-  ctx.lineTo(-4, -30 + bob);
-  ctx.lineTo(12, -11 + bob);
-  ctx.lineTo(4, -10 + bob);
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
-
-  ctx.strokeStyle = palette.sarungStripe;
-  ctx.lineWidth = 2.2;
-  ctx.beginPath();
-  ctx.moveTo(-8, -28 + bob);
-  ctx.lineTo(8, -12 + bob);
-  ctx.stroke();
+  // 2. Torso & Upper-body Drapery / Sash / Vest
+  drawHeroTorsoAndUpperDrapery(ctx, player, palette, sarungStyle, bob);
 
   ctx.strokeStyle = '#090c14';
   ctx.lineWidth = 2.8;
@@ -503,7 +474,672 @@ function drawTopDownArekRig(
     ctx.fill();
     ctx.stroke();
   }
+
+  // Ambient Elemental Aura on Weapon Hand
+  if (player.slashElement && player.slashElement !== 'none') {
+    drawAmbientElementalWeaponAura(ctx, player, time);
+  }
+
   ctx.restore();
+
+  ctx.restore();
+}
+
+function drawHeroSarungAndLowerBody(
+  ctx: CanvasRenderingContext2D,
+  player: PlayerState,
+  palette: (typeof PLAYER_PALETTES)[number],
+  sarungStyle: SarungStyle,
+  legStep: number,
+  bob: number,
+  time: number
+): void {
+  const isFlash = player.hitFlashTimer > 0;
+  const sarungFill = isFlash ? '#ffffff' : palette.sarung;
+  const stripeColor = palette.sarungStripe;
+
+  ctx.strokeStyle = '#090c14';
+  ctx.lineWidth = 2.8;
+  ctx.lineJoin = 'round';
+
+  if (sarungStyle === 'sarung_celana') {
+    // === 1. MAT CLURIT / SAKERA: Sarung Celana Kombor Cingkrang & Bebat Pergelangan Kaki ===
+    ctx.fillStyle = '#f8fafc';
+    ctx.beginPath();
+    ctx.roundRect(-8, -6 + legStep, 6, 6, 1.5);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.roundRect(2, -6 - legStep, 6, 6, 1.5);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.strokeStyle = '#94a3b8';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(-8, -4 + legStep); ctx.lineTo(-2, -4 + legStep);
+    ctx.moveTo(2, -4 - legStep); ctx.lineTo(8, -4 - legStep);
+    ctx.stroke();
+    ctx.strokeStyle = '#090c14';
+    ctx.lineWidth = 2.8;
+
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(-9, -2 + legStep, 8, 2.5);
+    ctx.fillRect(1, -2 - legStep, 8, 2.5);
+
+    ctx.fillStyle = sarungFill;
+    ctx.beginPath();
+    ctx.moveTo(-14, -18 + bob);
+    ctx.quadraticCurveTo(-16, -11 + bob, -11, -5 + bob);
+    ctx.lineTo(-3, -5 + bob);
+    ctx.quadraticCurveTo(-1, -11 + bob, 1, -11 + bob);
+    ctx.lineTo(3, -5 + bob);
+    ctx.lineTo(11, -5 + bob);
+    ctx.quadraticCurveTo(16, -11 + bob, 14, -18 + bob);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.strokeStyle = stripeColor;
+    ctx.lineWidth = 2.0;
+    ctx.beginPath();
+    ctx.moveTo(-10, -17 + bob); ctx.lineTo(-8, -6 + bob);
+    ctx.moveTo(-5, -17 + bob); ctx.lineTo(-4, -6 + bob);
+    ctx.moveTo(5, -17 + bob); ctx.lineTo(4, -6 + bob);
+    ctx.moveTo(10, -17 + bob); ctx.lineTo(8, -6 + bob);
+    ctx.stroke();
+    ctx.lineWidth = 2.8;
+    ctx.strokeStyle = '#090c14';
+
+    ctx.fillStyle = '#dc2626';
+    ctx.beginPath();
+    ctx.roundRect(-13, -19 + bob, 26, 4.5, 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#b91c1c';
+    ctx.beginPath();
+    ctx.moveTo(-10, -16 + bob);
+    ctx.lineTo(-7, -16 + bob);
+    ctx.lineTo(-8, -8 + bob);
+    ctx.lineTo(-12, -9 + bob);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+  } else if (sarungStyle === 'lipit_jawara') {
+    // === 2. BANG BAMBANG: Sarung Tradisional Gagah Berlipit Tebal & Sabuk Kulit Jawara ===
+    ctx.fillStyle = '#0f172a';
+    ctx.beginPath();
+    ctx.roundRect(-9, -10 + legStep, 7, 8, 2);
+    ctx.roundRect(2, -10 - legStep, 7, 8, 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#78350f';
+    ctx.fillRect(-10, -3 + legStep, 9, 3.5);
+    ctx.strokeRect(-10, -3 + legStep, 9, 3.5);
+    ctx.fillRect(1, -3 - legStep, 9, 3.5);
+    ctx.strokeRect(1, -3 - legStep, 9, 3.5);
+    ctx.fillStyle = '#ef4444';
+    ctx.fillRect(-9, -4.5 + legStep, 7, 2);
+    ctx.fillRect(2, -4.5 - legStep, 7, 2);
+
+    ctx.fillStyle = sarungFill;
+    ctx.beginPath();
+    ctx.moveTo(-16, -18 + bob);
+    ctx.lineTo(16, -18 + bob);
+    ctx.lineTo(15, -4 + bob);
+    ctx.lineTo(-15, -4 + bob);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.strokeStyle = '#090c14';
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.moveTo(-10, -18 + bob); ctx.lineTo(-10, -4 + bob);
+    ctx.moveTo(-4, -18 + bob); ctx.lineTo(-4, -4 + bob);
+    ctx.moveTo(2, -18 + bob); ctx.lineTo(2, -4 + bob);
+    ctx.moveTo(8, -18 + bob); ctx.lineTo(8, -4 + bob);
+    ctx.stroke();
+
+    ctx.strokeStyle = stripeColor;
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.moveTo(-12, -16 + bob); ctx.lineTo(-12, -5 + bob);
+    ctx.moveTo(-6, -16 + bob); ctx.lineTo(-6, -5 + bob);
+    ctx.moveTo(0, -16 + bob); ctx.lineTo(0, -5 + bob);
+    ctx.moveTo(6, -16 + bob); ctx.lineTo(6, -5 + bob);
+    ctx.moveTo(12, -16 + bob); ctx.lineTo(12, -5 + bob);
+    ctx.stroke();
+    ctx.strokeStyle = '#090c14';
+    ctx.lineWidth = 2.8;
+
+    ctx.fillStyle = '#451a03';
+    ctx.beginPath();
+    ctx.roundRect(-15, -19.5 + bob, 30, 5, 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#facc15';
+    ctx.beginPath();
+    ctx.arc(0, -17 + bob, 3.8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#451a03';
+    ctx.beginPath();
+    ctx.arc(0, -17 + bob, 1.8, 0, Math.PI * 2);
+    ctx.fill();
+
+  } else if (sarungStyle === 'jubah_wali') {
+    // === 3. GUS DIMAS: Sarung Jubah Panjang Anggun Menjuntai & Sorban Waliyullah ===
+    ctx.fillStyle = '#f8fafc';
+    ctx.beginPath();
+    ctx.ellipse(-5, -1 + legStep * 0.5, 4, 2, 0, 0, Math.PI * 2);
+    ctx.ellipse(5, -1 - legStep * 0.5, 4, 2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = sarungFill;
+    ctx.beginPath();
+    ctx.moveTo(-12, -18 + bob);
+    ctx.quadraticCurveTo(-14, -9 + bob, -15, -1 + bob);
+    ctx.quadraticCurveTo(-7, 1 + bob, 0, -1 + bob);
+    ctx.quadraticCurveTo(7, 1 + bob, 15, -1 + bob);
+    ctx.quadraticCurveTo(14, -9 + bob, 12, -18 + bob);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.strokeStyle = '#facc15';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(-14, -2.5 + bob);
+    ctx.quadraticCurveTo(-7, -0.5 + bob, 0, -2.5 + bob);
+    ctx.quadraticCurveTo(7, -0.5 + bob, 14, -2.5 + bob);
+    ctx.stroke();
+
+    ctx.strokeStyle = stripeColor;
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(-8, -17 + bob); ctx.quadraticCurveTo(-9, -9 + bob, -10, -3 + bob);
+    ctx.moveTo(-2, -17 + bob); ctx.quadraticCurveTo(-2, -9 + bob, -3, -3 + bob);
+    ctx.moveTo(4, -17 + bob); ctx.quadraticCurveTo(5, -9 + bob, 6, -3 + bob);
+    ctx.moveTo(9, -17 + bob); ctx.quadraticCurveTo(10, -9 + bob, 11, -3 + bob);
+    ctx.stroke();
+    ctx.strokeStyle = '#090c14';
+    ctx.lineWidth = 2.8;
+
+    ctx.fillStyle = '#064e3b';
+    ctx.beginPath();
+    ctx.roundRect(-12, -19 + bob, 24, 4, 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#ca8a04';
+    for (let b = 0; b < 4; b++) {
+      ctx.beginPath();
+      ctx.arc(-8 + b * 1.5, -14 + b * 2.8 + bob, 1.8, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+  } else if (sarungStyle === 'lipit_dinas') {
+    // === 4. PAK RT KARBIT: Sarung Lipat Dinas Rapi & Sabuk Linmas Kopelrim ===
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(-9, -9 + legStep, 6, 8);
+    ctx.strokeRect(-9, -9 + legStep, 6, 8);
+    ctx.fillRect(3, -9 - legStep, 6, 8);
+    ctx.strokeRect(3, -9 - legStep, 6, 8);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(-7, -8 + legStep, 2, 1.5);
+    ctx.fillRect(5, -8 - legStep, 2, 1.5);
+
+    ctx.fillStyle = sarungFill;
+    ctx.beginPath();
+    ctx.moveTo(-13, -18 + bob);
+    ctx.lineTo(13, -18 + bob);
+    ctx.lineTo(12, -6 + bob);
+    ctx.lineTo(-12, -6 + bob);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.strokeStyle = '#090c14';
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.moveTo(0, -18 + bob);
+    ctx.lineTo(0, -6 + bob);
+    ctx.stroke();
+
+    ctx.strokeStyle = stripeColor;
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.moveTo(-6, -17 + bob); ctx.lineTo(-6, -7 + bob);
+    ctx.moveTo(6, -17 + bob); ctx.lineTo(6, -7 + bob);
+    ctx.stroke();
+    ctx.strokeStyle = '#090c14';
+    ctx.lineWidth = 2.8;
+
+    ctx.fillStyle = '#14532d';
+    ctx.beginPath();
+    ctx.roundRect(-13, -19.5 + bob, 26, 4.5, 1.5);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#facc15';
+    ctx.fillRect(-3, -19.5 + bob, 6, 4.5);
+    ctx.strokeRect(-3, -19.5 + bob, 6, 4.5);
+
+    ctx.fillStyle = '#e2e8f0';
+    ctx.beginPath();
+    ctx.arc(8, -13 + bob, 2.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillRect(7, -15 + bob, 2, 3);
+
+  } else if (sarungStyle === 'lilit_kebaya') {
+    // === 5. MBAK SRI: Sarung Lilit Modern Asimetris & Pita Selendang Sutra ===
+    ctx.fillStyle = '#f1c29b';
+    ctx.beginPath();
+    ctx.roundRect(-6, -8 + legStep, 4.5, 7, 2);
+    ctx.roundRect(1.5, -8 - legStep, 4.5, 7, 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#ec4899';
+    ctx.beginPath();
+    ctx.ellipse(-4, -1.5 + legStep, 3.5, 1.8, 0, 0, Math.PI * 2);
+    ctx.ellipse(3.5, -1.5 - legStep, 3.5, 1.8, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = sarungFill;
+    ctx.beginPath();
+    ctx.moveTo(-11, -18 + bob);
+    ctx.lineTo(11, -18 + bob);
+    ctx.lineTo(11, -7 + bob);
+    ctx.quadraticCurveTo(4, -4 + bob, -2, -3 + bob);
+    ctx.lineTo(-10, -5 + bob);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.strokeStyle = '#090c14';
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.moveTo(-4, -18 + bob);
+    ctx.quadraticCurveTo(3, -10 + bob, -2, -3 + bob);
+    ctx.stroke();
+
+    ctx.strokeStyle = stripeColor;
+    ctx.lineWidth = 2.0;
+    ctx.beginPath();
+    ctx.moveTo(-2, -17 + bob); ctx.lineTo(-1, -7 + bob);
+    ctx.moveTo(5, -17 + bob); ctx.lineTo(6, -6 + bob);
+    ctx.stroke();
+    ctx.strokeStyle = '#090c14';
+    ctx.lineWidth = 2.8;
+
+    ctx.fillStyle = '#f43f5e';
+    ctx.beginPath();
+    ctx.roundRect(-11, -19 + bob, 22, 4, 2);
+    ctx.fill();
+    ctx.stroke();
+
+    const ribbonWave = Math.sin(time * 6) * 3;
+    ctx.fillStyle = '#ec4899';
+    ctx.beginPath();
+    ctx.moveTo(7, -16 + bob);
+    ctx.quadraticCurveTo(12 + ribbonWave, -11 + bob, 10 + ribbonWave * 1.5, -4 + bob);
+    ctx.lineTo(7 + ribbonWave * 1.5, -4 + bob);
+    ctx.quadraticCurveTo(9 + ribbonWave, -11 + bob, 5, -16 + bob);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+  } else {
+    // === 6. CAK BIMA / DEFAULT: Sarung Gulung Tempur di Atas Lutut & Sabuk Kancing ===
+    ctx.fillStyle = '#f1c29b';
+    ctx.beginPath();
+    ctx.roundRect(-8, -9 + legStep, 6, 8, 2);
+    ctx.roundRect(2, -9 - legStep, 6, 8, 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#0284c7';
+    ctx.fillRect(-9, -2 + legStep, 8, 2.5);
+    ctx.strokeRect(-9, -2 + legStep, 8, 2.5);
+    ctx.fillRect(1, -2 - legStep, 8, 2.5);
+    ctx.strokeRect(1, -2 - legStep, 8, 2.5);
+
+    ctx.fillStyle = sarungFill;
+    ctx.beginPath();
+    ctx.moveTo(-13, -18 + bob);
+    ctx.lineTo(13, -18 + bob);
+    ctx.lineTo(14, -7 + bob);
+    ctx.lineTo(-14, -7 + bob);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.strokeStyle = stripeColor;
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.moveTo(-7, -16 + bob); ctx.lineTo(-7, -8 + bob);
+    ctx.moveTo(7, -16 + bob); ctx.lineTo(7, -8 + bob);
+    ctx.moveTo(-13, -12 + bob); ctx.lineTo(13, -12 + bob);
+    ctx.stroke();
+    ctx.strokeStyle = '#090c14';
+    ctx.lineWidth = 2.8;
+
+    ctx.fillStyle = stripeColor;
+    ctx.beginPath();
+    ctx.roundRect(-14, -19.5 + bob, 28, 4.5, 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = sarungFill;
+    ctx.beginPath();
+    ctx.moveTo(-3, -16 + bob);
+    ctx.lineTo(3, -16 + bob);
+    ctx.lineTo(0, -11 + bob);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  }
+}
+
+function drawHeroTorsoAndUpperDrapery(
+  ctx: CanvasRenderingContext2D,
+  player: PlayerState,
+  palette: (typeof PLAYER_PALETTES)[number],
+  sarungStyle: SarungStyle,
+  bob: number
+): void {
+  const isFlash = player.hitFlashTimer > 0;
+  const shirtColor = isFlash ? '#ffffff' : palette.shirt;
+  const sarungFill = isFlash ? '#ffffff' : palette.sarung;
+  const stripeColor = palette.sarungStripe;
+
+  ctx.strokeStyle = '#090c14';
+  ctx.lineWidth = 2.8;
+  ctx.lineJoin = 'round';
+
+  if (sarungStyle === 'sarung_celana') {
+    // Mat Clurit Sakera: Red-white striped shirt + open black vest (Pesak)
+    ctx.fillStyle = isFlash ? '#ffffff' : '#ef4444';
+    ctx.beginPath();
+    ctx.roundRect(-13, -31 + bob, 26, 14, 6);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = isFlash ? '#ffffff' : '#f8fafc';
+    ctx.fillRect(-12, -28 + bob, 24, 2.5);
+    ctx.fillRect(-12, -22 + bob, 24, 2.5);
+
+    ctx.fillStyle = isFlash ? '#ffffff' : '#0f172a';
+    ctx.beginPath();
+    ctx.moveTo(-13, -31 + bob);
+    ctx.lineTo(-4, -31 + bob);
+    ctx.lineTo(-3, -18 + bob);
+    ctx.lineTo(-13, -18 + bob);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(13, -31 + bob);
+    ctx.lineTo(4, -31 + bob);
+    ctx.lineTo(3, -18 + bob);
+    ctx.lineTo(13, -18 + bob);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+  } else if (sarungStyle === 'lipit_jawara') {
+    // Bang Bambang: Muscle vest + rolled wrestling mantle across left shoulder
+    ctx.fillStyle = isFlash ? '#ffffff' : '#1e293b';
+    ctx.beginPath();
+    ctx.roundRect(-14, -31 + bob, 28, 14, 6);
+    ctx.fill();
+    ctx.stroke();
+
+    if (!isFlash) {
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(-11, -19 + bob, 22, 3);
+    }
+
+    ctx.fillStyle = sarungFill;
+    ctx.beginPath();
+    ctx.moveTo(-14, -31 + bob);
+    ctx.lineTo(-5, -31 + bob);
+    ctx.lineTo(13, -18 + bob);
+    ctx.lineTo(5, -18 + bob);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.strokeStyle = stripeColor;
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    ctx.moveTo(-10, -30 + bob);
+    ctx.lineTo(9, -18 + bob);
+    ctx.stroke();
+
+  } else if (sarungStyle === 'jubah_wali') {
+    // Gus Dimas: Pure white koko + dual-shoulder Sorban Waliyullah shawl
+    ctx.fillStyle = isFlash ? '#ffffff' : '#f8fafc';
+    ctx.beginPath();
+    ctx.roundRect(-13, -31 + bob, 26, 14, 6);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.strokeStyle = '#cbd5e1';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(0, -30 + bob);
+    ctx.lineTo(0, -18 + bob);
+    ctx.stroke();
+
+    ctx.fillStyle = isFlash ? '#ffffff' : sarungFill;
+    ctx.strokeStyle = '#090c14';
+    ctx.lineWidth = 2.5;
+
+    ctx.beginPath();
+    ctx.roundRect(-14, -32 + bob, 6, 15, 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.roundRect(8, -32 + bob, 6, 15, 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#facc15';
+    ctx.fillRect(-13, -19 + bob, 4.5, 2);
+    ctx.fillRect(9, -19 + bob, 4.5, 2);
+
+  } else if (sarungStyle === 'lipit_dinas') {
+    // Pak RT: Official Linmas safari shirt with breast pockets & duty sash
+    ctx.fillStyle = shirtColor;
+    ctx.beginPath();
+    ctx.roundRect(-13, -31 + bob, 26, 14, 6);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = isFlash ? '#ffffff' : '#14532d';
+    ctx.fillRect(-10, -25 + bob, 6, 5);
+    ctx.strokeRect(-10, -25 + bob, 6, 5);
+    ctx.fillRect(4, -25 + bob, 6, 5);
+    ctx.strokeRect(4, -25 + bob, 6, 5);
+
+    ctx.fillStyle = sarungFill;
+    ctx.beginPath();
+    ctx.moveTo(-11, -31 + bob);
+    ctx.lineTo(-4, -31 + bob);
+    ctx.lineTo(12, -18 + bob);
+    ctx.lineTo(5, -18 + bob);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#facc15';
+    ctx.beginPath();
+    ctx.arc(-8, -26 + bob, 1.8, 0, Math.PI * 2);
+    ctx.fill();
+
+  } else if (sarungStyle === 'lilit_kebaya') {
+    // Mbak Sri: Tailored kebaya + billowing silk shawl draped around shoulders
+    ctx.fillStyle = isFlash ? '#ffffff' : '#be185d';
+    ctx.beginPath();
+    ctx.roundRect(-12, -31 + bob, 24, 14, 6);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#f1c29b';
+    ctx.beginPath();
+    ctx.moveTo(-5, -31 + bob);
+    ctx.lineTo(5, -31 + bob);
+    ctx.lineTo(0, -24 + bob);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = isFlash ? '#ffffff' : sarungFill;
+    ctx.beginPath();
+    ctx.moveTo(-13, -29 + bob);
+    ctx.quadraticCurveTo(-15, -20 + bob, -11, -17 + bob);
+    ctx.lineTo(-6, -17 + bob);
+    ctx.quadraticCurveTo(-10, -22 + bob, -9, -29 + bob);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(13, -29 + bob);
+    ctx.quadraticCurveTo(15, -20 + bob, 11, -17 + bob);
+    ctx.lineTo(6, -17 + bob);
+    ctx.quadraticCurveTo(10, -22 + bob, 9, -29 + bob);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+  } else {
+    // Cak Bima / Default: Classic shirt with cross-chest combat sarung sash
+    ctx.fillStyle = shirtColor;
+    ctx.beginPath();
+    ctx.roundRect(-13, -31 + bob, 26, 14, 6);
+    ctx.fill();
+    ctx.stroke();
+
+    if (!isFlash) {
+      ctx.fillStyle = palette.shirtShadow;
+      ctx.fillRect(-11, -18 + bob, 22, 2);
+    }
+
+    ctx.fillStyle = sarungFill;
+    ctx.beginPath();
+    ctx.moveTo(-12, -30 + bob);
+    ctx.lineTo(-4, -30 + bob);
+    ctx.lineTo(12, -18 + bob);
+    ctx.lineTo(4, -18 + bob);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.strokeStyle = stripeColor;
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.moveTo(-8, -28 + bob);
+    ctx.lineTo(8, -18 + bob);
+    ctx.stroke();
+  }
+}
+
+function drawAmbientElementalWeaponAura(
+  ctx: CanvasRenderingContext2D,
+  player: PlayerState,
+  time: number
+): void {
+  const elem = player.slashElement;
+  if (!elem || elem === 'none') return;
+  const lv = player.slashElementLevel || 1;
+
+  ctx.save();
+  ctx.translate(14, -6);
+
+  if (elem === 'petir') {
+    const sparkCount = 3 + lv * 2;
+    for (let i = 0; i < sparkCount; i++) {
+      const a = (time * 14 + (i * Math.PI * 2) / sparkCount) % (Math.PI * 2);
+      const dist = 7 + Math.sin(time * 20 + i * 3) * 4;
+      const sx = Math.cos(a) * dist;
+      const sy = Math.sin(a) * dist;
+
+      ctx.strokeStyle = i % 2 === 0 ? '#38bdf8' : '#facc15';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(sx * 0.4, sy * 0.4);
+      ctx.lineTo(sx * 0.7 + Math.sin(time * 25 + i) * 3, sy * 0.7);
+      ctx.lineTo(sx, sy);
+      ctx.stroke();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(sx - 1, sy - 1, 2, 2);
+    }
+  } else if (elem === 'api') {
+    const flameCount = 3 + lv;
+    for (let i = 0; i < flameCount; i++) {
+      const phase = (time * 8 + i * 1.6) % 1;
+      const fx = (i - 1.5) * 5 + Math.sin(time * 12 + i) * 2;
+      const fy = -phase * 12;
+      const size = (1 - phase) * (3.5 + lv);
+
+      ctx.fillStyle = i % 2 === 0 ? '#f97316' : '#ef4444';
+      ctx.beginPath();
+      ctx.arc(fx, fy, size, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#fef08a';
+      ctx.beginPath();
+      ctx.arc(fx, fy + 2, size * 0.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else if (elem === 'badai') {
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.65)';
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 10 + lv * 2, 5 + lv, time * 10, 0, Math.PI * 1.5);
+    ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 6 + lv * 2, 3 + lv, -time * 12, 0, Math.PI);
+    ctx.stroke();
+  } else if (elem === 'suci') {
+    const moteCount = 3 + lv;
+    for (let i = 0; i < moteCount; i++) {
+      const a = time * 4 + (i * Math.PI * 2) / moteCount;
+      const r = 8 + lv * 2;
+      const mx = Math.cos(a) * r;
+      const my = Math.sin(a) * r * 0.6;
+
+      ctx.fillStyle = '#facc15';
+      ctx.beginPath();
+      ctx.moveTo(mx, my - 2.5);
+      ctx.lineTo(mx + 2, my);
+      ctx.lineTo(mx, my + 2.5);
+      ctx.lineTo(mx - 2, my);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(mx - 0.75, my - 0.75, 1.5, 1.5);
+    }
+  }
 
   ctx.restore();
 }

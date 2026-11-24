@@ -7,7 +7,7 @@
     "start": "node server.js",
     "server": "node server.js",
     "dev": "vite",
-    "test": "npx vite-node scripts/test_brawl.ts && npx vite-node scripts/test_menu_overlays.ts",
+    "test": "npx vite-node scripts/test_brawl.ts && npx vite-node scripts/test_menu_overlays.ts && npx vite-node scripts/test_slash_and_sarung.ts",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview"
   },

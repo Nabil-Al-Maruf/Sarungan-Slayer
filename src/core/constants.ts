@@ -1,4 +1,4 @@
-import type { UltType } from './types';
+import type { HeroId, SarungStyle, SlashStyle, UltType } from './types';
 
 export const VIRTUAL_WIDTH = 960;
 export const VIRTUAL_HEIGHT = 540;
@@ -107,6 +107,9 @@ export interface PlayerPalette {
     | 'sorban_putih'
     | 'udeng_wali';
   accessoryDesc: string;
+  heroId?: HeroId;
+  sarungStyle?: SarungStyle;
+  slashStyle?: SlashStyle;
 }
 
 export const PLAYER_PALETTES: PlayerPalette[] = [
@@ -122,6 +125,9 @@ export const PLAYER_PALETTES: PlayerPalette[] = [
     accent: '#ef4444',
     headgear: 'peci_garuda',
     accessoryDesc: 'Peci Garuda Emas & Selempang Merah',
+    heroId: 'bima',
+    sarungStyle: 'gulung_tempur',
+    slashStyle: 'sarung_whip',
   },
   {
     id: 1,
@@ -135,6 +141,9 @@ export const PLAYER_PALETTES: PlayerPalette[] = [
     accent: '#3b82f6',
     headgear: 'udeng_kenjeran',
     accessoryDesc: 'Udeng Segitiga Batik & Kacamata Hitam',
+    heroId: 'mat_clurit',
+    sarungStyle: 'sarung_celana',
+    slashStyle: 'clurit_crescent',
   },
   {
     id: 2,
@@ -148,6 +157,9 @@ export const PLAYER_PALETTES: PlayerPalette[] = [
     accent: '#eab308',
     headgear: 'blangkon_batik',
     accessoryDesc: 'Blangkon Jawa Timuran & Rompi Emas',
+    heroId: 'bambang',
+    sarungStyle: 'lipit_jawara',
+    slashStyle: 'tinju_shockwave',
   },
   {
     id: 3,
@@ -161,6 +173,9 @@ export const PLAYER_PALETTES: PlayerPalette[] = [
     accent: '#10b981',
     headgear: 'baret_bonek',
     accessoryDesc: 'Topi Baret Hijau Bonek & Syal Loreng',
+    heroId: 'bima',
+    sarungStyle: 'gulung_tempur',
+    slashStyle: 'sarung_whip',
   },
   {
     id: 4,
@@ -174,6 +189,9 @@ export const PLAYER_PALETTES: PlayerPalette[] = [
     accent: '#a855f7',
     headgear: 'sorban_putih',
     accessoryDesc: 'Sorban Putih Melingkar & Kalung Tasbih',
+    heroId: 'gus_dimas',
+    sarungStyle: 'jubah_wali',
+    slashStyle: 'bambu_radiant',
   },
   {
     id: 5,
@@ -187,5 +205,8 @@ export const PLAYER_PALETTES: PlayerPalette[] = [
     accent: '#f97316',
     headgear: 'udeng_wali',
     accessoryDesc: 'Udeng Wali Songo & Selempang Oranye',
+    heroId: 'pak_rt',
+    sarungStyle: 'lipit_dinas',
+    slashStyle: 'mercon_burst',
   },
 ];

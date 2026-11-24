@@ -18,6 +18,24 @@ export type MapTheme = 'tambak' | 'tunjungan' | 'suramadu' | 'perempatan' | 'are
 
 export type UltType = 'gasing' | 'petir' | 'mercon' | 'naga';
 
+export type SlashStyle =
+  | 'sarung_whip'
+  | 'clurit_crescent'
+  | 'tinju_shockwave'
+  | 'bambu_radiant'
+  | 'mercon_burst'
+  | 'selendang_cyclone';
+
+export type SarungStyle =
+  | 'gulung_tempur'
+  | 'sarung_celana'
+  | 'lipit_jawara'
+  | 'jubah_wali'
+  | 'lipit_dinas'
+  | 'lilit_kebaya';
+
+export type SlashElement = 'none' | 'petir' | 'api' | 'badai' | 'suci';
+
 export type HeroId =
   | 'bima'
   | 'mat_clurit'
@@ -129,6 +147,11 @@ export interface PlayerState {
 
   // Hero Archetype & Brawl Stats
   heroId?: HeroId;
+  slashStyle?: SlashStyle;
+  sarungStyle?: SarungStyle;
+  slashElement?: SlashElement;
+  slashElementLevel?: number;
+  unlockedElements?: Partial<Record<SlashElement, number>>;
   brawlStocks?: number;
   brawlKos?: number;
   isBot?: boolean;
@@ -280,6 +303,12 @@ export interface SlashEffect {
   life: number;
   maxLife: number;
   comboStep: number;
+  heroId?: HeroId;
+  slashStyle?: SlashStyle;
+  element?: SlashElement;
+  elementLevel?: number;
+  radius?: number;
+  ownerId?: string;
 }
 
 export interface FloatingText {

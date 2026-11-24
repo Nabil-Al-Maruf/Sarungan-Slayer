@@ -30,10 +30,15 @@ export function getStoredTouchMode(): TouchDisplayMode {
 export function bindTouchControls(
   input: InputManager,
   onShopClick?: () => void,
-  onTouchActive?: () => void
+  onTouchActive?: () => void,
+  onElementClick?: () => void
 ): TouchControlsHandle {
   const appEl = document.getElementById('app')!;
   let currentMode = getStoredTouchMode();
+
+  document.getElementById('vbtn-stick-elem')?.addEventListener('click', () => {
+    onElementClick?.();
+  });
 
   const detectTouchDevice = (): boolean => {
     return (
@@ -302,6 +307,8 @@ export function bindTouchControls(
 
       if (action === 'shop') {
         onShopClick?.();
+      } else if ((action as string) === 'elem') {
+        onElementClick?.();
       } else {
         input.setVirtualAction(action, true);
       }

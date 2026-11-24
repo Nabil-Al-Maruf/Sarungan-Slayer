@@ -65,6 +65,10 @@ export function createBrawlState(
       name: m.name || pal.name.split(' (')[0],
       paletteIndex: m.paletteIndex % PLAYER_PALETTES.length,
       heroId: m.heroId,
+      slashStyle: hDef.slashStyle,
+      sarungStyle: hDef.sarungStyle,
+      slashElement: hDef.defaultElement || 'none',
+      slashElementLevel: 1,
       brawlStocks: initialStocks,
       brawlKos: 0,
       isBot: !!m.isBot,
@@ -899,6 +903,9 @@ function executeHeroMelee(
   state.soundQueue.push('kibas');
 
   // Spawn visual slash
+  const elem = player.slashElement || hDef.defaultElement || 'none';
+  const elemLevel = player.slashElementLevel || 1;
+
   const slash: SlashEffect = {
     x: player.x + player.dirX * 36,
     y: player.y - 18,
@@ -908,11 +915,87 @@ function executeHeroMelee(
     life: 0.18,
     maxLife: 0.18,
     comboStep: player.meleeComboStep,
+    heroId: player.heroId,
+    slashStyle: player.slashStyle || hDef.slashStyle,
+    element: elem,
+    elementLevel: elemLevel,
+    ownerId: player.id,
   };
   state.slashes.push(slash);
 
+  // Spawn elemental attack swing particles
+  if (elem === 'petir') {
+    for (let p = 0; p < 4 * elemLevel; p++) {
+      state.particles.push({
+        x: player.x + player.dirX * 32 + (Math.random() - 0.5) * 20,
+        y: player.y - 18 + (Math.random() - 0.5) * 20,
+        z: 0,
+        vx: player.dirX * 180 + (Math.random() - 0.5) * 160,
+        vy: (Math.random() - 0.5) * 160,
+        vz: 0,
+        size: 2.5 + Math.random() * 2,
+        color: Math.random() < 0.6 ? '#38bdf8' : '#facc15',
+        alpha: 1,
+        life: 0.14 + Math.random() * 0.1,
+        maxLife: 0.24,
+        gravity: 0,
+      });
+    }
+  } else if (elem === 'api') {
+    for (let p = 0; p < 5 * elemLevel; p++) {
+      state.particles.push({
+        x: player.x + player.dirX * 30 + (Math.random() - 0.5) * 18,
+        y: player.y - 18 + (Math.random() - 0.5) * 18,
+        z: 0,
+        vx: player.dirX * 120 + (Math.random() - 0.5) * 100,
+        vy: -40 - Math.random() * 80,
+        vz: 0,
+        size: 3 + Math.random() * 3,
+        color: Math.random() < 0.5 ? '#f97316' : '#ef4444',
+        alpha: 1,
+        life: 0.2 + Math.random() * 0.15,
+        maxLife: 0.35,
+        gravity: -60,
+      });
+    }
+  } else if (elem === 'badai') {
+    for (let p = 0; p < 4 * elemLevel; p++) {
+      state.particles.push({
+        x: player.x + player.dirX * 36 + (Math.random() - 0.5) * 20,
+        y: player.y - 18 + (Math.random() - 0.5) * 20,
+        z: 0,
+        vx: player.dirX * 220 + (Math.random() - 0.5) * 140,
+        vy: (Math.random() - 0.5) * 140,
+        vz: 0,
+        size: 2 + Math.random() * 2.5,
+        color: '#e0f2fe',
+        alpha: 0.8,
+        life: 0.18 + Math.random() * 0.1,
+        maxLife: 0.28,
+        gravity: 0,
+      });
+    }
+  } else if (elem === 'suci') {
+    for (let p = 0; p < 4 * elemLevel; p++) {
+      state.particles.push({
+        x: player.x + player.dirX * 28 + (Math.random() - 0.5) * 16,
+        y: player.y - 18 + (Math.random() - 0.5) * 16,
+        z: 0,
+        vx: (Math.random() - 0.5) * 60,
+        vy: -40 - Math.random() * 60,
+        vz: 0,
+        size: 2.5 + Math.random() * 2,
+        color: Math.random() < 0.5 ? '#fde047' : '#ffffff',
+        alpha: 1,
+        life: 0.22 + Math.random() * 0.15,
+        maxLife: 0.37,
+        gravity: -40,
+      });
+    }
+  }
+
   // Hitbox detection
-  const reach = 56;
+  const reach = 56 + (elem === 'badai' ? 18 * elemLevel : 0);
   const hx = player.x + player.dirX * 34;
   const hy = player.y - 16;
 
@@ -925,21 +1008,102 @@ function executeHeroMelee(
     if (dist < reach + other.radius) {
       // HIT!
       const isFinisher = player.meleeComboStep === 3;
-      const baseDmg = (isFinisher ? 28 : 14) * hDef.dmgMult;
+      let baseDmg = (isFinisher ? 28 : 14) * hDef.dmgMult;
+      if (elem === 'petir') baseDmg += 4 * elemLevel;
+      if (elem === 'api') baseDmg += 6 * elemLevel;
+      if (elem === 'suci') {
+        baseDmg += 3 * elemLevel;
+        player.hp = Math.min(player.maxHp, player.hp + 2 * elemLevel);
+        player.ult = Math.min(player.maxUlt, player.ult + 4 * elemLevel);
+      }
+
       other.hp = Math.max(0, other.hp - baseDmg);
       other.hitFlashTimer = isFinisher ? 0.22 : 0.14;
+      if (elem === 'petir') other.hitFlashTimer = Math.max(other.hitFlashTimer, 0.24 * elemLevel);
       other.lastHitBy = player.id;
       other.lastHitTime = state.time;
 
       player.ult = Math.min(player.maxUlt, player.ult + (isFinisher ? 14 : 7));
 
+      // Elemental hit particles
+      if (elem === 'petir') {
+        for (let k = 0; k < 5 * elemLevel; k++) {
+          state.particles.push({
+            x: other.x + (Math.random() - 0.5) * 16,
+            y: other.y - 14 + (Math.random() - 0.5) * 16,
+            z: 0,
+            vx: (Math.random() - 0.5) * 190,
+            vy: (Math.random() - 0.5) * 190,
+            vz: 0,
+            size: 2.5 + Math.random() * 2,
+            color: Math.random() < 0.6 ? '#38bdf8' : '#facc15',
+            alpha: 1,
+            life: 0.16 + Math.random() * 0.1,
+            maxLife: 0.26,
+            gravity: 0,
+          });
+        }
+      } else if (elem === 'api') {
+        for (let k = 0; k < 6 * elemLevel; k++) {
+          state.particles.push({
+            x: other.x + (Math.random() - 0.5) * 16,
+            y: other.y - 14 + (Math.random() - 0.5) * 16,
+            z: 0,
+            vx: (Math.random() - 0.5) * 140,
+            vy: -60 - Math.random() * 90,
+            vz: 0,
+            size: 3 + Math.random() * 2.5,
+            color: Math.random() < 0.5 ? '#f97316' : '#ef4444',
+            alpha: 1,
+            life: 0.22 + Math.random() * 0.12,
+            maxLife: 0.34,
+            gravity: -50,
+          });
+        }
+      } else if (elem === 'badai') {
+        for (let k = 0; k < 5 * elemLevel; k++) {
+          state.particles.push({
+            x: other.x + (Math.random() - 0.5) * 16,
+            y: other.y - 14 + (Math.random() - 0.5) * 16,
+            z: 0,
+            vx: player.dirX * 200 + (Math.random() - 0.5) * 120,
+            vy: (Math.random() - 0.5) * 120,
+            vz: 0,
+            size: 2.5 + Math.random() * 2,
+            color: '#e0f2fe',
+            alpha: 0.85,
+            life: 0.18 + Math.random() * 0.1,
+            maxLife: 0.28,
+            gravity: 0,
+          });
+        }
+      } else if (elem === 'suci') {
+        for (let k = 0; k < 5 * elemLevel; k++) {
+          state.particles.push({
+            x: other.x + (Math.random() - 0.5) * 16,
+            y: other.y - 14 + (Math.random() - 0.5) * 16,
+            z: 0,
+            vx: (Math.random() - 0.5) * 80,
+            vy: -40 - Math.random() * 70,
+            vz: 0,
+            size: 2.5 + Math.random() * 2,
+            color: '#facc15',
+            alpha: 1,
+            life: 0.22 + Math.random() * 0.1,
+            maxLife: 0.32,
+            gravity: -30,
+          });
+        }
+      }
+
       // Smash Knockback scaling: lower remaining HP = MASSIVE launch!
       const damagePercent = Math.max(1, (other.maxHp - other.hp) / 14);
+      const badaiKnockbackMult = elem === 'badai' ? 1 + 0.25 * elemLevel : 1;
 
       if (isFinisher) {
         // SMASH LAUNCH FINISHER: 45-degree upward launch trajectory!
         other.isGrounded = false;
-        const launchPower = (360 + hDef.knockbackMult * 90) * damagePercent;
+        const launchPower = (360 + hDef.knockbackMult * 90) * damagePercent * badaiKnockbackMult;
         other.vx = player.dirX * (launchPower * 0.82);
         other.vy = -launchPower * 0.68;
         state.shakeTimer = 0.12;
@@ -948,12 +1112,12 @@ function executeHeroMelee(
       } else {
         // Light stagger jab (keeps grounded opponent grounded for combo connection)
         if (other.isGrounded) {
-          const jabPower = (110 + 20 * player.meleeComboStep) * hDef.knockbackMult * Math.min(1.6, damagePercent);
+          const jabPower = (110 + 20 * player.meleeComboStep) * hDef.knockbackMult * Math.min(1.6, damagePercent) * badaiKnockbackMult;
           other.vx = player.dirX * jabPower;
           other.vy = 0;
         } else {
           // Light juggle pop in air
-          other.vx = player.dirX * (120 * hDef.knockbackMult);
+          other.vx = player.dirX * (120 * hDef.knockbackMult * badaiKnockbackMult);
           other.vy = -90;
         }
         state.shakeTimer = 0.04;
@@ -987,7 +1151,10 @@ function executeHeroMelee(
   for (const crate of state.crates) {
     const cd = Math.hypot(crate.x - hx, crate.y - hy);
     if (cd < reach + crate.radius) {
-      crate.hp -= 25;
+      let crateDmg = 25;
+      if (elem === 'api') crateDmg += 8 * elemLevel;
+      if (elem === 'petir') crateDmg += 6 * elemLevel;
+      crate.hp -= crateDmg;
       crate.hitFlashTimer = 0.15;
       state.soundQueue.push('crate_hit');
     }

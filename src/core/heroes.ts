@@ -1,4 +1,4 @@
-import type { HeroId, UltType } from './types';
+import type { HeroId, SarungStyle, SlashElement, SlashStyle, UltType } from './types';
 
 export interface HeroDef {
   id: HeroId;
@@ -18,6 +18,13 @@ export interface HeroDef {
   ultName: string;
   ultDesc: string;
   ultType: UltType;
+
+  // Visual & Elemental Styles
+  slashStyle: SlashStyle;
+  sarungStyle: SarungStyle;
+  defaultElement: SlashElement;
+  sarungSilhouetteName: string;
+  slashStyleName: string;
 
   // Base Stats
   maxHp: number;
@@ -50,6 +57,11 @@ export const HERO_DEFS: Record<HeroId, HeroDef> = {
     ultName: 'Badai Gasing Suroboyo',
     ultDesc: 'Muter kaya gasing narik kabeh musuh ing badai',
     ultType: 'gasing',
+    slashStyle: 'sarung_whip',
+    sarungStyle: 'gulung_tempur',
+    defaultElement: 'badai',
+    sarungSilhouetteName: 'Gulung Tempur Di Atas Lutut',
+    slashStyleName: 'Kibasan Cambuk Anyaman Sarung',
     maxHp: 110,
     moveSpeed: 210,
     dmgMult: 1.0,
@@ -76,6 +88,11 @@ export const HERO_DEFS: Record<HeroId, HeroDef> = {
     ultName: 'Tebasan Kilat Sakera',
     ultDesc: 'Dash kilat nembus kabeh musuh karo sayatan maut',
     ultType: 'petir',
+    slashStyle: 'clurit_crescent',
+    sarungStyle: 'sarung_celana',
+    defaultElement: 'petir',
+    sarungSilhouetteName: 'Sarung Celana Sakera & Bebat Kaki',
+    slashStyleName: 'Tebasan Sabit Aret Silang Kembar',
     maxHp: 95,
     moveSpeed: 245,
     dmgMult: 1.2,
@@ -102,6 +119,11 @@ export const HERO_DEFS: Record<HeroId, HeroDef> = {
     ultName: 'Gempa Hantam Tunjungan',
     ultDesc: 'Lompat dhuwur terus ngantem bumi gawe kawah lindu',
     ultType: 'mercon',
+    slashStyle: 'tinju_shockwave',
+    sarungStyle: 'lipit_jawara',
+    defaultElement: 'api',
+    sarungSilhouetteName: 'Lipit Tebal Gagah & Sabuk Jawara Emas',
+    slashStyleName: 'Gelombang Kejut Tinju Pecah Bumi',
     maxHp: 140,
     moveSpeed: 185,
     dmgMult: 1.35,
@@ -128,6 +150,11 @@ export const HERO_DEFS: Record<HeroId, HeroDef> = {
     ultName: 'Hujan Bambu Runcing Gaib',
     ultDesc: 'Udan bambu runcing gaib numpes musuh sa-arena',
     ultType: 'naga',
+    slashStyle: 'bambu_radiant',
+    sarungStyle: 'jubah_wali',
+    defaultElement: 'suci',
+    sarungSilhouetteName: 'Jubah Panjang Menjuntai & Sorban Waliyullah',
+    slashStyleName: 'Kaligrafi Suci Karomah Ampel',
     maxHp: 100,
     moveSpeed: 215,
     dmgMult: 1.0,
@@ -154,6 +181,11 @@ export const HERO_DEFS: Record<HeroId, HeroDef> = {
     ultName: 'Meriam Karbit Raksasa',
     ultDesc: 'Nembak meriam karbit gluduk sing mbledos sak layar',
     ultType: 'mercon',
+    slashStyle: 'mercon_burst',
+    sarungStyle: 'lipit_dinas',
+    defaultElement: 'api',
+    sarungSilhouetteName: 'Lipat Dinas Rapi & Sabuk Kopel Linmas',
+    slashStyleName: 'Ledakan Kilat Mesiu Karbit',
     maxHp: 105,
     moveSpeed: 200,
     dmgMult: 1.15,
@@ -180,6 +212,11 @@ export const HERO_DEFS: Record<HeroId, HeroDef> = {
     ultName: 'Pusaran Angin Selendang',
     ultDesc: 'Badai angin selendang abang nguncalno kabeh musuh munggah',
     ultType: 'gasing',
+    slashStyle: 'selendang_cyclone',
+    sarungStyle: 'lilit_kebaya',
+    defaultElement: 'badai',
+    sarungSilhouetteName: 'Sarung Lilit Anggun & Pita Selendang Sutra',
+    slashStyleName: 'Pusaran Angin Pita Sutra Merah',
     maxHp: 100,
     moveSpeed: 235,
     dmgMult: 1.05,

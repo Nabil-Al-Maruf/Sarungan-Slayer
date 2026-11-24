@@ -3,7 +3,7 @@ import { ProceduralAudio } from './audio/sfx';
 import { FIXED_DT, PLAYER_PALETTES, ULT_DEFS, VIRTUAL_HEIGHT, VIRTUAL_WIDTH } from './core/constants';
 import { HERO_DEFS, getHeroDef } from './core/heroes';
 import { InputManager } from './core/input';
-import type { BuffId, GameState, HeroId, PlayerInput, UltType } from './core/types';
+import type { BuffId, GameState, HeroId, PlayerInput, PlayerState, SlashElement, UltType } from './core/types';
 import { createBrawlState, stepBrawl, type BrawlRosterMember } from './modes/brawl';
 import { createSandboxState, stepSandbox } from './modes/sandbox';
 import {
@@ -70,7 +70,7 @@ let selectedHeroId: HeroId = (localStorage.getItem(HERO_STORAGE_KEY) as HeroId) 
 if (!HERO_DEFS[selectedHeroId]) selectedHeroId = 'bima';
 let selectedGameMode: 'survival' | 'brawl' = 'survival';
 
-let state: GameState = createStoryState(1, selectedPalette, playerName);
+let state: GameState = createStoryState(1, selectedPalette, playerName, selectedHeroId);
 let menuOpen = true;
 let lobbyOpen = false;
 let shopOpen = false;
@@ -413,8 +413,9 @@ const localPeer = new LocalPeerManager({
             id: p.id,
             paletteIndex: p.paletteIndex,
             name: p.name,
+            heroId: p.heroId,
           }));
-        state = createSurvivalState(selectedPalette, roster, playerName);
+        state = createSurvivalState(selectedPalette, roster, playerName, selectedHeroId);
       }
     }
 
@@ -494,12 +495,17 @@ const localPeer = new LocalPeerManager({
     // Sync players
     for (const sp of snap.players) {
       let lp = state.players.find((p) => p.id === sp.id);
+      const hDef = getHeroDef(sp.heroId);
       if (!lp) {
         lp = {
           id: sp.id,
           name: sp.name,
           paletteIndex: sp.pal,
           heroId: sp.heroId || 'bima',
+          slashStyle: hDef.slashStyle,
+          sarungStyle: hDef.sarungStyle,
+          slashElement: sp.elem || 'none',
+          slashElementLevel: sp.elemLv || 1,
           brawlStocks: sp.brawlStocks,
           brawlKos: sp.brawlKos,
           x: sp.x,
@@ -563,7 +569,13 @@ const localPeer = new LocalPeerManager({
         lp.coins = sp.coins;
         lp.knockedDown = sp.knockedDown;
         lp.ultType = sp.ultType;
-        if (sp.heroId) lp.heroId = sp.heroId;
+        if (sp.heroId) {
+          lp.heroId = sp.heroId;
+          lp.slashStyle = hDef.slashStyle;
+          lp.sarungStyle = hDef.sarungStyle;
+        }
+        if (sp.elem) lp.slashElement = sp.elem;
+        if (sp.elemLv) lp.slashElementLevel = sp.elemLv;
         if (sp.brawlStocks !== undefined) lp.brawlStocks = sp.brawlStocks;
         if (sp.brawlKos !== undefined) lp.brawlKos = sp.brawlKos;
       }
@@ -803,7 +815,7 @@ function selectHero(heroId: HeroId): void {
   selectedHeroId = heroId;
   localStorage.setItem(HERO_STORAGE_KEY, heroId);
 
-  document.querySelectorAll('#lobby-hero-picker .hero-card').forEach((card) => {
+  document.querySelectorAll('#lobby-hero-picker .hero-card, #settings-hero-picker .hero-card').forEach((card) => {
     card.classList.toggle('active', card.getAttribute('data-hero') === heroId);
   });
 
@@ -812,13 +824,29 @@ function selectHero(heroId: HeroId): void {
   if (heroSpecWeaponEl) heroSpecWeaponEl.textContent = hDef.weaponName;
   if (heroSpecProjEl) heroSpecProjEl.textContent = hDef.projName;
   if (heroSpecUltEl) heroSpecUltEl.textContent = hDef.ultName;
+  const heroSpecSlashEl = document.getElementById('hero-spec-slash');
+  const heroSpecSarungEl = document.getElementById('hero-spec-sarung');
+  if (heroSpecSlashEl) heroSpecSlashEl.textContent = hDef.slashStyleName;
+  if (heroSpecSarungEl) heroSpecSarungEl.textContent = hDef.sarungSilhouetteName;
+
+  const p = getLocalPlayer();
+  if (p) {
+    p.heroId = heroId;
+    p.slashStyle = hDef.slashStyle;
+    p.sarungStyle = hDef.sarungStyle;
+    p.ultType = hDef.ultType;
+    p.maxHp = hDef.maxHp;
+    p.hp = Math.min(p.hp, p.maxHp);
+    p.dmgMult = hDef.dmgMult;
+    p.cdMult = hDef.cdMult;
+  }
 
   if (localPeer.connected) {
     localPeer.sendPickHero(heroId);
   }
 }
 
-document.querySelectorAll<HTMLButtonElement>('#lobby-hero-picker .hero-card').forEach((btn) => {
+document.querySelectorAll<HTMLButtonElement>('#lobby-hero-picker .hero-card, #settings-hero-picker .hero-card').forEach((btn) => {
   btn.addEventListener('click', () => {
     audio.unlock();
     const hero = btn.dataset.hero as HeroId;
@@ -1000,6 +1028,39 @@ function refreshShopUI(): void {
   if (iconEl && ultDef) iconEl.textContent = ultDef.icon;
   if (titleEl && ultDef) titleEl.textContent = ultDef.title;
   if (descEl && ultDef) descEl.textContent = ultDef.desc;
+
+  // Refresh Elemental Upgrade Buttons
+  const elemConfigs = [
+    { id: 'petir', name: 'Petir Halilintar', perk: 'Sengatan listrik & stun lumpuh' },
+    { id: 'api', name: 'Api Kobaran', perk: 'Lidah api & luka bakar membara' },
+    { id: 'badai', name: 'Badai Topan', perk: 'Jangkauan tebasan amba & puyuh angin' },
+    { id: 'suci', name: 'Cahaya Suci', perk: 'Karomah suci, sedot darah & ulti' },
+  ];
+
+  for (const cfg of elemConfigs) {
+    const btn = document.getElementById(`shop-elem-${cfg.id}`) as HTMLButtonElement | null;
+    const desc = document.getElementById(`shop-elem-${cfg.id}-desc`);
+    const cost = document.getElementById(`shop-elem-${cfg.id}-cost`);
+    if (!btn) continue;
+    const isEquipped = player.slashElement === cfg.id;
+    const curLv = isEquipped ? (player.slashElementLevel || 1) : 0;
+    if (curLv >= 3) {
+      btn.disabled = true;
+      if (desc) desc.textContent = `${cfg.name} (Lv.3 MAKSIMAL) • ${cfg.perk}`;
+      if (cost) cost.textContent = 'MAX ✓';
+    } else {
+      btn.disabled = false;
+      const nextLv = curLv + 1;
+      const c = nextLv === 1 ? 75 : nextLv === 2 ? 150 : 225;
+      if (desc) {
+        desc.textContent =
+          curLv === 0
+            ? `Aktifkan ${cfg.name} Lv.1 • ${cfg.perk}`
+            : `Upgrade ${cfg.name} Lv.${curLv} ➔ Lv.${nextLv} • ${cfg.perk}`;
+      }
+      if (cost) cost.textContent = `${c} Receh`;
+    }
+  }
 }
 
 function checkPendingUltModal(): void {
@@ -1519,6 +1580,21 @@ window.addEventListener('keydown', (e) => {
       else openPauseMenu();
     }
   }
+  if (e.code === 'KeyQ' && !menuOpen && !lobbyOpen && !storyDialogueOpen) {
+    const player = getLocalPlayer();
+    if (player) {
+      e.preventDefault();
+      cycleSlashElement(player);
+    }
+  }
+  if (e.code === 'KeyE' && !menuOpen && !lobbyOpen && !storyDialogueOpen && state.mode !== 'survival') {
+    const player = getLocalPlayer();
+    if (player) {
+      e.preventDefault();
+      upgradeSlashElementLevel(player);
+    }
+  }
+
   if (state.mode === 'sandbox' && (e.key === '1' || e.key === '2' || e.key === '3' || e.key === '4')) {
     const ults: UltType[] = ['gasing', 'petir', 'mercon', 'naga'];
     const idx = parseInt(e.key, 10) - 1;
@@ -1543,6 +1619,158 @@ window.addEventListener('keydown', (e) => {
         life: 1.3,
         maxLife: 1.3,
       });
+    }
+  }
+});
+
+function cycleSlashElement(player: PlayerState): void {
+  if (state.mode === 'survival') {
+    const unlocked = Object.keys(player.unlockedElements || {}) as SlashElement[];
+    if (unlocked.length === 0) {
+      haptic.tap();
+      audio.unlock();
+      state.soundQueue.push('kibas');
+      state.floatingTexts.push({
+        x: player.x,
+        y: player.y - player.z - 48,
+        vy: -40,
+        text: 'Beli Upgrade Elemen ing Warung Warkop!',
+        color: '#f87171',
+        scale: 1.15,
+        life: 1.3,
+        maxLife: 1.3,
+      });
+      return;
+    }
+    const survivalCycle: SlashElement[] = ['none', ...unlocked];
+    const curIdx = survivalCycle.indexOf(player.slashElement || 'none');
+    const nextIdx = (curIdx + 1) % survivalCycle.length;
+    const chosen = survivalCycle[nextIdx];
+    player.slashElement = chosen;
+    player.slashElementLevel = chosen === 'none' ? 1 : (player.unlockedElements?.[chosen] || 1);
+  } else {
+    const elements: SlashElement[] = ['none', 'petir', 'api', 'badai', 'suci'];
+    const curIdx = elements.indexOf(player.slashElement || 'none');
+    const nextIdx = (curIdx + 1) % elements.length;
+    player.slashElement = elements[nextIdx];
+    player.slashElementLevel = player.slashElement === 'none' ? 1 : Math.min(3, Math.max(1, player.slashElementLevel || 1));
+  }
+  haptic.tap();
+  audio.unlock();
+  state.soundQueue.push('pickup_kopi');
+
+  const names: Record<SlashElement, string> = {
+    none: 'SARUNG STANDAR',
+    petir: `PETIR HALILINTAR LV.${player.slashElementLevel}`,
+    api: `API KOBARAN LV.${player.slashElementLevel}`,
+    badai: `BADAI TOPAN LV.${player.slashElementLevel}`,
+    suci: `CAHAYA SUCI LV.${player.slashElementLevel}`,
+  };
+  const colors: Record<SlashElement, string> = {
+    none: '#94a3b8',
+    petir: '#38bdf8',
+    api: '#f97316',
+    badai: '#34d399',
+    suci: '#facc15',
+  };
+
+  state.floatingTexts.push({
+    x: player.x,
+    y: player.y - player.z - 48,
+    vy: -45,
+    text: `ELEMEN: ${names[player.slashElement]}!`,
+    color: colors[player.slashElement],
+    scale: 1.15,
+    life: 1.2,
+    maxLife: 1.2,
+  });
+
+  updateSandboxElemButtons();
+}
+
+function upgradeSlashElementLevel(player: PlayerState): void {
+  if (state.mode === 'survival') {
+    state.floatingTexts.push({
+      x: player.x,
+      y: player.y - player.z - 48,
+      vy: -40,
+      text: 'Upgrade Level Elemen ing Warung Warkop!',
+      color: '#fbbf24',
+      scale: 1.1,
+      life: 1.2,
+      maxLife: 1.2,
+    });
+    return;
+  }
+  if (!player.slashElement || player.slashElement === 'none') {
+    player.slashElement = 'petir';
+    player.slashElementLevel = 1;
+  } else {
+    player.slashElementLevel = ((player.slashElementLevel || 1) % 3) + 1;
+  }
+  haptic.tap();
+  audio.unlock();
+  state.soundQueue.push('pickup_kopi');
+
+  const names: Record<SlashElement, string> = {
+    none: 'SARUNG STANDAR',
+    petir: `PETIR HALILINTAR LV.${player.slashElementLevel}`,
+    api: `API KOBARAN LV.${player.slashElementLevel}`,
+    badai: `BADAI TOPAN LV.${player.slashElementLevel}`,
+    suci: `CAHAYA SUCI LV.${player.slashElementLevel}`,
+  };
+  const colors: Record<SlashElement, string> = {
+    none: '#94a3b8',
+    petir: '#38bdf8',
+    api: '#f97316',
+    badai: '#34d399',
+    suci: '#facc15',
+  };
+
+  state.floatingTexts.push({
+    x: player.x,
+    y: player.y - player.z - 48,
+    vy: -45,
+    text: `UPGRADE: ${names[player.slashElement]}!`,
+    color: colors[player.slashElement],
+    scale: 1.15,
+    life: 1.2,
+    maxLife: 1.2,
+  });
+
+  updateSandboxElemButtons();
+}
+
+function updateSandboxElemButtons(): void {
+  const p = getLocalPlayer();
+  if (!p) return;
+  const curElem = p.slashElement || 'none';
+  const curLv = p.slashElementLevel || 1;
+
+  sandboxSkillsBar?.querySelectorAll<HTMLButtonElement>('.sandbox-skill-btn[data-elem]').forEach((b) => {
+    b.classList.toggle('active', b.dataset.elem === curElem);
+  });
+
+  const lvlBtn = document.getElementById('btn-sandbox-elem-lvl');
+  if (lvlBtn) {
+    lvlBtn.textContent = `⬆️ LV.${curLv}`;
+    lvlBtn.title = `Upgrade Level Elemen [E] (Sekarang Lv.${curLv})`;
+  }
+
+  sandboxSkillsBar?.querySelectorAll<HTMLButtonElement>('.sandbox-skill-btn[data-sandbox-hero]').forEach((b) => {
+    b.classList.toggle('active', b.dataset.sandboxHero === p.heroId);
+  });
+}
+
+const hudElementPill = document.getElementById('hud-element-pill');
+hudElementPill?.addEventListener('click', (e) => {
+  audio.unlock();
+  const player = getLocalPlayer();
+  if (player) {
+    if (e.shiftKey) {
+      upgradeSlashElementLevel(player);
+    } else {
+      cycleSlashElement(player);
     }
   }
 });
@@ -1608,7 +1836,7 @@ function startStoryStage(stage: 1 | 2 | 3): void {
   triggerAutoFullscreenIfEnabled();
   setStickMode(false);
   localPeer.disconnect();
-  state = createStoryState(stage, selectedPalette, playerName);
+  state = createStoryState(stage, selectedPalette, playerName, selectedHeroId);
   menuOpen = false;
   lobbyOpen = false;
   shopOpen = false;
@@ -1628,7 +1856,7 @@ function startSoloSurvival(): void {
   triggerAutoFullscreenIfEnabled();
   setStickMode(false);
   localPeer.disconnect();
-  state = createSurvivalState(selectedPalette, undefined, playerName);
+  state = createSurvivalState(selectedPalette, undefined, playerName, selectedHeroId);
   menuOpen = false;
   lobbyOpen = false;
   shopOpen = false;
@@ -1702,7 +1930,7 @@ function startSandbox(): void {
   triggerAutoFullscreenIfEnabled();
   setStickMode(false);
   localPeer.disconnect();
-  state = createSandboxState(selectedPalette, playerName);
+  state = createSandboxState(selectedPalette, playerName, selectedHeroId);
   const p0 = state.players[0];
   if (p0) {
     p0.ult = p0.maxUlt;
@@ -1717,6 +1945,7 @@ function startSandbox(): void {
   resultShown = false;
   closeAllModals();
   sandboxSkillsBar?.classList.remove('hidden');
+  updateSandboxElemButtons();
   void requestScreenWakeLock();
 }
 
@@ -1867,6 +2096,12 @@ const touchHandle = bindTouchControls(
   },
   () => {
     void requestScreenWakeLock();
+  },
+  () => {
+    const player = getLocalPlayer();
+    if (player) {
+      cycleSlashElement(player);
+    }
   }
 );
 
@@ -1962,6 +2197,40 @@ if (sandboxSkillsBar) {
         maxLife: 1.1,
       });
     }
+  });
+
+  sandboxSkillsBar.querySelectorAll<HTMLButtonElement>('.sandbox-skill-btn[data-elem]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      audio.unlock();
+      const elem = btn.dataset.elem as SlashElement;
+      const player = getLocalPlayer();
+      if (player && elem) {
+        player.slashElement = elem;
+        player.slashElementLevel = elem === 'none' ? 1 : Math.max(1, player.slashElementLevel || 1);
+        haptic.tap();
+        state.soundQueue.push('pickup_kopi');
+        updateSandboxElemButtons();
+      }
+    });
+  });
+
+  document.getElementById('btn-sandbox-elem-lvl')?.addEventListener('click', () => {
+    audio.unlock();
+    const player = getLocalPlayer();
+    if (player) {
+      upgradeSlashElementLevel(player);
+    }
+  });
+
+  sandboxSkillsBar.querySelectorAll<HTMLButtonElement>('.sandbox-skill-btn[data-sandbox-hero]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      audio.unlock();
+      const hero = btn.dataset.sandboxHero as HeroId;
+      if (hero) {
+        selectHero(hero);
+        updateSandboxElemButtons();
+      }
+    });
   });
 }
 

@@ -2,6 +2,7 @@ import type {
   GameState,
   HeroId,
   PlayerInput,
+  SlashElement,
   SoundEvent,
   UltType,
 } from '../core/types';
@@ -44,6 +45,8 @@ export interface PlayerCompactRow {
   invulnTimer: number;
   brawlStocks?: number;
   brawlKos?: number;
+  elem?: SlashElement;
+  elemLv?: number;
 }
 
 export interface EnemyCompactRow {
@@ -149,6 +152,8 @@ export function packGameSnapshot(state: GameState, seq: number): CompactGameSnap
     invulnTimer: Math.round(p.invulnTimer * 10) / 10,
     brawlStocks: p.brawlStocks,
     brawlKos: p.brawlKos,
+    elem: p.slashElement,
+    elemLv: p.slashElementLevel,
   }));
 
   const enemies: EnemyCompactRow[] = state.enemies.map((e) => ({

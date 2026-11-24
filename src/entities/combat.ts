@@ -25,12 +25,13 @@ function inMeleeArc(
   aimY: number,
   tx: number,
   ty: number,
-  targetRadius: number
+  targetRadius: number,
+  extraReach = 0
 ): boolean {
   const dx = tx - px;
   const dy = ty - py;
   const dist = Math.hypot(dx, dy);
-  if (dist > MELEE_REACH + targetRadius) return false;
+  if (dist > MELEE_REACH + extraReach + targetRadius) return false;
   if (dist < 22) return true;
   const dot = (dx / dist) * aimX + (dy / dist) * aimY;
   return dot >= MELEE_ARC_COS;
@@ -42,10 +43,13 @@ export function resolveCombat(state: GameState, dt: number): void {
     if (player.meleeTimer > 0.05) {
       const aimX = Math.cos(player.meleeAngle);
       const aimY = Math.sin(player.meleeAngle);
+      const elem = player.slashElement || 'none';
+      const elemLevel = player.slashElementLevel || 1;
+      const extraReach = elem === 'badai' ? 18 * elemLevel : 0;
 
       for (const enemy of state.enemies) {
         if (enemy.hp <= 0 || enemy.lastHitSwingId === player.meleeSwingId) continue;
-        if (inMeleeArc(player.x, player.y, aimX, aimY, enemy.x, enemy.y, enemy.radius)) {
+        if (inMeleeArc(player.x, player.y, aimX, aimY, enemy.x, enemy.y, enemy.radius, extraReach)) {
           enemy.lastHitSwingId = player.meleeSwingId;
           const dx = enemy.x - player.x;
           const dy = enemy.y - player.y;
@@ -64,13 +68,76 @@ export function resolveCombat(state: GameState, dt: number): void {
             }
           }
 
+          // Elemental Attack Augmentation
+          if (!blocked && elem !== 'none') {
+            if (elem === 'petir') {
+              finalDmg += 6 * elemLevel;
+              enemy.stunTimer = Math.max(enemy.stunTimer, 0.28 * elemLevel);
+              for (let k = 0; k < 5; k++) {
+                state.particles.push({
+                  x: enemy.x + (Math.random() - 0.5) * 16,
+                  y: enemy.y + (Math.random() - 0.5) * 16,
+                  z: 14,
+                  vx: (Math.random() - 0.5) * 180,
+                  vy: (Math.random() - 0.5) * 180,
+                  vz: 60 + Math.random() * 80,
+                  size: 2.5 + Math.random() * 2,
+                  color: Math.random() < 0.6 ? '#38bdf8' : '#facc15',
+                  alpha: 1,
+                  life: 0.16 + Math.random() * 0.1,
+                  maxLife: 0.26,
+                  gravity: 0,
+                });
+              }
+            } else if (elem === 'api') {
+              finalDmg += 8 * elemLevel;
+              for (let k = 0; k < 6; k++) {
+                state.particles.push({
+                  x: enemy.x + (Math.random() - 0.5) * 16,
+                  y: enemy.y + (Math.random() - 0.5) * 16,
+                  z: 12,
+                  vx: (Math.random() - 0.5) * 140,
+                  vy: (Math.random() - 0.5) * 140,
+                  vz: 80 + Math.random() * 90,
+                  size: 3 + Math.random() * 2.5,
+                  color: Math.random() < 0.5 ? '#f97316' : '#ef4444',
+                  alpha: 1,
+                  life: 0.22 + Math.random() * 0.12,
+                  maxLife: 0.34,
+                  gravity: -70,
+                });
+              }
+            } else if (elem === 'suci') {
+              finalDmg += 5 * elemLevel;
+              player.hp = Math.min(player.maxHp, player.hp + 3 * elemLevel);
+              player.ult = Math.min(player.maxUlt, player.ult + 6 * elemLevel);
+              for (let k = 0; k < 5; k++) {
+                state.particles.push({
+                  x: enemy.x + (Math.random() - 0.5) * 16,
+                  y: enemy.y + (Math.random() - 0.5) * 16,
+                  z: 14,
+                  vx: (Math.random() - 0.5) * 100,
+                  vy: (Math.random() - 0.5) * 100,
+                  vz: 50 + Math.random() * 70,
+                  size: 2.5 + Math.random() * 2,
+                  color: '#facc15',
+                  alpha: 1,
+                  life: 0.2 + Math.random() * 0.1,
+                  maxLife: 0.3,
+                  gravity: -30,
+                });
+              }
+            }
+          }
+
+          const knockbackBase = blocked ? 150 : MELEE_KNOCKBACK * (elem === 'badai' ? 1 + 0.25 * elemLevel : 1);
           hitEnemy(
             state,
             enemy,
             player,
             finalDmg,
-            nx * (blocked ? 150 : MELEE_KNOCKBACK),
-            ny * (blocked ? 150 : MELEE_KNOCKBACK),
+            nx * knockbackBase,
+            ny * knockbackBase,
             Math.round((blocked ? 4 : MELEE_ULT_GAIN) * player.ultGainMult),
             blocked
           );
@@ -80,7 +147,7 @@ export function resolveCombat(state: GameState, dt: number): void {
 
       for (const crate of state.crates) {
         if (crate.hp <= 0 || crate.lastHitSwingId === player.meleeSwingId) continue;
-        if (inMeleeArc(player.x, player.y, aimX, aimY, crate.x, crate.y, crate.radius)) {
+        if (inMeleeArc(player.x, player.y, aimX, aimY, crate.x, crate.y, crate.radius, extraReach)) {
           crate.lastHitSwingId = player.meleeSwingId;
           damageCrate(state, crate, MELEE_DAMAGE);
         }

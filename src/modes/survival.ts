@@ -12,9 +12,11 @@ import type {
   BuffId,
   EnemyKind,
   GameState,
+  HeroId,
   MapTheme,
   PlayerInput,
   PlayerState,
+  SlashElement,
   UltType,
 } from '../core/types';
 import { resolveCombat } from '../entities/combat';
@@ -33,6 +35,10 @@ export type ShopItemId =
   | 'ult_petir'
   | 'ult_mercon'
   | 'ult_naga'
+  | 'elem_petir'
+  | 'elem_api'
+  | 'elem_badai'
+  | 'elem_suci'
   | 'tower_pos'
   | 'upgrade_core'
   | 'shield_core'
@@ -225,8 +231,9 @@ export function getThemeForWave(wave: number): { theme: MapTheme; locationName: 
 
 export function createSurvivalState(
   paletteIndex = 0,
-  roster?: Array<{ id: string; paletteIndex: number; name?: string }>,
-  customName?: string
+  roster?: Array<{ id: string; paletteIndex: number; name?: string; heroId?: HeroId }>,
+  customName?: string,
+  heroId?: HeroId
 ): GameState {
   const { theme, locationName } = getThemeForWave(1);
 
@@ -298,9 +305,9 @@ export function createSurvivalState(
     roster && roster.length > 0
       ? roster.map((r, idx) => {
           const pt = spawnPoints[idx % spawnPoints.length];
-          return createPlayer(r.id, pt.x, pt.y, r.paletteIndex, r.name);
+          return createPlayer(r.id, pt.x, pt.y, r.paletteIndex, r.name, r.heroId);
         })
-      : [createPlayer('p1', 370, 345, paletteIndex, customName)];
+      : [createPlayer('p1', 370, 345, paletteIndex, customName, heroId)];
 
   const state: GameState = {
     mode: 'survival',
@@ -452,6 +459,53 @@ export function buyShopItem(
       maxLife: 1.4,
     });
     return { ok: true, message: `Jurus aktif: ${def.title}!` };
+  }
+
+  if (itemId.startsWith('elem_')) {
+    const elem = itemId.replace('elem_', '') as SlashElement;
+    const isSame = player.slashElement === elem;
+    const curLv = isSame ? (player.slashElementLevel || 1) : 0;
+    if (curLv >= 3) {
+      return { ok: false, message: `Elemen ${elem.toUpperCase()} sudah Level Maksimal (Lv.3)!` };
+    }
+    const nextLv = curLv + 1;
+    const cost = nextLv === 1 ? 75 : nextLv === 2 ? 150 : 225;
+    if (player.coins < cost) {
+      return { ok: false, message: `Uang Receh kurang rek! Butuh ${cost} Receh.` };
+    }
+    player.coins -= cost;
+    player.slashElement = elem;
+    player.slashElementLevel = nextLv;
+    player.unlockedElements = player.unlockedElements || {};
+    player.unlockedElements[elem] = nextLv;
+    state.soundQueue.push('pickup_kopi');
+
+    const elemNames: Record<SlashElement, string> = {
+      none: 'STANDAR',
+      petir: '⚡ PETIR HALILINTAR',
+      api: '🔥 API KOBARAN',
+      badai: '🌀 BADAI TOPAN',
+      suci: '✨ CAHAYA SUCI',
+    };
+    const elemColors: Record<SlashElement, string> = {
+      none: '#ffffff',
+      petir: '#38bdf8',
+      api: '#f97316',
+      badai: '#34d399',
+      suci: '#facc15',
+    };
+
+    state.floatingTexts.push({
+      x: player.x,
+      y: player.y - 54,
+      vy: -45,
+      text: `UPGRADE: ${elemNames[elem]} LV.${nextLv}!`,
+      color: elemColors[elem],
+      scale: 1.15,
+      life: 1.4,
+      maxLife: 1.4,
+    });
+    return { ok: true, message: `Elemen ${elemNames[elem]} Lv.${nextLv} aktif!` };
   }
 
   if (itemId === 'tower_pos') {
