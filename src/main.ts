@@ -820,6 +820,9 @@ function selectHero(heroId: HeroId): void {
   document.querySelectorAll('#play-hero-picker .hero-card, #lobby-hero-picker .hero-card, #settings-hero-picker .hero-card').forEach((card) => {
     card.classList.toggle('active', card.getAttribute('data-hero') === heroId);
   });
+  sandboxSkillsBar?.querySelectorAll<HTMLButtonElement>('.sandbox-skill-btn[data-sandbox-hero]').forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.sandboxHero === heroId);
+  });
 
   const hDef = getHeroDef(heroId);
   const playHeroBadge = document.getElementById('play-hero-active-badge');
@@ -852,6 +855,7 @@ function selectHero(heroId: HeroId): void {
   if (localPeer.connected) {
     localPeer.sendPickHero(heroId);
   }
+  updateSandboxElemButtons();
 }
 
 document.querySelectorAll<HTMLButtonElement>('#play-hero-picker .hero-card, #lobby-hero-picker .hero-card, #settings-hero-picker .hero-card').forEach((btn) => {
@@ -1455,6 +1459,13 @@ btnPauseResume.addEventListener('click', () => {
   closePauseMenu();
 });
 
+pauseOverlay?.addEventListener('click', (e) => {
+  if (e.target === pauseOverlay) {
+    audio.unlock();
+    closePauseMenu();
+  }
+});
+
 btnPauseRestart.addEventListener('click', () => {
   audio.unlock();
   closePauseMenu();
@@ -1533,10 +1544,22 @@ function advanceStoryCutscene(): void {
   }
 }
 
-btnStoryNext.addEventListener('click', () => advanceStoryCutscene());
-btnStorySkip.addEventListener('click', () => {
+btnStoryNext.addEventListener('click', (e) => {
+  e.stopPropagation();
+  audio.unlock();
+  advanceStoryCutscene();
+});
+
+btnStorySkip.addEventListener('click', (e) => {
+  e.stopPropagation();
   audio.unlock();
   closeStoryCutscene();
+});
+
+storyDialogueBox?.addEventListener('click', (e) => {
+  if ((e.target as HTMLElement).closest('button')) return;
+  audio.unlock();
+  advanceStoryCutscene();
 });
 
 window.addEventListener('keydown', (e) => {
@@ -1768,6 +1791,10 @@ function updateSandboxElemButtons(): void {
   sandboxSkillsBar?.querySelectorAll<HTMLButtonElement>('.sandbox-skill-btn[data-sandbox-hero]').forEach((b) => {
     b.classList.toggle('active', b.dataset.sandboxHero === p.heroId);
   });
+
+  sandboxSkillsBar?.querySelectorAll<HTMLButtonElement>('.sandbox-skill-btn[data-ult]').forEach((b) => {
+    b.classList.toggle('active', b.dataset.ult === p.ultType);
+  });
 }
 
 const hudElementPill = document.getElementById('hud-element-pill');
@@ -1838,6 +1865,13 @@ function openLobby(): void {
 
 btnCloseLobby?.addEventListener('click', () => {
   openMenu();
+});
+
+lobbyOverlay?.addEventListener('click', (e) => {
+  if (e.target === lobbyOverlay) {
+    audio.unlock();
+    openMenu();
+  }
 });
 
 function startStoryStage(stage: 1 | 2 | 3): void {
@@ -2029,6 +2063,14 @@ btnSkipIntermission.addEventListener('click', () => {
 document.getElementById('btn-close-shop')!.addEventListener('click', () => {
   shopOpen = false;
   shopOverlay.classList.add('hidden');
+});
+
+shopOverlay?.addEventListener('click', (e) => {
+  if (e.target === shopOverlay) {
+    audio.unlock();
+    shopOpen = false;
+    shopOverlay.classList.add('hidden');
+  }
 });
 
 // Result Buttons
@@ -2311,10 +2353,28 @@ async function lockLandscapeOrientation(): Promise<void> {
   } catch {}
 }
 
-btnForceLandscape?.addEventListener('click', () => {
+const rotateOverlay = document.getElementById('rotate-device-overlay') as HTMLDivElement | null;
+const btnDismissRotate = document.getElementById('btn-dismiss-rotate') as HTMLButtonElement | null;
+
+btnForceLandscape?.addEventListener('click', async () => {
   audio.unlock();
-  void lockLandscapeOrientation();
+  await lockLandscapeOrientation();
+  rotateOverlay?.classList.add('dismissed');
 });
+
+btnDismissRotate?.addEventListener('click', () => {
+  audio.unlock();
+  rotateOverlay?.classList.add('dismissed');
+  try {
+    sessionStorage.setItem('dismiss_rotate_overlay', '1');
+  } catch {}
+});
+
+try {
+  if (sessionStorage.getItem('dismiss_rotate_overlay') === '1') {
+    rotateOverlay?.classList.add('dismissed');
+  }
+} catch {}
 
 function showResultIfNeeded(): void {
   if (resultShown || state.status === 'playing' || storyDialogueOpen) return;

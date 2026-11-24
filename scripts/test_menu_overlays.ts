@@ -95,5 +95,26 @@ assert(ts.includes("} else if (state.mode === 'brawl') {\n    if (localPeer.conn
 assert(ts.includes("if (e.key === 'Escape' && (resultShown || (brawlVictoryOverlay && !brawlVictoryOverlay.classList.contains('hidden'))))"), 'Escape key returns to menu cleanly on result or brawl victory');
 assert(ts.includes("statusEl.classList.toggle('locked', !unlocked);"), 'refreshMenuProgress toggles locked class');
 
+console.log('\n=== TEST 8: UI Audit & Responsiveness Fixes ===');
+assert(css.includes('.element-pill {') && css.includes('pointer-events: auto;'), 'HUD Element Pill receives pointer events');
+assert(css.includes('@media (max-width: 580px) {\n  .shop-grid'), 'Shop grid wraps to 2 columns on mobile screens');
+assert(css.includes('@media (max-width: 380px) {\n  .shop-grid'), 'Shop grid wraps to 1 column on narrow screens');
+assert(css.includes('@media (max-width: 540px) {\n  .buff-grid'), 'Buff grid wraps cleanly on mobile screens');
+assert(css.includes('.play-hero-picker-row .hero-card {') && css.includes('flex-direction: column !important;'), 'Play hero picker cards have column layout');
+assert(css.includes('@media (max-width: 520px) {\n  .play-hero-picker-row'), 'Play hero picker row wraps to 3 columns on small screens');
+assert(css.includes('.sandbox-skills-bar {') && css.includes('overflow-x: auto;'), 'Sandbox skills bar supports horizontal scrolling');
+assert(css.includes('.rotate-device-overlay.dismissed') && css.includes('.app-shell.stick-controller-mode .rotate-device-overlay'), 'Rotate device overlay has dismiss and stick controller mode exclusions');
+assert(html.includes('id="btn-dismiss-rotate"'), 'Rotate device modal contains dismiss button');
+assert(ts.includes('btnDismissRotate'), 'btnDismissRotate wired in main.ts');
+assert(ts.includes('shopOverlay?.addEventListener(\'click\''), 'shopOverlay backdrop click listener wired in main.ts');
+assert(ts.includes('pauseOverlay?.addEventListener(\'click\''), 'pauseOverlay backdrop click listener wired in main.ts');
+assert(ts.includes('lobbyOverlay?.addEventListener(\'click\''), 'lobbyOverlay backdrop click listener wired in main.ts');
+assert(ts.includes('storyDialogueBox?.addEventListener(\'click\''), 'storyDialogueBox tap-to-advance listener wired in main.ts');
+assert(ts.includes('e.stopPropagation();') && ts.includes('advanceStoryCutscene();'), 'Story cutscene buttons stop propagation to prevent double-advance bug');
+assert(ts.includes('b.dataset.ult === p.ultType'), 'Sandbox skills bar syncs active ult button');
+assert(css.includes('.overlay-modal {\n  position: fixed;'), 'Overlay modals use fixed positioning to avoid stage squishing');
+assert(css.includes('.vbtn.act-elem-mini {') && css.includes('position: absolute;'), 'Virtual control action arc positions .act-elem-mini');
+assert(css.includes('@media (max-width: 768px) {\n  .brawl-scoreboard-strip') && css.includes('flex-wrap: nowrap;'), 'Brawl scoreboard strip preserves single-row layout on mobile');
+
 console.log('\n=======================================');
 console.log('ALL MENU & OVERLAY VERIFICATION TESTS PASSED!');

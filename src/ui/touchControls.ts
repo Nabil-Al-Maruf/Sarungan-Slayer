@@ -320,7 +320,7 @@ export function bindTouchControls(
       boundPointerId = null;
       boundTouchId = null;
       btn.classList.remove('pressed');
-      if (action !== 'shop') {
+      if (action !== 'shop' && (action as string) !== 'elem') {
         input.setVirtualAction(action, false);
       }
     };
