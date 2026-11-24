@@ -1352,41 +1352,144 @@ function drawSmashArena(
   brawl: BrawlState,
   time: number
 ): void {
-  // 1. Cyber Stadium Background
+  const theme = brawl.stageTheme || 'alun_alun';
   ctx.save();
-  const grad = ctx.createLinearGradient(0, 0, 0, VIRTUAL_HEIGHT);
-  grad.addColorStop(0, '#0a0f1d');
-  grad.addColorStop(0.5, '#131d33');
-  grad.addColorStop(1, '#080c16');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
 
-  // Neon searchlights sweeping across sky
-  const l1 = Math.sin(time * 0.8) * 240;
-  const l2 = Math.cos(time * 0.9) * 240;
-  ctx.fillStyle = 'rgba(56, 189, 248, 0.05)';
-  ctx.beginPath();
-  ctx.moveTo(120 + l1, 0);
-  ctx.lineTo(260 + l1, 540);
-  ctx.lineTo(40 + l1, 540);
-  ctx.fill();
+  // 1. Stage-Specific Thematic Sky & Background Scenery
+  if (theme === 'atap_warga') {
+    // Twilight dusk sky over Suroboyo kampung rooftops
+    const grad = ctx.createLinearGradient(0, 0, 0, VIRTUAL_HEIGHT);
+    grad.addColorStop(0, '#2e1065'); // Deep twilight purple
+    grad.addColorStop(0.45, '#7c2d12'); // Amber terracotta dusk
+    grad.addColorStop(0.85, '#431407'); // Deep rust
+    grad.addColorStop(1, '#1c1917');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
 
-  ctx.fillStyle = 'rgba(234, 179, 8, 0.05)';
-  ctx.beginPath();
-  ctx.moveTo(800 + l2, 0);
-  ctx.lineTo(940 + l2, 540);
-  ctx.lineTo(720 + l2, 540);
-  ctx.fill();
+    // Warm setting sun orb dipping behind rooftops
+    ctx.fillStyle = 'rgba(251, 146, 60, 0.28)';
+    ctx.beginPath();
+    ctx.arc(480, 220, 95, 0, Math.PI * 2);
+    ctx.fill();
 
-  // Distant city silhouette with glowing windows
-  ctx.fillStyle = '#0f172a';
-  for (let bx = 30; bx < 930; bx += 75) {
-    const bh = 80 + ((bx * 17) % 120);
-    ctx.fillRect(bx, 440 - bh, 60, bh);
-    ctx.fillStyle = (bx + Math.floor(time * 2)) % 3 === 0 ? 'rgba(253, 224, 71, 0.35)' : 'rgba(56, 189, 248, 0.25)';
-    ctx.fillRect(bx + 12, 440 - bh + 18, 7, 7);
-    ctx.fillRect(bx + 32, 440 - bh + 32, 7, 7);
+    // Silhouetted Kampung houses & genteng roofs
+    ctx.fillStyle = '#0c0a09';
+    for (let hx = 20; hx < 940; hx += 80) {
+      const hh = 70 + ((hx * 13) % 90);
+      // Triangle roof gable
+      ctx.beginPath();
+      ctx.moveTo(hx - 10, 440 - hh);
+      ctx.lineTo(hx + 35, 410 - hh);
+      ctx.lineTo(hx + 80, 440 - hh);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillRect(hx, 440 - hh, 70, hh);
+
+      // TV Antenna sticks on roofs
+      ctx.strokeStyle = '#44403c';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(hx + 35, 410 - hh);
+      ctx.lineTo(hx + 35, 380 - hh);
+      ctx.moveTo(hx + 25, 390 - hh);
+      ctx.lineTo(hx + 45, 390 - hh);
+      ctx.stroke();
+    }
+  } else if (theme === 'jembatan_kali') {
+    // Night river harbor with Suramadu / Kali Mas bridge aesthetic
+    const grad = ctx.createLinearGradient(0, 0, 0, VIRTUAL_HEIGHT);
+    grad.addColorStop(0, '#020617'); // Dark night sky
+    grad.addColorStop(0.5, '#0f172a');
+    grad.addColorStop(0.85, '#082f49'); // Deep river water reflection
+    grad.addColorStop(1, '#020617');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
+
+    // Iconic bridge suspension towers in background
+    ctx.strokeStyle = '#1e293b';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    // Left tower
+    ctx.moveTo(250, 440);
+    ctx.lineTo(280, 60);
+    ctx.lineTo(310, 440);
+    // Right tower
+    ctx.moveTo(650, 440);
+    ctx.lineTo(680, 60);
+    ctx.lineTo(710, 440);
+    ctx.stroke();
+
+    // Diagonal suspension steel cables
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.22)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let c = 0; c < 5; c++) {
+      ctx.moveTo(280, 60 + c * 40);
+      ctx.lineTo(100 + c * 35, 400);
+      ctx.moveTo(280, 60 + c * 40);
+      ctx.lineTo(460 - c * 35, 400);
+
+      ctx.moveTo(680, 60 + c * 40);
+      ctx.lineTo(500 + c * 35, 400);
+      ctx.moveTo(680, 60 + c * 40);
+      ctx.lineTo(860 - c * 35, 400);
+    }
+    ctx.stroke();
+
+    // Flashing red aircraft warning beacons atop towers
+    const beaconAlpha = Math.sin(time * 3) > 0 ? 0.9 : 0.2;
+    ctx.fillStyle = `rgba(239, 68, 68, ${beaconAlpha})`;
+    ctx.beginPath();
+    ctx.arc(280, 58, 4.5, 0, Math.PI * 2);
+    ctx.arc(680, 58, 4.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Water ripple reflections underneath
+    ctx.fillStyle = 'rgba(14, 165, 233, 0.08)';
+    for (let wr = 0; wr < 4; wr++) {
+      const wy = 450 + wr * 22;
+      const wOff = Math.sin(time * 1.5 + wr) * 30;
+      ctx.fillRect(80 + wOff, wy, 800, 3);
+    }
+  } else {
+    // 'alun_alun': Cyber Alun-Alun Suroboyo Stadium
+    const grad = ctx.createLinearGradient(0, 0, 0, VIRTUAL_HEIGHT);
+    grad.addColorStop(0, '#0a0f1d');
+    grad.addColorStop(0.5, '#131d33');
+    grad.addColorStop(1, '#080c16');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
+
+    // Neon searchlights sweeping across sky
+    const l1 = Math.sin(time * 0.8) * 240;
+    const l2 = Math.cos(time * 0.9) * 240;
+    ctx.fillStyle = 'rgba(56, 189, 248, 0.05)';
+    ctx.beginPath();
+    ctx.moveTo(120 + l1, 0);
+    ctx.lineTo(260 + l1, 540);
+    ctx.lineTo(40 + l1, 540);
+    ctx.fill();
+
+    ctx.fillStyle = 'rgba(234, 179, 8, 0.05)';
+    ctx.beginPath();
+    ctx.moveTo(800 + l2, 0);
+    ctx.lineTo(940 + l2, 540);
+    ctx.lineTo(720 + l2, 540);
+    ctx.fill();
+
+    // Distant city silhouette with glowing windows
     ctx.fillStyle = '#0f172a';
+    for (let bx = 30; bx < 930; bx += 75) {
+      const bh = 80 + ((bx * 17) % 120);
+      ctx.fillRect(bx, 440 - bh, 60, bh);
+      ctx.fillStyle =
+        (bx + Math.floor(time * 2)) % 3 === 0
+          ? 'rgba(253, 224, 71, 0.35)'
+          : 'rgba(56, 189, 248, 0.25)';
+      ctx.fillRect(bx + 12, 440 - bh + 18, 7, 7);
+      ctx.fillRect(bx + 32, 440 - bh + 32, 7, 7);
+      ctx.fillStyle = '#0f172a';
+    }
   }
 
   // 2. Blast Zone Danger Warning Borders (Red dashed perimeter)
@@ -1397,71 +1500,166 @@ function drawSmashArena(
   ctx.strokeRect(8, 8, VIRTUAL_WIDTH - 16, VIRTUAL_HEIGHT - 16);
   ctx.restore();
 
-  // 3. Floating Platforms
+  // 3. Stage Platforms
   for (const plat of brawl.platforms) {
     if (!plat.dropThrough) {
-      // Main Center Stage Platform
+      // Solid Ground Platforms
       ctx.save();
-      // Platform depth & girder shadow
-      ctx.fillStyle = '#090d16';
-      ctx.fillRect(plat.x, plat.y + plat.h, plat.w, 42);
+      if (theme === 'atap_warga') {
+        // Terracotta genteng clay brick rooftop
+        ctx.fillStyle = '#1c1917';
+        ctx.fillRect(plat.x, plat.y + plat.h, plat.w, 48);
 
-      // Steel girder truss supports
-      ctx.strokeStyle = '#1e293b';
-      ctx.lineWidth = 3.5;
-      ctx.beginPath();
-      for (let tx = plat.x; tx < plat.x + plat.w; tx += 62) {
-        ctx.moveTo(tx, plat.y + plat.h);
-        ctx.lineTo(tx + 31, plat.y + plat.h + 42);
-        ctx.lineTo(tx + 62, plat.y + plat.h);
+        // Brick wall lines
+        ctx.strokeStyle = '#292524';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let by = plat.y + plat.h; by < plat.y + plat.h + 48; by += 12) {
+          ctx.moveTo(plat.x, by);
+          ctx.lineTo(plat.x + plat.w, by);
+        }
+        ctx.stroke();
+
+        // Main clay roof deck
+        ctx.fillStyle = '#7c2d12';
+        ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
+
+        // Clay tile ridge pattern
+        ctx.fillStyle = '#ea580c';
+        ctx.fillRect(plat.x, plat.y, plat.w, 5);
+
+        ctx.strokeStyle = '#0c0a09';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(plat.x, plat.y, plat.w, plat.h);
+
+        ctx.font = '900 11px "Segoe UI", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#fed7aa';
+        ctx.fillText('🏘️ ATAP KAMPUNG WARGA 🏘️', plat.x + plat.w / 2, plat.y + 22);
+      } else if (theme === 'jembatan_kali') {
+        // Massive steel bridge road deck
+        ctx.fillStyle = '#020617';
+        ctx.fillRect(plat.x, plat.y + plat.h, plat.w, 42);
+
+        // Steel truss beams
+        ctx.strokeStyle = '#0369a1';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        for (let tx = plat.x; tx < plat.x + plat.w; tx += 64) {
+          ctx.moveTo(tx, plat.y + plat.h);
+          ctx.lineTo(tx + 32, plat.y + plat.h + 42);
+          ctx.lineTo(tx + 64, plat.y + plat.h);
+        }
+        ctx.stroke();
+
+        // Asphalt road surface
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
+
+        // Yellow road divider dashed line
+        ctx.fillStyle = '#facc15';
+        ctx.fillRect(plat.x, plat.y, plat.w, 4.5);
+
+        ctx.strokeStyle = '#090d16';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(plat.x, plat.y, plat.w, plat.h);
+
+        ctx.font = '900 11px "Segoe UI", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#38bdf8';
+        ctx.fillText('🌉 JEMBATAN KALI MAS & SURAMADU 🌉', plat.x + plat.w / 2, plat.y + 22);
+      } else {
+        // 'alun_alun': Cyber Stadium Main Stage
+        ctx.fillStyle = '#090d16';
+        ctx.fillRect(plat.x, plat.y + plat.h, plat.w, 42);
+
+        // Steel girder truss supports
+        ctx.strokeStyle = '#1e293b';
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        for (let tx = plat.x; tx < plat.x + plat.w; tx += 62) {
+          ctx.moveTo(tx, plat.y + plat.h);
+          ctx.lineTo(tx + 31, plat.y + plat.h + 42);
+          ctx.lineTo(tx + 62, plat.y + plat.h);
+        }
+        ctx.stroke();
+
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
+
+        ctx.fillStyle = '#f59e0b';
+        ctx.fillRect(plat.x, plat.y, plat.w, 6);
+
+        ctx.fillStyle = '#38bdf8';
+        ctx.fillRect(plat.x + 20, plat.y + 11, plat.w - 40, 3.5);
+
+        ctx.strokeStyle = '#090c14';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(plat.x, plat.y, plat.w, plat.h);
+
+        ctx.font = '900 12px "Segoe UI", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#fde047';
+        ctx.fillText('🥊 ARENA TAWURAN ALUN-ALUN SUROBOYO 🥊', plat.x + plat.w / 2, plat.y + 23);
       }
-      ctx.stroke();
-
-      // Main stage platform block
-      ctx.fillStyle = '#1e293b';
-      ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
-
-      // Glowing gold stage rim
-      ctx.fillStyle = '#f59e0b';
-      ctx.fillRect(plat.x, plat.y, plat.w, 6);
-
-      // LED strip
-      ctx.fillStyle = '#38bdf8';
-      ctx.fillRect(plat.x + 20, plat.y + 11, plat.w - 40, 3.5);
-
-      // Border outline
-      ctx.strokeStyle = '#090c14';
-      ctx.lineWidth = 3;
-      ctx.strokeRect(plat.x, plat.y, plat.w, plat.h);
-
-      // Center neon sign
-      ctx.font = '900 12px "Segoe UI", sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillStyle = '#fde047';
-      ctx.fillText('🥊 ARENA TAWURAN SMASH SUROBOYO 🥊', plat.x + plat.w / 2, plat.y + 23);
       ctx.restore();
     } else {
-      // Soft Floating Energy Platforms
+      // Soft Floating Platforms
       ctx.save();
       const glow = Math.sin(time * 4 + plat.x) * 0.2 + 0.8;
-      ctx.fillStyle = 'rgba(15, 23, 42, 0.94)';
-      ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
 
-      // Glowing top energy rail
-      ctx.fillStyle = `rgba(56, 189, 248, ${glow})`;
-      ctx.fillRect(plat.x, plat.y, plat.w, 4);
+      if (theme === 'atap_warga') {
+        // Wooden bamboo plank / hanging sarung clothesline
+        ctx.fillStyle = '#78350f';
+        ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
 
-      // Base border
-      ctx.strokeStyle = '#090c14';
-      ctx.lineWidth = 2.5;
-      ctx.strokeRect(plat.x, plat.y, plat.w, plat.h);
+        // Golden bamboo rings
+        ctx.strokeStyle = '#d97706';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(plat.x, plat.y, plat.w, plat.h);
 
-      // Hover thruster flames underneath
-      ctx.fillStyle = `rgba(245, 158, 11, ${glow * 0.75})`;
-      ctx.beginPath();
-      ctx.ellipse(plat.x + 24, plat.y + plat.h + 3, 8, 3, 0, 0, Math.PI * 2);
-      ctx.ellipse(plat.x + plat.w - 24, plat.y + plat.h + 3, 8, 3, 0, 0, Math.PI * 2);
-      ctx.fill();
+        // Tiny flapping laundry sarung fluttering in wind
+        const flap = Math.sin(time * 6 + plat.x) * 3;
+        ctx.fillStyle = '#ef4444';
+        ctx.fillRect(plat.x + 22, plat.y + plat.h, 16, 12 + flap);
+        ctx.fillStyle = '#38bdf8';
+        ctx.fillRect(plat.x + plat.w - 38, plat.y + plat.h, 16, 12 - flap);
+      } else if (theme === 'jembatan_kali') {
+        // Steel suspension gantry with nautical cyan glow
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+        ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
+
+        ctx.fillStyle = `rgba(56, 189, 248, ${glow})`;
+        ctx.fillRect(plat.x, plat.y, plat.w, 4);
+
+        ctx.strokeStyle = '#0284c7';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(plat.x, plat.y, plat.w, plat.h);
+
+        // Nautical harbor beacon lights underneath
+        ctx.fillStyle = `rgba(56, 189, 248, ${glow * 0.8})`;
+        ctx.beginPath();
+        ctx.arc(plat.x + 16, plat.y + plat.h + 3, 3, 0, Math.PI * 2);
+        ctx.arc(plat.x + plat.w - 16, plat.y + plat.h + 3, 3, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        // Cyber energy platform with thruster flames
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.94)';
+        ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
+
+        ctx.fillStyle = `rgba(56, 189, 248, ${glow})`;
+        ctx.fillRect(plat.x, plat.y, plat.w, 4);
+
+        ctx.strokeStyle = '#090c14';
+        ctx.lineWidth = 2.5;
+        ctx.strokeRect(plat.x, plat.y, plat.w, plat.h);
+
+        ctx.fillStyle = `rgba(245, 158, 11, ${glow * 0.75})`;
+        ctx.beginPath();
+        ctx.ellipse(plat.x + 24, plat.y + plat.h + 3, 8, 3, 0, 0, Math.PI * 2);
+        ctx.ellipse(plat.x + plat.w - 24, plat.y + plat.h + 3, 8, 3, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
       ctx.restore();
     }
   }

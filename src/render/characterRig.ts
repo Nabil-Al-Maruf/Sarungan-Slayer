@@ -1616,6 +1616,11 @@ export function drawEnemy(ctx: CanvasRenderingContext2D, enemy: EnemyState, time
 }
 
 export function drawCrate(ctx: CanvasRenderingContext2D, crate: CrateState): void {
+  if (crate.style === 'gold_kendi') {
+    drawGoldKendi(ctx, crate);
+    return;
+  }
+
   const half = CRATE_SIZE * 0.5;
   const sx = crate.x - half;
   const sy = crate.y - crate.z - CRATE_SIZE + 8;
@@ -1653,6 +1658,110 @@ export function drawCrate(ctx: CanvasRenderingContext2D, crate: CrateState): voi
     ctx.fillStyle = '#fde68a';
     ctx.fillRect(sx + half - 4, sy + 1, 8, CRATE_SIZE - 2);
   }
+
+  ctx.restore();
+}
+
+function drawGoldKendi(ctx: CanvasRenderingContext2D, crate: CrateState): void {
+  const t = crate.bobPhase ?? 0;
+  const pulse = Math.sin(t * 5) * 0.18 + 0.82;
+  const cx = crate.x;
+  const cy = crate.y - 14;
+
+  ctx.save();
+  // 1. Shimmering Golden Halo / Radiant Aura
+  const haloGrad = ctx.createRadialGradient(cx, cy, 6, cx, cy, 34);
+  haloGrad.addColorStop(0, `rgba(254, 240, 138, ${0.45 * pulse})`);
+  haloGrad.addColorStop(0.5, `rgba(250, 204, 21, ${0.25 * pulse})`);
+  haloGrad.addColorStop(1, 'rgba(250, 204, 21, 0)');
+  ctx.fillStyle = haloGrad;
+  ctx.beginPath();
+  ctx.arc(cx, cy, 34, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 2. Celestial Orbiting Ring
+  ctx.strokeStyle = `rgba(253, 224, 71, ${0.7 * pulse})`;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy + 2, 26, 8, Math.sin(t * 1.5) * 0.3, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // 3. Drop shadow
+  ctx.fillStyle = 'rgba(9, 12, 20, 0.25)';
+  ctx.beginPath();
+  ctx.ellipse(cx, crate.y + 12, 18, 6, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Flash white on hit
+  const isFlash = crate.hitFlashTimer > 0;
+  const bodyGrad = ctx.createLinearGradient(cx - 16, cy - 18, cx + 16, cy + 18);
+  if (isFlash) {
+    bodyGrad.addColorStop(0, '#ffffff');
+    bodyGrad.addColorStop(1, '#ffffff');
+  } else {
+    bodyGrad.addColorStop(0, '#fef08a');
+    bodyGrad.addColorStop(0.4, '#facc15');
+    bodyGrad.addColorStop(1, '#ca8a04');
+  }
+
+  // 4. Kendi Jug Body (Curved traditional pitcher)
+  ctx.fillStyle = bodyGrad;
+  ctx.strokeStyle = isFlash ? '#ffffff' : '#78350f';
+  ctx.lineWidth = 2.2;
+
+  ctx.beginPath();
+  // Main spherical body
+  ctx.arc(cx, cy + 2, 14, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Neck and flared rim lid
+  ctx.beginPath();
+  ctx.rect(cx - 5, cy - 14, 10, 8);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.ellipse(cx, cy - 14, 8, 3.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Spout on left side
+  ctx.beginPath();
+  ctx.moveTo(cx - 10, cy - 2);
+  ctx.quadraticCurveTo(cx - 20, cy - 8, cx - 18, cy - 14);
+  ctx.lineTo(cx - 14, cy - 13);
+  ctx.quadraticCurveTo(cx - 16, cy - 6, cx - 7, cy + 3);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Curved handle on right side
+  ctx.beginPath();
+  ctx.arc(cx + 12, cy, 7, -Math.PI * 0.45, Math.PI * 0.55);
+  ctx.strokeStyle = isFlash ? '#ffffff' : '#78350f';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  // 5. Crown Star Jewel on top
+  ctx.fillStyle = isFlash ? '#ffffff' : '#38bdf8';
+  ctx.beginPath();
+  ctx.arc(cx, cy - 17, 3, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 6. Mini Floating Health Bar
+  const hpRatio = Math.max(0, crate.hp / crate.maxHp);
+  const barW = 28;
+  const barH = 4;
+  const bx = cx - barW / 2;
+  const by = cy - 26;
+
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+  ctx.fillRect(bx - 1, by - 1, barW + 2, barH + 2);
+  ctx.fillStyle = '#ef4444';
+  ctx.fillRect(bx, by, barW, barH);
+  ctx.fillStyle = '#facc15';
+  ctx.fillRect(bx, by, barW * hpRatio, barH);
 
   ctx.restore();
 }

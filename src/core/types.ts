@@ -260,7 +260,9 @@ export interface CrateState {
   maxHp: number;
   hitFlashTimer: number;
   lastHitSwingId: number;
-  style: 'wood' | 'cardboard';
+  style: 'wood' | 'cardboard' | 'gold_kendi';
+  lastHitBy?: string;
+  bobPhase?: number;
 }
 
 export type PickupKind = 'es_teh' | 'kopi_giras';
@@ -322,6 +324,8 @@ export interface FloatingText {
   maxLife: number;
 }
 
+export type BrawlStageTheme = 'alun_alun' | 'atap_warga' | 'jembatan_kali';
+
 export type SoundEvent =
   | 'jump'
   | 'double_jump'
@@ -338,7 +342,14 @@ export type SoundEvent =
   | 'player_hurt'
   | 'ko'
   | 'tower_shoot'
-  | 'buff_pick';
+  | 'buff_pick'
+  | 'slash_petir'
+  | 'slash_api'
+  | 'slash_badai'
+  | 'slash_suci'
+  | 'slash_clurit'
+  | 'slash_tinju'
+  | 'smash_ball';
 
 export interface StoryZone {
   triggerX: number;
@@ -410,6 +421,7 @@ export interface BrawlState {
   remainingTime: number;
   winnerId?: string;
   winnerName?: string;
+  stageTheme?: BrawlStageTheme;
   platforms: BrawlPlatform[];
   itemSpawnTimer: number;
   ringOutBound: {

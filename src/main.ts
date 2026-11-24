@@ -3,7 +3,7 @@ import { ProceduralAudio } from './audio/sfx';
 import { FIXED_DT, PLAYER_PALETTES, ULT_DEFS, VIRTUAL_HEIGHT, VIRTUAL_WIDTH } from './core/constants';
 import { HERO_DEFS, getHeroDef } from './core/heroes';
 import { InputManager } from './core/input';
-import type { BuffId, GameState, HeroId, PlayerInput, PlayerState, SlashElement, UltType } from './core/types';
+import type { BrawlStageTheme, BuffId, GameState, HeroId, PlayerInput, PlayerState, SlashElement, UltType } from './core/types';
 import { createBrawlState, stepBrawl, type BrawlRosterMember } from './modes/brawl';
 import { createSandboxState, stepSandbox } from './modes/sandbox';
 import {
@@ -405,7 +405,9 @@ const localPeer = new LocalPeerManager({
             heroId: p.heroId || 'bima',
             isBot: p.isBot,
           }));
-        state = createBrawlState(roster);
+        const brawlThemes: BrawlStageTheme[] = ['alun_alun', 'atap_warga', 'jembatan_kali'];
+  const stageTheme = brawlThemes[Math.floor(Math.random() * brawlThemes.length)];
+  state = createBrawlState(roster, 3, stageTheme);
       } else {
         const roster = localPeer.lobbyPlayers
           .filter((p) => p.role !== 'monitor')
@@ -815,11 +817,17 @@ function selectHero(heroId: HeroId): void {
   selectedHeroId = heroId;
   localStorage.setItem(HERO_STORAGE_KEY, heroId);
 
-  document.querySelectorAll('#lobby-hero-picker .hero-card, #settings-hero-picker .hero-card').forEach((card) => {
+  document.querySelectorAll('#play-hero-picker .hero-card, #lobby-hero-picker .hero-card, #settings-hero-picker .hero-card').forEach((card) => {
     card.classList.toggle('active', card.getAttribute('data-hero') === heroId);
   });
 
   const hDef = getHeroDef(heroId);
+  const playHeroBadge = document.getElementById('play-hero-active-badge');
+  if (playHeroBadge) {
+    playHeroBadge.textContent = `${hDef.name} • ${hDef.archetype}`;
+    playHeroBadge.style.color = hDef.accentColor;
+  }
+
   if (selectedHeroArchetypeEl) selectedHeroArchetypeEl.textContent = hDef.archetype;
   if (heroSpecWeaponEl) heroSpecWeaponEl.textContent = hDef.weaponName;
   if (heroSpecProjEl) heroSpecProjEl.textContent = hDef.projName;
@@ -846,7 +854,7 @@ function selectHero(heroId: HeroId): void {
   }
 }
 
-document.querySelectorAll<HTMLButtonElement>('#lobby-hero-picker .hero-card, #settings-hero-picker .hero-card').forEach((btn) => {
+document.querySelectorAll<HTMLButtonElement>('#play-hero-picker .hero-card, #lobby-hero-picker .hero-card, #settings-hero-picker .hero-card').forEach((btn) => {
   btn.addEventListener('click', () => {
     audio.unlock();
     const hero = btn.dataset.hero as HeroId;
@@ -1805,6 +1813,7 @@ function openMenu(): void {
   storyDialogueOpen = false;
   resultShown = false;
   refreshMenuProgress();
+  selectHero(selectedHeroId);
   showMenuView('home');
   closeAllModals();
   menuOverlay.classList.remove('hidden');
@@ -1911,7 +1920,9 @@ function startSoloBrawl(): void {
     },
   ];
 
-  state = createBrawlState(roster);
+  const brawlThemes: BrawlStageTheme[] = ['alun_alun', 'atap_warga', 'jembatan_kali'];
+  const stageTheme = brawlThemes[Math.floor(Math.random() * brawlThemes.length)];
+  state = createBrawlState(roster, 3, stageTheme);
   menuOpen = false;
   lobbyOpen = false;
   shopOpen = false;
@@ -2235,6 +2246,7 @@ if (sandboxSkillsBar) {
 }
 
 syncSelectedSkin(selectedPalette);
+selectHero(selectedHeroId);
 
 btnWarungHud.addEventListener('click', () => {
   audio.unlock();

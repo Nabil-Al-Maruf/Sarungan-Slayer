@@ -3064,6 +3064,52 @@ body {
   padding: 8px 12px;
 }
 
+/* Play View Hero Selector Panel */
+.play-hero-selection-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: rgba(15, 23, 42, 0.78);
+  border: 1.5px solid rgba(245, 158, 11, 0.4);
+  border-radius: 12px;
+  padding: 8px 12px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+}
+
+.play-hero-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.play-hero-title {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: #facc15;
+}
+
+.play-hero-active-badge {
+  font-size: 11px;
+  font-weight: 800;
+  color: #38bdf8;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.play-hero-picker-row {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+}
+
+.play-hero-picker-row .hero-card {
+  padding: 6px 4px;
+}
+
 .mode-select-stack {
   display: flex;
   flex-direction: column;

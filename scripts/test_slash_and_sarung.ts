@@ -345,6 +345,19 @@ console.log('\n=== TEST 12: Network Snapshot Protocol Serializes Elements ===');
   assert(sp.elemLv === 2, `Snapshot packed elemLv: ${sp.elemLv}`);
 }
 
+console.log('\n=== TEST 13: Play View Hero Selector Strip in HTML ===');
+{
+  const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf-8');
+  assert(html.includes('id="play-hero-picker"'), 'Play mode view contains #play-hero-picker');
+  assert(html.includes('id="play-hero-active-badge"'), 'Play mode view contains #play-hero-active-badge');
+  assert(html.includes('data-hero="bima"'), 'Hero picker contains Cak Bima');
+  assert(html.includes('data-hero="mat_clurit"'), 'Hero picker contains Mat Clurit');
+  assert(html.includes('data-hero="bambang"'), 'Hero picker contains Bang Bambang');
+  assert(html.includes('data-hero="gus_dimas"'), 'Hero picker contains Gus Dimas');
+  assert(html.includes('data-hero="pak_rt"'), 'Hero picker contains Pak RT');
+  assert(html.includes('data-hero="mbak_sri"'), 'Hero picker contains Mbak Sri');
+}
+
 console.log('\n=============================================');
 console.log(`SLASH & SARUNG VARIATION TESTS: ${passed} PASSED, ${failed} FAILED`);
 if (failed > 0) {

@@ -432,6 +432,120 @@ console.log('\n=== TEST 13: Void Falling for Off-Stage Crates & Pickups ===');
   );
 }
 
+console.log('\n=== TEST 14: Kendi Emas (Smash Ball) Hover & Super Ultimate Reward ===');
+{
+  const roster = [
+    { id: 'p1', name: 'Cak Bima', paletteIndex: 0, heroId: 'bima' as const, isBot: false },
+  ];
+  const state = createBrawlState(roster);
+  const p1 = state.players[0];
+  p1.ult = 0; // Starts with 0 ultimate charge
+
+  // Spawn Kendi Emas (Smash Ball)
+  state.crates.push({
+    id: 999,
+    x: 480,
+    y: 150,
+    z: 0,
+    vz: 0,
+    radius: 22,
+    hp: 35,
+    maxHp: 35,
+    hitFlashTimer: 0,
+    lastHitSwingId: 0,
+    style: 'gold_kendi',
+    bobPhase: 0,
+  });
+
+  // Step 15 frames: verify it hovers and does not drop to ground (y < 300)
+  for (let f = 0; f < 15; f++) {
+    stepBrawl(state, { p1: createBlankInput() }, 0.0167);
+  }
+  const kendi = state.crates.find((c) => c.style === 'gold_kendi');
+  assert(!!kendi, 'Kendi Emas remains active in arena');
+  assert((kendi?.bobPhase ?? 0) > 0, `Kendi bobPhase modulated (${kendi?.bobPhase?.toFixed(3)})`);
+  assert((kendi?.y ?? 0) < 250, `Kendi maintains mid-air hovering altitude (y = ${kendi?.y?.toFixed(1)})`);
+
+  // Position player to attack Kendi Emas
+  p1.x = (kendi?.x ?? 480) - 20;
+  p1.y = (kendi?.y ?? 150) + 15;
+  const attackInp = createBlankInput();
+  attackInp.meleePressed = true;
+  stepBrawl(state, { p1: attackInp }, 0.0167);
+
+  assert(kendi?.lastHitBy === 'p1', 'Kendi Emas recorded player attack hit (lastHitBy = p1)');
+  assert((kendi?.hp ?? 0) < 35, `Kendi took damage from melee strike (hp = ${kendi?.hp})`);
+
+  // Now deplete remaining HP to break Kendi Emas
+  if (kendi) kendi.hp = 0;
+  stepBrawl(state, { p1: createBlankInput() }, 0.0167);
+
+  assert(p1.ult === p1.maxUlt, `Breaking Kendi awarded instant 100% Super Ultimate! (ult = ${p1.ult})`);
+  assert(p1.invulnTimer > 0, 'Breaking Kendi granted invulnerability aura');
+  assert(state.soundQueue.includes('smash_ball'), 'smash_ball procedural audio fanfare enqueued');
+  assert(
+    state.floatingTexts.some((ft) => ft.text.includes('KENDI EMAS')),
+    'Broadcast banner announced Super Ultimate acquisition'
+  );
+  assert(!state.crates.some((c) => c.style === 'gold_kendi'), 'Kendi Emas cleanly despawned upon breaking');
+}
+
+console.log('\n=== TEST 15: Thematic Stage Architectures (Alun-Alun, Atap Warga, Jembatan Kali) ===');
+{
+  const roster = [
+    { id: 'p1', name: 'Cak Bima', paletteIndex: 0, heroId: 'bima' as const, isBot: false },
+  ];
+
+  // 1. Alun-Alun
+  const sAlun = createBrawlState(roster, 3, 'alun_alun');
+  assert(sAlun.brawl?.stageTheme === 'alun_alun', 'Stage theme is alun_alun');
+  assert(sAlun.brawl?.platforms.length === 4, 'Alun-Alun has 4 platforms (1 solid, 3 soft)');
+
+  // 2. Atap Warga
+  const sAtap = createBrawlState(roster, 3, 'atap_warga');
+  assert(sAtap.brawl?.stageTheme === 'atap_warga', 'Stage theme is atap_warga');
+  const solidAtap = sAtap.brawl?.platforms.filter((p) => !p.dropThrough) ?? [];
+  assert(solidAtap.length === 2, `Atap Warga has dual rooftop solids with central gap (count = ${solidAtap.length})`);
+  assert(solidAtap[0].x < 200 && solidAtap[1].x > 500, 'Dual rooftops have wide abyss gap between them');
+
+  // 3. Jembatan Kali
+  const sJembatan = createBrawlState(roster, 3, 'jembatan_kali');
+  assert(sJembatan.brawl?.stageTheme === 'jembatan_kali', 'Stage theme is jembatan_kali');
+  const mainBridge = sJembatan.brawl?.platforms.find((p) => !p.dropThrough);
+  assert((mainBridge?.w ?? 0) >= 700, `Jembatan Kali has grand continuous bridge deck (w = ${mainBridge?.w})`);
+}
+
+console.log('\n=== TEST 16: Hero & Elemental Procedural Audio Cues ===');
+{
+  const testHeroAudio = (
+    heroId: 'bima' | 'mat_clurit' | 'bambang' | 'gus_dimas' | 'pak_rt' | 'mbak_sri',
+    element: 'none' | 'petir' | 'api' | 'badai' | 'suci',
+    expectedSound: string
+  ) => {
+    const roster = [{ id: 'p1', name: 'Tester', paletteIndex: 0, heroId, isBot: false }];
+    const state = createBrawlState(roster);
+    state.players[0].slashElement = element;
+    state.soundQueue.length = 0; // Clear queue
+
+    const inp = createBlankInput();
+    inp.meleePressed = true;
+    stepBrawl(state, { p1: inp }, 0.0167);
+
+    assert(
+      state.soundQueue.includes(expectedSound as any),
+      `${heroId} with ${element} element enqueued procedural SFX: ${expectedSound}`
+    );
+  };
+
+  testHeroAudio('mat_clurit', 'petir', 'slash_petir');
+  testHeroAudio('bambang', 'api', 'slash_api');
+  testHeroAudio('mbak_sri', 'badai', 'slash_badai');
+  testHeroAudio('gus_dimas', 'suci', 'slash_suci');
+  testHeroAudio('mat_clurit', 'none', 'slash_clurit');
+  testHeroAudio('bambang', 'none', 'slash_tinju');
+  testHeroAudio('bima', 'none', 'kibas');
+}
+
 console.log(`\n=============================`);
 console.log(`TEST SUMMARY: ${passed} PASSED, ${failed} FAILED`);
 if (failed > 0) process.exit(1);

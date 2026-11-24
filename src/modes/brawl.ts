@@ -7,6 +7,7 @@ import {
 import { getHeroDef } from '../core/heroes';
 import type {
   BrawlPlatform,
+  BrawlStageTheme,
   BrawlState,
   GameState,
   HeroId,
@@ -33,27 +34,62 @@ const BRAWL_DOUBLE_JUMP_IMPULSE = -450; // air jump launch velocity
 
 export function createBrawlState(
   roster: BrawlRosterMember[],
-  initialStocks = 3
+  initialStocks = 3,
+  stageTheme: BrawlStageTheme = 'alun_alun'
 ): GameState {
-  const platforms: BrawlPlatform[] = [
-    // Main solid center ground (Battlefield style)
-    { x: 170, y: 390, w: 620, h: 32, dropThrough: false },
-    // Left soft floating platform
-    { x: 210, y: 275, w: 160, h: 14, dropThrough: true },
-    // Right soft floating platform
-    { x: 590, y: 275, w: 160, h: 14, dropThrough: true },
-    // Top center soft platform
-    { x: 390, y: 175, w: 180, h: 14, dropThrough: true },
-  ];
+  let platforms: BrawlPlatform[];
+  let spawnPoints: Array<{ x: number; y: number }>;
 
-  const spawnPoints = [
-    { x: 280, y: 390 },
-    { x: 680, y: 390 },
-    { x: 290, y: 275 },
-    { x: 670, y: 275 },
-    { x: 480, y: 175 },
-    { x: 480, y: 390 },
-  ];
+  if (stageTheme === 'atap_warga') {
+    // Dual rooftops with a dangerous central void gap and high clotheslines
+    platforms = [
+      { x: 130, y: 390, w: 300, h: 34, dropThrough: false },
+      { x: 530, y: 390, w: 300, h: 34, dropThrough: false },
+      { x: 370, y: 290, w: 220, h: 14, dropThrough: true },
+      { x: 180, y: 225, w: 150, h: 14, dropThrough: true },
+      { x: 630, y: 225, w: 150, h: 14, dropThrough: true },
+    ];
+    spawnPoints = [
+      { x: 260, y: 390 },
+      { x: 700, y: 390 },
+      { x: 480, y: 290 },
+      { x: 250, y: 225 },
+      { x: 710, y: 225 },
+      { x: 340, y: 390 },
+    ];
+  } else if (stageTheme === 'jembatan_kali') {
+    // Wide bridge over water with 3 pagoda/tower platforms
+    platforms = [
+      { x: 110, y: 390, w: 740, h: 34, dropThrough: false },
+      { x: 160, y: 265, w: 140, h: 14, dropThrough: true },
+      { x: 660, y: 265, w: 140, h: 14, dropThrough: true },
+      { x: 390, y: 195, w: 180, h: 14, dropThrough: true },
+    ];
+    spawnPoints = [
+      { x: 230, y: 390 },
+      { x: 730, y: 390 },
+      { x: 230, y: 265 },
+      { x: 730, y: 265 },
+      { x: 480, y: 195 },
+      { x: 480, y: 390 },
+    ];
+  } else {
+    // 'alun_alun' (Classic Battlefield style)
+    platforms = [
+      { x: 170, y: 390, w: 620, h: 32, dropThrough: false },
+      { x: 210, y: 275, w: 160, h: 14, dropThrough: true },
+      { x: 590, y: 275, w: 160, h: 14, dropThrough: true },
+      { x: 390, y: 175, w: 180, h: 14, dropThrough: true },
+    ];
+    spawnPoints = [
+      { x: 280, y: 390 },
+      { x: 680, y: 390 },
+      { x: 290, y: 275 },
+      { x: 670, y: 275 },
+      { x: 480, y: 175 },
+      { x: 480, y: 390 },
+    ];
+  }
 
   const players: PlayerState[] = roster.map((m, idx) => {
     const pt = spawnPoints[idx % spawnPoints.length];
@@ -133,6 +169,7 @@ export function createBrawlState(
     initialStocks,
     matchDuration: 180,
     remainingTime: 180,
+    stageTheme,
     platforms,
     itemSpawnTimer: 8,
     ringOutBound: {
@@ -900,11 +937,25 @@ function executeHeroMelee(
   player.meleeSwingId++;
   player.meleeAngle = player.dirX > 0 ? 0 : Math.PI;
 
-  state.soundQueue.push('kibas');
-
-  // Spawn visual slash
+  // Spawn visual slash & elemental audio
   const elem = player.slashElement || hDef.defaultElement || 'none';
   const elemLevel = player.slashElementLevel || 1;
+
+  if (elem === 'petir') {
+    state.soundQueue.push('slash_petir');
+  } else if (elem === 'api') {
+    state.soundQueue.push('slash_api');
+  } else if (elem === 'badai') {
+    state.soundQueue.push('slash_badai');
+  } else if (elem === 'suci') {
+    state.soundQueue.push('slash_suci');
+  } else if (player.heroId === 'mat_clurit') {
+    state.soundQueue.push('slash_clurit');
+  } else if (player.heroId === 'bambang') {
+    state.soundQueue.push('slash_tinju');
+  } else {
+    state.soundQueue.push('kibas');
+  }
 
   const slash: SlashEffect = {
     x: player.x + player.dirX * 36,
@@ -1156,6 +1207,7 @@ function executeHeroMelee(
       if (elem === 'petir') crateDmg += 6 * elemLevel;
       crate.hp -= crateDmg;
       crate.hitFlashTimer = 0.15;
+      crate.lastHitBy = player.id;
       state.soundQueue.push('crate_hit');
     }
   }
@@ -1286,6 +1338,7 @@ function updateBrawlProjectiles(state: GameState, dt: number): void {
       if (cd < pr.radius + crate.radius) {
         crate.hp -= pr.damage;
         crate.hitFlashTimer = 0.15;
+        crate.lastHitBy = pr.ownerId;
         state.soundQueue.push('crate_hit');
         pr.pierceLeft--;
         if (pr.pierceLeft <= 0) {
@@ -1300,6 +1353,37 @@ function updateBrawlProjectiles(state: GameState, dt: number): void {
 function spawnBrawlItem(state: GameState): void {
   const br = state.brawl;
   const platforms = br?.platforms ?? [];
+
+  // 1. Chance to spawn rare floating "Pusaka Sakti / Kendi Emas" (Super Smash Ball)
+  const hasKendi = state.crates.some((c) => c.style === 'gold_kendi');
+  if (!hasKendi && Math.random() < 0.38) {
+    state.crates.push({
+      id: state.nextEntityId++,
+      x: 480 + (Math.random() - 0.5) * 180,
+      y: 150,
+      z: 0,
+      vz: 0,
+      radius: 22,
+      hp: 35,
+      maxHp: 35,
+      hitFlashTimer: 0,
+      lastHitSwingId: 0,
+      style: 'gold_kendi',
+      bobPhase: Math.random() * Math.PI * 2,
+    });
+    state.floatingTexts.push({
+      x: 480,
+      y: 95,
+      vy: -35,
+      text: '✨ PUSAKA KENDI EMAS MUNCUL! REBUT SEKARANG! 🏺',
+      color: '#facc15',
+      scale: 1.35,
+      life: 2.2,
+      maxLife: 2.2,
+    });
+    return;
+  }
+
   const targetPlat = platforms.length > 0 ? platforms[Math.floor(Math.random() * platforms.length)] : null;
   const x = targetPlat
     ? targetPlat.x + 20 + Math.random() * Math.max(10, targetPlat.w - 40)
@@ -1341,44 +1425,119 @@ function updateBrawlCratesAndPickups(state: GameState, dt: number): void {
   const br = state.brawl;
   const platforms = br?.platforms ?? [];
 
-  // Update Crates
+  // Update Crates & Kendi Emas
   for (let i = state.crates.length - 1; i >= 0; i--) {
     const crate = state.crates[i];
-    let groundY: number | null = null;
-    for (const plat of platforms) {
-      if (crate.x >= plat.x && crate.x <= plat.x + plat.w && plat.y >= crate.y - 4) {
-        if (groundY === null || plat.y < groundY) groundY = plat.y;
+
+    if (crate.style === 'gold_kendi') {
+      // Floating Pusaka Sakti: undulating hover trajectory across the arena
+      crate.bobPhase = (crate.bobPhase ?? 0) + dt;
+      crate.x = 480 + Math.sin(crate.bobPhase * 0.9) * 230;
+      crate.y = 155 + Math.sin(crate.bobPhase * 2.2) * 45;
+
+      // Golden ambient sparkles
+      if (Math.random() < 0.35) {
+        state.particles.push({
+          x: crate.x + (Math.random() - 0.5) * 22,
+          y: crate.y + (Math.random() - 0.5) * 22,
+          z: 0,
+          vx: (Math.random() - 0.5) * 35,
+          vy: -25 - Math.random() * 25,
+          vz: 0,
+          size: 2.5 + Math.random() * 2,
+          color: Math.random() < 0.6 ? '#facc15' : '#fef08a',
+          alpha: 0.9,
+          life: 0.32,
+          maxLife: 0.32,
+          gravity: -15,
+        });
       }
-    }
-    if (groundY !== null) {
-      if (crate.y < groundY) {
-        crate.y = Math.min(groundY, crate.y + 180 * dt);
-      }
-    } else {
-      // Over void: fall down into abyss
-      crate.y += 180 * dt;
-      if (crate.y > 600) {
+
+      // Check break
+      if (crate.hp <= 0) {
+        state.soundQueue.push('smash_ball');
+        const killer = state.players.find((p) => p.id === crate.lastHitBy) || state.players[0];
+
+        if (killer) {
+          killer.ult = killer.maxUlt; // Instant 100% Super Ultimate!
+          killer.invulnTimer = Math.max(killer.invulnTimer, 0.7);
+
+          state.shakeTimer = 0.22;
+          state.shakeIntensity = 2.5;
+
+          state.floatingTexts.push({
+            x: killer.x,
+            y: killer.y - 65,
+            vy: -55,
+            text: `🌟 ${killer.name.toUpperCase()} REBUT KENDI EMAS! JURUS SAKTI SIAP! ⚡`,
+            color: '#facc15',
+            scale: 1.4,
+            life: 2.2,
+            maxLife: 2.2,
+          });
+
+          // Celestial golden nova explosion
+          for (let p = 0; p < 28; p++) {
+            const ang = Math.random() * Math.PI * 2;
+            const spd = 70 + Math.random() * 220;
+            state.particles.push({
+              x: crate.x,
+              y: crate.y,
+              z: 0,
+              vx: Math.cos(ang) * spd,
+              vy: Math.sin(ang) * spd,
+              vz: 0,
+              size: 3.5 + Math.random() * 3,
+              color: p % 2 === 0 ? '#facc15' : '#38bdf8',
+              alpha: 1,
+              life: 0.55,
+              maxLife: 0.55,
+              gravity: 60,
+            });
+          }
+        }
+
         state.crates.splice(i, 1);
         continue;
       }
-    }
+    } else {
+      // Normal Crates: gravity towards platforms
+      let groundY: number | null = null;
+      for (const plat of platforms) {
+        if (crate.x >= plat.x && crate.x <= plat.x + plat.w && plat.y >= crate.y - 4) {
+          if (groundY === null || plat.y < groundY) groundY = plat.y;
+        }
+      }
+      if (groundY !== null) {
+        if (crate.y < groundY) {
+          crate.y = Math.min(groundY, crate.y + 180 * dt);
+        }
+      } else {
+        // Over void: fall down into abyss
+        crate.y += 180 * dt;
+        if (crate.y > 600) {
+          state.crates.splice(i, 1);
+          continue;
+        }
+      }
 
-    if (crate.hp <= 0) {
-      state.soundQueue.push('crate_break');
-      state.pickups.push({
-        id: state.nextEntityId++,
-        kind: Math.random() < 0.6 ? 'es_teh' : 'kopi_giras',
-        x: crate.x,
-        y: crate.y,
-        z: 0,
-        vx: (Math.random() - 0.5) * 80,
-        vy: -100,
-        vz: 0,
-        radius: 15,
-        life: 25,
-        bobPhase: 0,
-      });
-      state.crates.splice(i, 1);
+      if (crate.hp <= 0) {
+        state.soundQueue.push('crate_break');
+        state.pickups.push({
+          id: state.nextEntityId++,
+          kind: Math.random() < 0.6 ? 'es_teh' : 'kopi_giras',
+          x: crate.x,
+          y: crate.y,
+          z: 0,
+          vx: (Math.random() - 0.5) * 80,
+          vy: -100,
+          vz: 0,
+          radius: 15,
+          life: 25,
+          bobPhase: 0,
+        });
+        state.crates.splice(i, 1);
+      }
     }
   }
 

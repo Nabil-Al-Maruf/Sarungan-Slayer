@@ -200,6 +200,89 @@ export class ProceduralAudio {
         return (Math.sin(2 * Math.PI * f * t) * 0.7 + (Math.random() * 2 - 1) * 0.45) * env * 0.55;
       })
     );
+
+    // 10. Elemental Slash Audio (Petir, Api, Badai, Suci)
+    this.buffers.set(
+      'slash_petir',
+      makeBuf(0.19, (t) => {
+        const env = Math.exp(-t * 16);
+        const zap = Math.sin(2 * Math.PI * (1600 + Math.sin(t * 4200) * 850) * t) * 0.5;
+        const crackle = Math.random() < 0.35 ? (Math.random() * 2 - 1) * 0.65 : 0;
+        const subSnap = Math.sin(2 * Math.PI * (340 - t * 1100) * t) * 0.4;
+        return (zap + crackle + subSnap) * env * 0.58;
+      })
+    );
+
+    this.buffers.set(
+      'slash_api',
+      makeBuf(0.22, (t) => {
+        const env = Math.exp(-t * 12);
+        const combust = Math.sin(2 * Math.PI * (135 * Math.exp(-t * 8) + 45) * t) * 0.6;
+        const flameNoise = (Math.random() * 2 - 1) * Math.sin(t * 800) * 0.55;
+        return (combust + flameNoise) * env * 0.55;
+      })
+    );
+
+    this.buffers.set(
+      'slash_badai',
+      makeBuf(0.2, (t) => {
+        const env = Math.exp(-t * 14);
+        const whirl = Math.sin(2 * Math.PI * (780 - t * 2400) * t) * 0.52;
+        const gust = (Math.random() * 2 - 1) * Math.sin(t * 600) * 0.45;
+        return (whirl + gust) * env * 0.52;
+      })
+    );
+
+    this.buffers.set(
+      'slash_suci',
+      makeBuf(0.32, (t) => {
+        const env = Math.exp(-t * 8.5);
+        const chime =
+          Math.sin(2 * Math.PI * 1318.5 * t) * 0.45 +
+          Math.sin(2 * Math.PI * 1661.2 * t) * 0.32 +
+          Math.sin(2 * Math.PI * 1975.5 * t) * 0.22;
+        const softSnap = t < 0.02 ? (Math.random() * 2 - 1) * 0.25 : 0;
+        return (chime + softSnap) * env * 0.48;
+      })
+    );
+
+    // 11. Hero Unique Weapon Slash Audio (Mat Clurit, Bang Bambang)
+    this.buffers.set(
+      'slash_clurit',
+      makeBuf(0.18, (t) => {
+        const env = Math.exp(-t * 18);
+        const steelPing =
+          Math.sin(2 * Math.PI * 1760 * t) * 0.45 +
+          Math.sin(2 * Math.PI * 3520 * t) * 0.25;
+        const razorSlice = t < 0.03 ? (Math.random() * 2 - 1) * 0.6 : 0;
+        const whoosh = Math.sin(2 * Math.PI * (420 - t * 1600) * t) * 0.35;
+        return (steelPing + razorSlice + whoosh) * env * 0.56;
+      })
+    );
+
+    this.buffers.set(
+      'slash_tinju',
+      makeBuf(0.17, (t) => {
+        const env = Math.exp(-t * 22);
+        const subBoom = Math.sin(2 * Math.PI * (155 * Math.exp(-t * 16) + 38) * t) * 0.85;
+        const punchSlap = (Math.random() * 2 - 1) * Math.exp(-t * 45) * 0.65;
+        return (subBoom + punchSlap) * env * 0.62;
+      })
+    );
+
+    // 12. Smash Ball / Kendi Emas Shatter Fanfare
+    this.buffers.set(
+      'smash_ball',
+      makeBuf(0.48, (t) => {
+        const env = Math.exp(-t * 5.5);
+        // Ascending sacred arpeggio: C5 -> E5 -> G5 -> C6
+        const f = t < 0.1 ? 523.25 : t < 0.2 ? 659.25 : t < 0.3 ? 783.99 : 1046.5;
+        const bell = Math.sin(2 * Math.PI * f * t) * 0.55 + Math.sin(2 * Math.PI * f * 2 * t) * 0.25;
+        const subBass = Math.sin(2 * Math.PI * (90 * Math.exp(-t * 4) + 40) * t) * 0.45;
+        const shimmer = (Math.random() * 2 - 1) * 0.2;
+        return (bell + subBass + shimmer) * env * 0.65;
+      })
+    );
   }
 
   public isSfxMuted(): boolean {
@@ -272,7 +355,17 @@ export class ProceduralAudio {
     const src = this.ctx.createBufferSource();
     src.buffer = buf;
     // Slight natural pitch variation so rapid hits sound organic
-    if (ev === 'kibas' || ev === 'hit' || ev === 'tower_shoot') {
+    if (
+      ev === 'kibas' ||
+      ev === 'hit' ||
+      ev === 'tower_shoot' ||
+      ev === 'slash_petir' ||
+      ev === 'slash_api' ||
+      ev === 'slash_badai' ||
+      ev === 'slash_suci' ||
+      ev === 'slash_clurit' ||
+      ev === 'slash_tinju'
+    ) {
       src.playbackRate.value = 0.94 + Math.random() * 0.14;
     }
     src.connect(this.ctx.destination);

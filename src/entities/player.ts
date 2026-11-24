@@ -434,12 +434,28 @@ export function updatePlayer(
     player.meleeAngle = Math.atan2(player.dirY, player.dirX);
     player.scaleX = 1.22;
     player.scaleY = 0.84;
-    state.soundQueue.push('kibas');
 
     const hDef = getHeroDef(player.heroId);
     const slashStyle = player.slashStyle || hDef.slashStyle || 'sarung_whip';
     const slashElem = player.slashElement || 'none';
     const slashElemLv = player.slashElementLevel || 1;
+
+    // Trigger hero & elemental procedural sound
+    if (slashElem === 'petir') {
+      state.soundQueue.push('slash_petir');
+    } else if (slashElem === 'api') {
+      state.soundQueue.push('slash_api');
+    } else if (slashElem === 'badai') {
+      state.soundQueue.push('slash_badai');
+    } else if (slashElem === 'suci') {
+      state.soundQueue.push('slash_suci');
+    } else if (player.heroId === 'mat_clurit') {
+      state.soundQueue.push('slash_clurit');
+    } else if (player.heroId === 'bambang') {
+      state.soundQueue.push('slash_tinju');
+    } else {
+      state.soundQueue.push('kibas');
+    }
 
     state.slashes.push({
       x: player.x + player.dirX * 28,
