@@ -189,6 +189,43 @@ const stickCoinsText = document.getElementById('stick-coins-text') as HTMLElemen
 const stickPingPill = document.getElementById('stick-ping-pill') as HTMLElement;
 const vbtnStickShop = document.getElementById('vbtn-stick-shop') as HTMLButtonElement;
 const btnStickExit = document.getElementById('btn-stick-exit') as HTMLButtonElement;
+const stickToastEl = document.getElementById('stick-toast') as HTMLDivElement | null;
+const btnLockLandscape = document.getElementById('btn-lock-landscape') as HTMLButtonElement | null;
+let stickToastTimer: number | null = null;
+
+function showStickToast(message: string, isError = false): void {
+  if (!stickToastEl) return;
+  stickToastEl.textContent = message;
+  stickToastEl.classList.toggle('toast-error', isError);
+  stickToastEl.classList.remove('hidden');
+  if (stickToastTimer !== null) {
+    window.clearTimeout(stickToastTimer);
+  }
+  stickToastTimer = window.setTimeout(() => {
+    stickToastEl.classList.add('hidden');
+    stickToastTimer = null;
+  }, 2400);
+}
+
+async function lockLandscapeOrientation(): Promise<void> {
+  try {
+    if (!isFullscreen()) {
+      await toggleFullscreen();
+    }
+    const orient = screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> };
+    if (orient && typeof orient.lock === 'function') {
+      await orient.lock('landscape');
+    }
+  } catch {
+    // Ignore on browsers that restrict orientation lock without user gesture
+  }
+}
+
+btnLockLandscape?.addEventListener('click', () => {
+  audio.unlock();
+  haptic.tap();
+  void lockLandscapeOrientation();
+});
 
 // Shop DOM references
 const shopCoinsEl = document.getElementById('shop-coins') as HTMLElement;
@@ -327,6 +364,7 @@ function setStickMode(active: boolean): void {
   stickHudBar?.classList.toggle('hidden', !active);
   if (active) {
     void requestScreenWakeLock();
+    void lockLandscapeOrientation();
   }
 }
 
@@ -687,12 +725,17 @@ const localPeer = new LocalPeerManager({
     if (localPeer.localRole !== 'stick') return;
     const p = getLocalPlayer();
     if (p) {
+      if (snap.x !== undefined) p.x = snap.x;
+      if (snap.y !== undefined) p.y = snap.y;
       p.hp = snap.hp;
       p.maxHp = snap.maxHp;
       p.ult = snap.ult;
       p.coins = snap.coins;
+      if (snap.reviveTickets !== undefined) p.reviveTickets = snap.reviveTickets;
       if (snap.stocks !== undefined) p.brawlStocks = snap.stocks;
       if (snap.kos !== undefined) p.brawlKos = snap.kos;
+      if (snap.elem) p.slashElement = snap.elem;
+      if (snap.elemLv) p.slashElementLevel = snap.elemLv;
     }
     if (snap.gameMode === 'brawl') {
       state.mode = 'brawl';
@@ -701,11 +744,64 @@ const localPeer = new LocalPeerManager({
       state.survival.wave = snap.wave;
       state.survival.phase = snap.phase;
       state.survival.intermissionTimer = snap.intermissionTimer;
+      if (snap.core) {
+        state.survival.core.hp = snap.core.hp;
+        state.survival.core.maxHp = snap.core.maxHp;
+        state.survival.core.shieldActive = snap.core.shieldActive;
+        state.survival.core.shieldHp = snap.core.shieldHp;
+        state.survival.core.towerLevel = snap.core.towerLevel as 0 | 1 | 2 | 3 | 4;
+      }
+      if (snap.barricades) {
+        for (const sb of snap.barricades) {
+          const lb = state.survival.barricades.find((b) => b.id === sb.id);
+          if (lb) {
+            lb.hp = sb.hp;
+            lb.maxHp = sb.maxHp;
+          }
+        }
+      }
+    }
+    if (vbtnStickShop) {
+      vbtnStickShop.classList.toggle('shop-ready', !!snap.canShop);
     }
     if (snap.soundCue === 'player_hurt') {
       haptic.damage();
     }
+    if (shopOpen) {
+      refreshShopUI();
+    }
     updateStickHud();
+  },
+  onClientBuyItem(playerId: string, itemId: ShopItemId) {
+    if (!localPeer.isHost || state.mode !== 'survival') return;
+    const p = state.players.find((pl) => pl.id === playerId);
+    if (!p) return;
+    const res = buyShopItem(state, p, itemId);
+    localPeer.sendShopResult(playerId, res.ok, res.message);
+    audio.playQueue(state.soundQueue);
+    state.soundQueue.length = 0;
+  },
+  onClientSkipIntermission(_playerId: string) {
+    if (!localPeer.isHost || state.mode !== 'survival') return;
+    skipIntermission(state);
+  },
+  onShopResult(ok: boolean, message: string) {
+    if (shopFeedbackEl) {
+      shopFeedbackEl.textContent = message;
+      shopFeedbackEl.style.color = ok ? '#4ade80' : '#f87171';
+    }
+    if (localPeer.localRole === 'stick') {
+      showStickToast(message, !ok);
+    }
+    if (ok) {
+      haptic.tap();
+      audio.playQueue(['pickup_kopi']);
+    } else {
+      haptic.damage();
+    }
+    if (shopOpen) {
+      refreshShopUI();
+    }
   },
   onSkillPrompt(kind: 'buff' | 'ult', choices: string[]) {
     if (kind === 'buff') {
@@ -1351,16 +1447,21 @@ function toggleWarung(): void {
   }
 
   if (!canOpenWarung(state, player)) {
-    state.floatingTexts.push({
-      x: player.x,
-      y: player.y - player.z - 54,
-      vy: -40,
-      text: 'DEKATI POS WARKOP / TUNGGU JEDA!',
-      color: '#fde047',
-      scale: 0.92,
-      life: 1.1,
-      maxLife: 1.1,
-    });
+    if (localPeer.localRole === 'stick') {
+      showStickToast('🏪 Dekati Pos Warkop atau tunggu Jeda Wave!', true);
+      haptic.damage();
+    } else {
+      state.floatingTexts.push({
+        x: player.x,
+        y: player.y - player.z - 54,
+        vy: -40,
+        text: 'DEKATI POS WARKOP / TUNGGU JEDA!',
+        color: '#fde047',
+        scale: 0.92,
+        life: 1.1,
+        maxLife: 1.1,
+      });
+    }
     return;
   }
 
@@ -2134,6 +2235,14 @@ document.querySelectorAll<HTMLButtonElement>('.shop-item-btn[data-item], .shop-u
     const itemId = btn.dataset.item as ShopItemId;
     const player = getLocalPlayer();
     if (!player) return;
+
+    if (localPeer.connected && !localPeer.isHost) {
+      localPeer.sendBuyItem(itemId);
+      shopFeedbackEl.textContent = 'Memproses transaksi ke Host...';
+      shopFeedbackEl.style.color = '#38bdf8';
+      return;
+    }
+
     const res = buyShopItem(state, player, itemId);
     shopFeedbackEl.textContent = res.message;
     shopFeedbackEl.style.color = res.ok ? '#4ade80' : '#f87171';
@@ -2145,7 +2254,11 @@ document.querySelectorAll<HTMLButtonElement>('.shop-item-btn[data-item], .shop-u
 
 btnSkipIntermission.addEventListener('click', () => {
   audio.unlock();
-  skipIntermission(state);
+  if (localPeer.connected && !localPeer.isHost) {
+    localPeer.sendSkipIntermission();
+  } else {
+    skipIntermission(state);
+  }
   shopOpen = false;
   shopOverlay.classList.add('hidden');
 });
@@ -2688,21 +2801,21 @@ function frame(now: number): void {
             }
           }
 
-          // Smooth 60 FPS interpolation for remote players and enemies
+          // Smooth 60 FPS interpolation for remote players and enemies (60Hz snapshot stream)
           for (const rp of state.players) {
             if (rp.id === localPeer.localPlayerId) continue;
             const target = netPlayerTargets.get(rp.id);
             if (target) {
-              rp.x += (target.x - rp.x) * 0.35;
-              rp.y += (target.y - rp.y) * 0.35;
-              rp.z += (target.z - rp.z) * 0.35;
+              rp.x += (target.x - rp.x) * 0.55;
+              rp.y += (target.y - rp.y) * 0.55;
+              rp.z += (target.z - rp.z) * 0.55;
             }
           }
           for (const re of state.enemies) {
             const target = netEnemyTargets.get(re.id);
             if (target) {
-              re.x += (target.x - re.x) * 0.35;
-              re.y += (target.y - re.y) * 0.35;
+              re.x += (target.x - re.x) * 0.55;
+              re.y += (target.y - re.y) * 0.55;
             }
           }
         }
@@ -2761,9 +2874,9 @@ function frame(now: number): void {
         }
         audio.playQueue(state.soundQueue);
 
-        // Broadcast snapshot at 30Hz (0.033s) for fluid 60 FPS replication
+        // Broadcast snapshot at full 60Hz (every FIXED_DT tick) with volatile Socket.IO emit for ultra-smooth 60 FPS LAN
         snapAccum += FIXED_DT;
-        if (snapAccum >= 0.033 || state.status !== 'playing') {
+        if (snapAccum >= FIXED_DT || state.status !== 'playing') {
           snapAccum = 0;
           snapSeq++;
           const snap = packGameSnapshot(state, snapSeq);

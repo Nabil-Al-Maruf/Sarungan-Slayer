@@ -37,7 +37,13 @@ export function bindTouchControls(
   let currentMode = getStoredTouchMode();
 
   document.getElementById('vbtn-stick-elem')?.addEventListener('click', () => {
+    haptic.tap();
     onElementClick?.();
+  });
+
+  document.getElementById('vbtn-stick-shop')?.addEventListener('click', () => {
+    haptic.tap();
+    onShopClick?.();
   });
 
   const detectTouchDevice = (): boolean => {

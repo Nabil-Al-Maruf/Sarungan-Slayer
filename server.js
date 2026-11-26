@@ -393,6 +393,47 @@ io.on('connection', (socket) => {
     });
   });
 
+  // 12b. Warung Shop Purchase (Client/Stick -> Host)
+  socket.on('buy_item', (data) => {
+    const mapping = socketToRoom.get(socket.id);
+    if (!mapping) return;
+    const room = rooms.get(mapping.roomCode);
+    if (!room) return;
+
+    io.to(room.hostSocketId).emit('client_buy_item', {
+      playerId: mapping.playerId,
+      itemId: data.itemId,
+    });
+  });
+
+  // 12c. Skip Intermission (Client/Stick -> Host)
+  socket.on('skip_intermission', () => {
+    const mapping = socketToRoom.get(socket.id);
+    if (!mapping) return;
+    const room = rooms.get(mapping.roomCode);
+    if (!room) return;
+
+    io.to(room.hostSocketId).emit('client_skip_intermission', {
+      playerId: mapping.playerId,
+    });
+  });
+
+  // 12d. Shop Result Feedback (Host -> specific Client/Stick)
+  socket.on('shop_result', (data) => {
+    const mapping = socketToRoom.get(socket.id);
+    if (!mapping) return;
+    const room = rooms.get(mapping.roomCode);
+    if (!room || room.hostSocketId !== socket.id) return;
+
+    const targetPlayer = room.players.get(data.playerId);
+    if (targetPlayer && targetPlayer.socketId) {
+      io.to(targetPlayer.socketId).emit('shop_result', {
+        ok: !!data.ok,
+        message: data.message || '',
+      });
+    }
+  });
+
   // 13. Ping / Pong latency check
   socket.on('ping_check', (data) => {
     socket.emit('pong_check', { timestamp: data?.timestamp || Date.now() });

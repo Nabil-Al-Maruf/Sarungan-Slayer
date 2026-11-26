@@ -1179,6 +1179,9 @@
           </div>
         </div>
 
+        <!-- Stick Controller Toast Banner -->
+        <div id="stick-toast" class="stick-toast hidden" role="status" aria-live="polite"></div>
+
         <div class="deck-header">
           <span class="deck-brand">AREK SARUNGAN SLAYER</span>
           <button class="vbtn util-btn" data-action="shop" id="vbtn-shop" title="Buka Warung">
@@ -1227,6 +1230,21 @@
           </div>
         </div>
       </section>
+
+      <!-- Mandatory Landscape Orientation Guard (Mobile Portrait -> Rotate to Landscape) -->
+      <div id="landscape-lock-overlay" class="landscape-lock-overlay" role="dialog" aria-modal="true" aria-label="Putar Layar ke Landscape">
+        <div class="landscape-lock-card">
+          <div class="landscape-lock-icon" aria-hidden="true">📱</div>
+          <div class="landscape-lock-badge">MODE LANDSCAPE WAJIB</div>
+          <h2 class="landscape-lock-title">PUTAR HP KE LANDSCAPE!</h2>
+          <p class="landscape-lock-desc">
+            Arek Sarungan Slayer &amp; Stick Controller didesain khusus untuk layar mendatar (Landscape) agar kontrol 60 FPS maksimal dan tidak kepotong.
+          </p>
+          <button id="btn-lock-landscape" class="primary-btn landscape-lock-btn">
+            🔒 KUNCI FULLSCREEN LANDSCAPE
+          </button>
+        </div>
+      </div>
     </div>
 
     <script type="module" src="/src/main.ts"></script>

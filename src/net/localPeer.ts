@@ -9,6 +9,7 @@ import type {
   StickPersonalSnapshot,
 } from './protocol';
 import type { HeroId, PlayerInput } from '../core/types';
+import type { ShopItemId } from '../modes/survival';
 
 export interface LocalPeerCallbacks {
   onStatus: (msg: string, isError?: boolean) => void;
@@ -23,6 +24,9 @@ export interface LocalPeerCallbacks {
   onSnapshot: (snap: CompactGameSnapshot) => void;
   onStickSnapshot: (snap: StickPersonalSnapshot) => void;
   onSkillPrompt: (kind: 'buff' | 'ult', choices: string[]) => void;
+  onClientBuyItem?: (playerId: string, itemId: ShopItemId) => void;
+  onClientSkipIntermission?: (playerId: string) => void;
+  onShopResult?: (ok: boolean, message: string) => void;
   onDisconnect: (reason: string) => void;
 }
 
@@ -208,6 +212,18 @@ export class LocalPeerManager {
         this.callbacks.onSkillPrompt(data.kind, [data.choice]);
       });
 
+      this.socket.on('client_buy_item', (data: { playerId: string; itemId: ShopItemId }) => {
+        if (data.playerId && data.itemId) {
+          this.callbacks.onClientBuyItem?.(data.playerId, data.itemId);
+        }
+      });
+
+      this.socket.on('client_skip_intermission', (data: { playerId: string }) => {
+        if (data.playerId) {
+          this.callbacks.onClientSkipIntermission?.(data.playerId);
+        }
+      });
+
       this.socket.on('player_left', (data: { playerId: string }) => {
         this.clientInputs.delete(data.playerId);
       });
@@ -296,6 +312,10 @@ export class LocalPeerManager {
 
       this.socket.on('prompt_skill', (data: { kind: 'buff' | 'ult'; choices: string[] }) => {
         this.callbacks.onSkillPrompt(data.kind, data.choices);
+      });
+
+      this.socket.on('shop_result', (data: { ok: boolean; message: string }) => {
+        this.callbacks.onShopResult?.(data.ok, data.message);
       });
 
       this.socket.on('room_closed', (data: { reason: string }) => {
@@ -481,6 +501,16 @@ export class LocalPeerManager {
         if (playerId) {
           this.callbacks.onSkillPrompt(msg.kind, [msg.choice]);
         }
+      } else if (msg.t === 'buy_item') {
+        const playerId = (conn as any)._playerId;
+        if (playerId) {
+          this.callbacks.onClientBuyItem?.(playerId, msg.itemId);
+        }
+      } else if (msg.t === 'skip_intermission') {
+        const playerId = (conn as any)._playerId;
+        if (playerId) {
+          this.callbacks.onClientSkipIntermission?.(playerId);
+        }
       }
     });
 
@@ -525,6 +555,9 @@ export class LocalPeerManager {
       }
       case 'prompt_skill':
         this.callbacks.onSkillPrompt(msg.kind, msg.choices);
+        break;
+      case 'shop_result':
+        this.callbacks.onShopResult?.(msg.ok, msg.message);
         break;
       case 'pong':
         this.pingMs = Math.max(1, Math.round(performance.now() - msg.timestamp));
@@ -765,11 +798,70 @@ export class LocalPeerManager {
     }
   }
 
+  public sendBuyItem(itemId: ShopItemId): void {
+    if (!this.connected || this.isHost) return;
+    if (this.transport === 'socket.io' && this.socket) {
+      this.socket.emit('buy_item', { itemId });
+    } else if (this.hostConnection && this.hostConnection.open) {
+      this.hostConnection.send({ t: 'buy_item', itemId } as NetMessage);
+    }
+  }
+
+  public sendSkipIntermission(): void {
+    if (!this.connected || this.isHost) return;
+    if (this.transport === 'socket.io' && this.socket) {
+      this.socket.emit('skip_intermission');
+    } else if (this.hostConnection && this.hostConnection.open) {
+      this.hostConnection.send({ t: 'skip_intermission' } as NetMessage);
+    }
+  }
+
+  public sendShopResult(playerId: string, ok: boolean, message: string): void {
+    if (!this.isHost) return;
+    if (this.transport === 'socket.io' && this.socket) {
+      this.socket.emit('shop_result', { playerId, ok, message });
+    } else {
+      for (const [_, conn] of this.connections) {
+        if ((conn as any)._playerId === playerId && conn.open) {
+          conn.send({ t: 'shop_result', ok, message } as NetMessage);
+          break;
+        }
+      }
+    }
+  }
+
+  private buildStickSnapshot(snap: CompactGameSnapshot, pState: CompactGameSnapshot['players'][number]): StickPersonalSnapshot {
+    const nearPosWarkop = Math.hypot(pState.x - 480, pState.y - 270) <= 135;
+    return {
+      t: 'stick_snap',
+      seq: snap.seq,
+      x: pState.x,
+      y: pState.y,
+      hp: pState.hp,
+      maxHp: pState.maxHp,
+      ult: pState.ult,
+      maxUlt: pState.maxUlt,
+      coins: pState.coins,
+      stocks: pState.brawlStocks,
+      kos: pState.brawlKos,
+      gameMode: snap.gameMode,
+      wave: snap.wave,
+      phase: snap.phase,
+      intermissionTimer: snap.intermissionTimer,
+      canShop: snap.gameMode !== 'brawl' && (snap.phase === 'intermission' || nearPosWarkop),
+      core: snap.core,
+      barricades: snap.barricades,
+      elem: pState.elem,
+      elemLv: pState.elemLv,
+      soundCue: snap.sounds[0],
+    };
+  }
+
   public broadcastSnapshot(snap: CompactGameSnapshot): void {
     if (!this.isHost) return;
 
     if (this.transport === 'socket.io' && this.socket) {
-      // 1. Emit full snapshot to coop clients
+      // 1. Emit full snapshot to coop clients at 60Hz
       this.socket.emit('snap', { snap });
 
       // 2. Emit lightweight stick personal snapshots directly to each phone controller
@@ -777,23 +869,7 @@ export class LocalPeerManager {
         if (pl.role === 'stick' && !pl.isHost && !pl.isBot) {
           const pState = snap.players.find((p) => p.id === pl.id);
           if (pState) {
-            const stickSnap: StickPersonalSnapshot = {
-              t: 'stick_snap',
-              seq: snap.seq,
-              hp: pState.hp,
-              maxHp: pState.maxHp,
-              ult: pState.ult,
-              maxUlt: pState.maxUlt,
-              coins: pState.coins,
-              stocks: pState.brawlStocks,
-              kos: pState.brawlKos,
-              gameMode: snap.gameMode,
-              wave: snap.wave,
-              phase: snap.phase,
-              intermissionTimer: snap.intermissionTimer,
-              canShop: snap.phase === 'intermission',
-              soundCue: snap.sounds[0],
-            };
+            const stickSnap = this.buildStickSnapshot(snap, pState);
             this.socket.emit('stick_snap', { playerId: pl.id, snap: stickSnap });
           }
         }
@@ -807,23 +883,7 @@ export class LocalPeerManager {
         if (targetPl && targetPl.role === 'stick') {
           const pState = snap.players.find((p) => p.id === pId);
           if (pState) {
-            const stickSnap: StickPersonalSnapshot = {
-              t: 'stick_snap',
-              seq: snap.seq,
-              hp: pState.hp,
-              maxHp: pState.maxHp,
-              ult: pState.ult,
-              maxUlt: pState.maxUlt,
-              coins: pState.coins,
-              stocks: pState.brawlStocks,
-              kos: pState.brawlKos,
-              gameMode: snap.gameMode,
-              wave: snap.wave,
-              phase: snap.phase,
-              intermissionTimer: snap.intermissionTimer,
-              canShop: snap.phase === 'intermission',
-              soundCue: snap.sounds[0],
-            };
+            const stickSnap = this.buildStickSnapshot(snap, pState);
             conn.send({ t: 'stick_snap', snap: stickSnap } as NetMessage);
           }
         } else {

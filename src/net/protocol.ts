@@ -93,11 +93,14 @@ export interface CompactGameSnapshot {
 export interface StickPersonalSnapshot {
   t: 'stick_snap';
   seq: number;
+  x?: number;
+  y?: number;
   hp: number;
   maxHp: number;
   ult: number;
   maxUlt: number;
   coins: number;
+  reviveTickets?: number;
   stocks?: number;
   kos?: number;
   gameMode?: 'survival' | 'brawl';
@@ -105,6 +108,16 @@ export interface StickPersonalSnapshot {
   phase: 'wave' | 'intermission';
   intermissionTimer: number;
   canShop: boolean;
+  core?: {
+    hp: number;
+    maxHp: number;
+    shieldActive: boolean;
+    shieldHp: number;
+    towerLevel: number;
+  };
+  barricades?: Array<{ id: string; hp: number; maxHp: number }>;
+  elem?: SlashElement;
+  elemLv?: number;
   soundCue?: SoundEvent;
 }
 
@@ -122,6 +135,7 @@ export type NetMessage =
   | { t: 'pick_skill'; kind: 'buff' | 'ult'; choice: string }
   | { t: 'buy_item'; itemId: ShopItemId }
   | { t: 'skip_intermission' }
+  | { t: 'shop_result'; ok: boolean; message: string }
   | { t: 'ping'; timestamp: number }
   | { t: 'pong'; timestamp: number }
   | { t: 'toast'; message: string };

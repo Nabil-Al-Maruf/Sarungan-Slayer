@@ -103,9 +103,12 @@ assert(css.includes('@media (max-width: 540px) {\n  .buff-grid'), 'Buff grid wra
 assert(css.includes('.play-hero-picker-row .hero-card {') && css.includes('flex-direction: column !important;'), 'Play hero picker cards have column layout');
 assert(css.includes('@media (max-width: 520px) {\n  .play-hero-picker-row'), 'Play hero picker row wraps to 3 columns on small screens');
 assert(css.includes('.sandbox-skills-bar {') && css.includes('overflow-x: auto;'), 'Sandbox skills bar supports horizontal scrolling');
-assert(!html.includes('id="rotate-device-overlay"'), 'Rotate device overlay is cleanly removed');
-assert(!html.includes('id="btn-dismiss-rotate"'), 'Rotate dismiss button removed');
-assert(!ts.includes('btnDismissRotate'), 'btnDismissRotate removed from main.ts');
+assert(html.includes('id="landscape-lock-overlay"'), 'Mandatory landscape lock overlay exists in HTML');
+assert(html.includes('id="btn-lock-landscape"'), 'Landscape lock button exists in HTML');
+assert(html.includes('id="stick-toast"'), 'Stick controller toast banner exists in HTML');
+assert(css.includes('@media (max-width: 960px) and (orientation: portrait)'), 'Portrait mobile screens trigger mandatory landscape overlay');
+assert(ts.includes('localPeer.sendBuyItem(itemId)'), 'Client/Stick Warung purchases sync authoritatively to Host');
+assert(ts.includes('if (snapAccum >= FIXED_DT || state.status !== \'playing\')'), 'Host broadcasts network snapshots at full 60Hz');
 assert(ts.includes('shopOverlay?.addEventListener(\'click\''), 'shopOverlay backdrop click listener wired in main.ts');
 assert(ts.includes('pauseOverlay?.addEventListener(\'click\''), 'pauseOverlay backdrop click listener wired in main.ts');
 assert(ts.includes('lobbyOverlay?.addEventListener(\'click\''), 'lobbyOverlay backdrop click listener wired in main.ts');
