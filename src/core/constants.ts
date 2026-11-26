@@ -71,9 +71,9 @@ export const ULT_DEFS: Record<UltType, UltDef> = {
   },
   gempa: {
     id: 'gempa',
-    title: 'Gempa Hantam Tunjungan',
-    icon: '🌋',
-    desc: 'Lompat & hantam bumi memicu gelombang seismik melingkar raksasa dengan knockback & stun berat!',
+    title: 'Hantam Gletser Es',
+    icon: '❄️',
+    desc: 'Lompat & hantam tanah memicu pilar gletser es raksasa — BEKU 1.8 detik & pecah perisai!',
   },
   naga: {
     id: 'naga',
@@ -89,9 +89,9 @@ export const ULT_DEFS: Record<UltType, UltDef> = {
   },
   selendang: {
     id: 'selendang',
-    title: 'Badai Selendang Sutra',
-    icon: '💃',
-    desc: 'Pusaran pita sutra 360° berkecepatan tinggi yang mengiris lebar & melontarkan musuh ke udara!',
+    title: 'Badai Daun Sutra',
+    icon: '🍃',
+    desc: 'Pusaran badai daun silet & pita sutra 360° yang mengiris lebar & melontarkan musuh ke udara!',
   },
 };
 

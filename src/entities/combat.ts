@@ -127,6 +127,46 @@ export function resolveCombat(state: GameState, dt: number): void {
                   gravity: -30,
                 });
               }
+            } else if (elem === 'es') {
+              // Es Gletser: Frost shatter bonus damage + Deep Freeze stun
+              finalDmg += 5 * elemLevel;
+              enemy.stunTimer = Math.max(enemy.stunTimer, 0.25 * elemLevel);
+              for (let k = 0; k < 6; k++) {
+                state.particles.push({
+                  x: enemy.x + (Math.random() - 0.5) * 16,
+                  y: enemy.y + (Math.random() - 0.5) * 16,
+                  z: 14,
+                  vx: (Math.random() - 0.5) * 160,
+                  vy: (Math.random() - 0.5) * 160,
+                  vz: 70 + Math.random() * 80,
+                  size: 3 + Math.random() * 2.5,
+                  color: Math.random() < 0.6 ? '#67e8f9' : '#e0f2fe',
+                  alpha: 1,
+                  life: 0.22 + Math.random() * 0.12,
+                  maxLife: 0.34,
+                  gravity: 160,
+                });
+              }
+            } else if (elem === 'daun') {
+              // Daun Rimba: Razor Leaf bonus damage + Upward Juggle Lift
+              finalDmg += 6 * elemLevel;
+              enemy.vz = Math.max(enemy.vz, 85 * elemLevel);
+              for (let k = 0; k < 6; k++) {
+                state.particles.push({
+                  x: enemy.x + (Math.random() - 0.5) * 16,
+                  y: enemy.y + (Math.random() - 0.5) * 16,
+                  z: 14,
+                  vx: (Math.random() - 0.5) * 150,
+                  vy: (Math.random() - 0.5) * 150,
+                  vz: 90 + Math.random() * 80,
+                  size: 3 + Math.random() * 2,
+                  color: Math.random() < 0.65 ? '#4ade80' : '#f472b6',
+                  alpha: 0.95,
+                  life: 0.24 + Math.random() * 0.12,
+                  maxLife: 0.36,
+                  gravity: -25,
+                });
+              }
             }
           }
 
@@ -291,9 +331,9 @@ export function resolveCombat(state: GameState, dt: number): void {
           }
         }
 
-        // Final Upward Spiral Silk Launch
+        // Final Upward Spiral Leaf-Silk Launch
         if (player.ultActiveTimer <= 0) {
-          state.soundQueue.push('slash_badai');
+          state.soundQueue.push('slash_daun');
           for (const enemy of state.enemies) {
             if (enemy.hp <= 0) continue;
             const dx = enemy.x - player.x;
@@ -307,8 +347,8 @@ export function resolveCombat(state: GameState, dt: number): void {
                 x: enemy.x,
                 y: enemy.y - enemy.z - 42,
                 vy: -55,
-                text: '💃 TERBANG!',
-                color: '#f472b6',
+                text: '🍃 TERBANG!',
+                color: '#4ade80',
                 scale: 1.05,
                 life: 0.9,
                 maxLife: 0.9,
@@ -830,10 +870,10 @@ export function hitEnemy(
   enemy.hp -= damage;
   enemy.hitFlashTimer = 0.12;
   if (!enemy.isBoss) {
-    enemy.stunTimer = blocked ? 0.1 : 0.24;
+    enemy.stunTimer = Math.max(enemy.stunTimer, blocked ? 0.1 : 0.24);
     enemy.vx = kbX;
     enemy.vy = kbY;
-    enemy.vz = blocked ? 40 : 145;
+    enemy.vz = Math.max(enemy.vz, blocked ? 40 : 145);
   } else {
     // Bosses resist heavy knockback/stun
     enemy.vx += kbX * 0.2;

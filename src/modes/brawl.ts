@@ -949,6 +949,10 @@ function executeHeroMelee(
     state.soundQueue.push('slash_badai');
   } else if (elem === 'suci') {
     state.soundQueue.push('slash_suci');
+  } else if (elem === 'es') {
+    state.soundQueue.push('slash_es');
+  } else if (elem === 'daun') {
+    state.soundQueue.push('slash_daun');
   } else if (player.heroId === 'mat_clurit') {
     state.soundQueue.push('slash_clurit');
   } else if (player.heroId === 'bambang') {
@@ -1043,6 +1047,40 @@ function executeHeroMelee(
         gravity: -40,
       });
     }
+  } else if (elem === 'es') {
+    for (let p = 0; p < 5 * elemLevel; p++) {
+      state.particles.push({
+        x: player.x + player.dirX * 30 + (Math.random() - 0.5) * 20,
+        y: player.y - 18 + (Math.random() - 0.5) * 20,
+        z: 0,
+        vx: player.dirX * 150 + (Math.random() - 0.5) * 130,
+        vy: -30 - Math.random() * 60,
+        vz: 0,
+        size: 3 + Math.random() * 2.5,
+        color: Math.random() < 0.6 ? '#67e8f9' : '#e0f2fe',
+        alpha: 0.95,
+        life: 0.2 + Math.random() * 0.14,
+        maxLife: 0.34,
+        gravity: 110,
+      });
+    }
+  } else if (elem === 'daun') {
+    for (let p = 0; p < 5 * elemLevel; p++) {
+      state.particles.push({
+        x: player.x + player.dirX * 32 + (Math.random() - 0.5) * 20,
+        y: player.y - 18 + (Math.random() - 0.5) * 20,
+        z: 0,
+        vx: player.dirX * 180 + (Math.random() - 0.5) * 140,
+        vy: -50 - Math.random() * 70,
+        vz: 0,
+        size: 3 + Math.random() * 2,
+        color: Math.random() < 0.65 ? '#4ade80' : '#f472b6',
+        alpha: 0.95,
+        life: 0.24 + Math.random() * 0.14,
+        maxLife: 0.38,
+        gravity: -25,
+      });
+    }
   }
 
   // Hitbox detection
@@ -1062,6 +1100,8 @@ function executeHeroMelee(
       let baseDmg = (isFinisher ? 28 : 14) * hDef.dmgMult;
       if (elem === 'petir') baseDmg += 4 * elemLevel;
       if (elem === 'api') baseDmg += 6 * elemLevel;
+      if (elem === 'es') baseDmg += 4 * elemLevel;
+      if (elem === 'daun') baseDmg += 5 * elemLevel;
       if (elem === 'suci') {
         baseDmg += 3 * elemLevel;
         player.hp = Math.min(player.maxHp, player.hp + 2 * elemLevel);
@@ -1071,6 +1111,8 @@ function executeHeroMelee(
       other.hp = Math.max(0, other.hp - baseDmg);
       other.hitFlashTimer = isFinisher ? 0.22 : 0.14;
       if (elem === 'petir') other.hitFlashTimer = Math.max(other.hitFlashTimer, 0.24 * elemLevel);
+      if (elem === 'es') other.hitFlashTimer = Math.max(other.hitFlashTimer, 0.26 * elemLevel);
+      if (elem === 'daun') other.vy = Math.min(other.vy, -190 * elemLevel);
       other.lastHitBy = player.id;
       other.lastHitTime = state.time;
 
@@ -1143,6 +1185,40 @@ function executeHeroMelee(
             life: 0.22 + Math.random() * 0.1,
             maxLife: 0.32,
             gravity: -30,
+          });
+        }
+      } else if (elem === 'es') {
+        for (let k = 0; k < 6 * elemLevel; k++) {
+          state.particles.push({
+            x: other.x + (Math.random() - 0.5) * 16,
+            y: other.y - 14 + (Math.random() - 0.5) * 16,
+            z: 0,
+            vx: (Math.random() - 0.5) * 160,
+            vy: -40 - Math.random() * 90,
+            vz: 0,
+            size: 3 + Math.random() * 2.5,
+            color: Math.random() < 0.6 ? '#67e8f9' : '#e0f2fe',
+            alpha: 1,
+            life: 0.22 + Math.random() * 0.12,
+            maxLife: 0.34,
+            gravity: 140,
+          });
+        }
+      } else if (elem === 'daun') {
+        for (let k = 0; k < 6 * elemLevel; k++) {
+          state.particles.push({
+            x: other.x + (Math.random() - 0.5) * 16,
+            y: other.y - 14 + (Math.random() - 0.5) * 16,
+            z: 0,
+            vx: (Math.random() - 0.5) * 150,
+            vy: -70 - Math.random() * 80,
+            vz: 0,
+            size: 3 + Math.random() * 2,
+            color: Math.random() < 0.65 ? '#4ade80' : '#f472b6',
+            alpha: 0.95,
+            life: 0.24 + Math.random() * 0.12,
+            maxLife: 0.36,
+            gravity: -25,
           });
         }
       }

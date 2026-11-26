@@ -200,13 +200,13 @@ export class HudController {
       ultType === 'petir'
         ? '⚡ PETIR'
         : ultType === 'gempa'
-          ? '🌋 GEMPA'
+          ? '❄️ GLETSER'
           : ultType === 'mercon'
             ? '💥 BAZOOKA'
             : ultType === 'naga'
               ? '🐉 NAGA'
               : ultType === 'selendang'
-                ? '💃 SELENDANG'
+                ? '🍃 DAUN'
                 : '🌀 GASING';
     const ultTxt =
       player.ultActiveTimer > 0
@@ -279,6 +279,8 @@ export class HudController {
       api: { icon: '🔥', name: `API Lv.${elemLv}` },
       badai: { icon: '🌀', name: `BADAI Lv.${elemLv}` },
       suci: { icon: '✨', name: `SUCI Lv.${elemLv}` },
+      es: { icon: '❄️', name: `ES Lv.${elemLv}` },
+      daun: { icon: '🍃', name: `DAUN Lv.${elemLv}` },
     };
     const currentElemInfo = elemInfoMap[elem] || elemInfoMap.none;
     const elemTxt = `${currentElemInfo.icon} ${currentElemInfo.name}`;

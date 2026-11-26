@@ -1127,6 +1127,61 @@ function drawSlashElementalOverlay(
       ctx.closePath();
       ctx.fill();
     }
+  } else if (element === 'es') {
+    // === ES: Gletser Es (Jagged Frost Icicles & Crystalline Ice Arc) ===
+    ctx.strokeStyle = 'rgba(103, 232, 249, 0.9)';
+    ctx.lineWidth = 4 + level * 1.4;
+    ctx.beginPath();
+    ctx.arc(0, 0, r + 4, -Math.PI * 0.52, Math.PI * 0.42);
+    ctx.stroke();
+
+    const shardCount = 5 + level * 2;
+    for (let i = 0; i < shardCount; i++) {
+      const a = -Math.PI * 0.48 + ((Math.PI * 0.88) * i) / (shardCount - 1);
+      const sx = Math.cos(a) * (r + 3);
+      const sy = Math.sin(a) * (r + 3);
+      const spikeLen = (11 + level * 4.5) * (1 - progress * 0.35);
+
+      ctx.fillStyle = i % 2 === 0 ? '#a5f3fc' : '#e0f2fe';
+      ctx.strokeStyle = '#0284c7';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(sx + Math.cos(a + 1.57) * 3.5, sy + Math.sin(a + 1.57) * 3.5);
+      ctx.lineTo(sx + Math.cos(a) * spikeLen, sy + Math.sin(a) * spikeLen);
+      ctx.lineTo(sx - Math.cos(a + 1.57) * 3.5, sy - Math.sin(a + 1.57) * 3.5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
+  } else if (element === 'daun') {
+    // === DAUN: Daun Rimba (Emerald Razor Leaves & Swirling Blossom Arc) ===
+    ctx.strokeStyle = 'rgba(74, 222, 128, 0.88)';
+    ctx.lineWidth = 3.5 + level * 1.2;
+    ctx.beginPath();
+    ctx.arc(0, 0, r + 5, -Math.PI * 0.54, Math.PI * 0.44);
+    ctx.stroke();
+
+    const leafCount = 5 + level * 2;
+    for (let i = 0; i < leafCount; i++) {
+      const a = -Math.PI * 0.48 + ((Math.PI * 0.9) * i) / (leafCount - 1);
+      const lx = Math.cos(a) * (r + 7 + (i % 2) * 5);
+      const ly = Math.sin(a) * (r + 7 + (i % 2) * 5);
+
+      ctx.save();
+      ctx.translate(lx, ly);
+      ctx.rotate(a + 0.55 + progress * 2.2);
+      ctx.fillStyle = i % 3 === 0 ? '#f472b6' : '#22c55e';
+      ctx.strokeStyle = '#14532d';
+      ctx.lineWidth = 1.1;
+      ctx.beginPath();
+      ctx.moveTo(-6, 0);
+      ctx.quadraticCurveTo(0, -4.5, 7, 0);
+      ctx.quadraticCurveTo(0, 4.5, -6, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
   }
 }
 

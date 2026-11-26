@@ -45,10 +45,10 @@ console.log('=== TEST 1: Unique Hero Slash Styles & Sarung Silhouettes Definitio
   const expectedStyles: Record<HeroId, { slash: string; sarung: string; elem: string }> = {
     bima: { slash: 'sarung_whip', sarung: 'gulung_tempur', elem: 'badai' },
     mat_clurit: { slash: 'clurit_crescent', sarung: 'sarung_celana', elem: 'petir' },
-    bambang: { slash: 'tinju_shockwave', sarung: 'lipit_jawara', elem: 'api' },
+    bambang: { slash: 'tinju_shockwave', sarung: 'lipit_jawara', elem: 'es' },
     gus_dimas: { slash: 'bambu_radiant', sarung: 'jubah_wali', elem: 'suci' },
     pak_rt: { slash: 'mercon_burst', sarung: 'lipit_dinas', elem: 'api' },
-    mbak_sri: { slash: 'selendang_cyclone', sarung: 'lilit_kebaya', elem: 'badai' },
+    mbak_sri: { slash: 'selendang_cyclone', sarung: 'lilit_kebaya', elem: 'daun' },
   };
 
   for (const [id, exp] of Object.entries(expectedStyles) as [HeroId, { slash: string; sarung: string; elem: string }][]) {
@@ -110,7 +110,11 @@ console.log('\n=== TEST 4: Element Cycling in Sandbox Mode ===');
   const step4 = cyclePlayerSlashElement(p);
   assert(step4.element === 'suci', `Cycle 4 gives suci (got ${step4.element})`);
   const step5 = cyclePlayerSlashElement(p);
-  assert(step5.element === 'none', `Cycle 5 wraps back to none (got ${step5.element})`);
+  assert(step5.element === 'es', `Cycle 5 gives es (got ${step5.element})`);
+  const step6 = cyclePlayerSlashElement(p);
+  assert(step6.element === 'daun', `Cycle 6 gives daun (got ${step6.element})`);
+  const step7 = cyclePlayerSlashElement(p);
+  assert(step7.element === 'none', `Cycle 7 wraps back to none (got ${step7.element})`);
 }
 
 console.log('\n=== TEST 5: Survival Warung Elemental Upgrade Purchases (Locked to Hero Element) ===');
@@ -207,10 +211,36 @@ console.log('\n=== TEST 6: Elemental Combat Effects in Combat Engine ===');
   resolveCombat(state, 0.0167);
   assert(p.hp > 50, `Suci restored player HP on hit (hp = ${p.hp})`);
   assert(p.ult > 12, `Suci generated bonus ultimate charge (ult = ${p.ult})`);
+
+  // 6D: Es Freeze Stun & Bonus Damage
+  const enemy3 = spawnEnemy(state, 'dummy', 240, 300);
+  enemy3.hp = 100;
+  enemy3.stunTimer = 0;
+  p.slashElement = 'es';
+  p.slashElementLevel = 2;
+  p.meleeTimer = 0.15;
+  p.meleeSwingId = 5;
+  resolveCombat(state, 0.0167);
+  assert(enemy3.stunTimer > 0, `Es applied frost freeze stun (${enemy3.stunTimer.toFixed(2)}s)`);
+
+  // 6E: Daun Upward Juggle Lift & Bonus Damage
+  const enemy4 = spawnEnemy(state, 'dummy', 240, 300);
+  enemy4.hp = 100;
+  enemy4.vz = 0;
+  p.slashElement = 'daun';
+  p.slashElementLevel = 2;
+  p.meleeTimer = 0.15;
+  p.meleeSwingId = 6;
+  resolveCombat(state, 0.0167);
+  assert(enemy4.vz >= 150, `Daun lifted enemy upward (vz = ${enemy4.vz})`);
 }
 
 console.log('\n=== TEST 7: Brawl Mode Hero Slash & Default Elements ===');
 {
+  // Verify all 6 heroes have 6 completely unique elements
+  const uniqueElems = new Set(Object.values(HERO_DEFS).map((h) => h.defaultElement));
+  assert(uniqueElems.size === 6, `All 6 heroes have 6 unique default elements (got ${uniqueElems.size})`);
+
   const roster = [
     { id: 'p1', name: 'Sakera', paletteIndex: 1, heroId: 'mat_clurit' as const, isBot: false },
     { id: 'p2', name: 'Preman', paletteIndex: 2, heroId: 'bambang' as const, isBot: false },
@@ -225,7 +255,7 @@ console.log('\n=== TEST 7: Brawl Mode Hero Slash & Default Elements ===');
 
   assert(p2.slashStyle === 'tinju_shockwave', 'P2 has tinju_shockwave slash style');
   assert(p2.sarungStyle === 'lipit_jawara', 'P2 has lipit_jawara silhouette');
-  assert(p2.slashElement === 'api', 'Bang Bambang defaults to Api element in brawl');
+  assert(p2.slashElement === 'es', 'Bang Bambang defaults to Es element in brawl');
 
   // Melee attack in brawl
   p1.x = 400; p1.y = 390;

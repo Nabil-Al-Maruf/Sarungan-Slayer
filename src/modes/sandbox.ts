@@ -150,7 +150,7 @@ export function stepSandbox(state: GameState, input: PlayerInput, dt: number): v
   }
 }
 
-const ELEMENT_CYCLE: SlashElement[] = ['none', 'petir', 'api', 'badai', 'suci'];
+const ELEMENT_CYCLE: SlashElement[] = ['none', 'petir', 'api', 'badai', 'suci', 'es', 'daun'];
 
 export function cyclePlayerSlashElement(player: PlayerState): { element: SlashElement; level: number } {
   const curIdx = ELEMENT_CYCLE.indexOf(player.slashElement || 'none');

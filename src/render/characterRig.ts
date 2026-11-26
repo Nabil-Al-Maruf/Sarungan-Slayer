@@ -120,17 +120,18 @@ export function drawPlayer(
         ctx.restore();
       }
     } else if (ultType === 'gempa') {
-      // === BANG BAMBANG: Seismic Earth Shatter + Magma Fissures + Expanding Shockwave Rings ===
+      // === BANG BAMBANG: Hantam Gletser Es (Glacier Ice Pillars + Cyan Frost Fissures + Expanding Ice Shockwave) ===
       const progress = Math.max(0, Math.min(1, 1 - player.ultActiveTimer / 0.65));
       ctx.save();
       ctx.scale(1, 0.68);
 
-      // Expanding seismic shockwave rings
+      // Expanding icy frost shockwave rings
       for (let rIdx = 0; rIdx < 2; rIdx++) {
         const ringP = Math.min(1, progress * 1.35 - rIdx * 0.22);
         if (ringP > 0) {
           const rad = 30 + ringP * 195;
-          ctx.strokeStyle = rIdx === 0 ? `rgba(245, 158, 11, ${1 - ringP})` : `rgba(239, 68, 68, ${(1 - ringP) * 0.9})`;
+          ctx.strokeStyle =
+            rIdx === 0 ? `rgba(103, 232, 249, ${1 - ringP})` : `rgba(56, 189, 248, ${(1 - ringP) * 0.9})`;
           ctx.lineWidth = 10 * (1 - ringP * 0.6);
           ctx.beginPath();
           ctx.arc(0, 0, rad, 0, Math.PI * 2);
@@ -138,12 +139,12 @@ export function drawPlayer(
         }
       }
 
-      // 8 Jagged Ground Magma Cracks radiating outward
+      // 8 Jagged Glacial Frost Cracks radiating outward
       for (let c = 0; c < 8; c++) {
         const ang = (c * Math.PI * 2) / 8 + 0.18;
         const maxLen = 95 + (c % 2) * 55;
         const len = maxLen * Math.min(1, progress * 2.2);
-        ctx.strokeStyle = '#090c14';
+        ctx.strokeStyle = '#0369a1';
         ctx.lineWidth = 7;
         ctx.beginPath();
         ctx.moveTo(0, 0);
@@ -151,7 +152,7 @@ export function drawPlayer(
         ctx.lineTo(Math.cos(ang - 0.08) * len, Math.sin(ang - 0.08) * len);
         ctx.stroke();
 
-        ctx.strokeStyle = '#fbbf24';
+        ctx.strokeStyle = '#e0f2fe';
         ctx.lineWidth = 3;
         ctx.beginPath();
         ctx.moveTo(0, 0);
@@ -161,19 +162,23 @@ export function drawPlayer(
       }
       ctx.restore();
 
-      // Erupting rock/paving debris chunks flying upward
+      // Erupting Glacier Ice Spikes & Shattering Crystal Chunks
       for (let k = 0; k < 8; k++) {
         const ang = (k * Math.PI * 2) / 8 + 0.4;
-        const dist = 32 + progress * 115;
-        const lift = Math.sin(progress * Math.PI) * (58 + (k % 3) * 24);
+        const dist = 36 + progress * 112;
+        const spikeH = Math.sin(progress * Math.PI) * (54 + (k % 3) * 20);
         ctx.save();
-        ctx.translate(Math.cos(ang) * dist, Math.sin(ang) * dist * 0.65 - lift);
-        ctx.rotate(progress * 8 + k);
-        ctx.fillStyle = k % 2 === 0 ? '#78716c' : '#a8a29e';
-        ctx.strokeStyle = '#090c14';
+        ctx.translate(Math.cos(ang) * dist, Math.sin(ang) * dist * 0.65);
+        ctx.fillStyle = k % 2 === 0 ? '#67e8f9' : '#bae6fd';
+        ctx.strokeStyle = '#0284c7';
         ctx.lineWidth = 2;
-        ctx.fillRect(-7, -5, 14, 10);
-        ctx.strokeRect(-7, -5, 14, 10);
+        ctx.beginPath();
+        ctx.moveTo(-8, 4);
+        ctx.lineTo(0, -spikeH);
+        ctx.lineTo(8, 4);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
         ctx.restore();
       }
     } else if (ultType === 'naga') {
@@ -280,24 +285,24 @@ export function drawPlayer(
       }
       ctx.restore();
     } else if (ultType === 'selendang') {
-      // === MBAK SRI: Flowing Crimson-Pink Silk Ribbon Rose-Cyclone + Floating Petals ===
+      // === MBAK SRI: Badai Daun Sutra (Emerald Razor Leaf-Silk Cyclone + Swirling Leaves & Petals) ===
       ctx.save();
       ctx.scale(1, 0.72);
 
-      // Soft magenta cyclone glow
+      // Soft emerald-blossom cyclone glow
       const grad = ctx.createRadialGradient(0, 0, 18, 0, 0, 138);
-      grad.addColorStop(0, 'rgba(236, 72, 153, 0.35)');
-      grad.addColorStop(0.7, 'rgba(244, 114, 182, 0.16)');
-      grad.addColorStop(1, 'rgba(244, 114, 182, 0)');
+      grad.addColorStop(0, 'rgba(34, 197, 94, 0.34)');
+      grad.addColorStop(0.65, 'rgba(244, 114, 182, 0.18)');
+      grad.addColorStop(1, 'rgba(74, 222, 128, 0)');
       ctx.fillStyle = grad;
       ctx.beginPath();
       ctx.arc(0, 0, 138, 0, Math.PI * 2);
       ctx.fill();
 
-      // 2 Long Undulating Silk Ribbons tracing a 3-petal rose curve
+      // 2 Long Undulating Leaf-Silk Ribbons tracing a 3-petal rose curve
       for (let rib = 0; rib < 2; rib++) {
-        ctx.strokeStyle = rib === 0 ? '#ec4899' : '#fbcfe8';
-        ctx.lineWidth = rib === 0 ? 9 : 5;
+        ctx.strokeStyle = rib === 0 ? '#22c55e' : '#f472b6';
+        ctx.lineWidth = rib === 0 ? 8.5 : 5;
         ctx.lineCap = 'round';
         ctx.beginPath();
         for (let step = 0; step <= 28; step++) {
@@ -311,17 +316,23 @@ export function drawPlayer(
         ctx.stroke();
       }
 
-      // Orbiting Silk Flower Petals
-      for (let pt = 0; pt < 10; pt++) {
-        const pa = time * 9 + (pt * Math.PI * 2) / 10;
-        const pr = 52 + ((pt * 29 + time * 90) % 80);
+      // Orbiting Emerald Razor Leaves & Pink Blossom Petals
+      for (let pt = 0; pt < 12; pt++) {
+        const pa = time * 10 + (pt * Math.PI * 2) / 12;
+        const pr = 48 + ((pt * 29 + time * 95) % 86);
         ctx.save();
         ctx.translate(Math.cos(pa) * pr, Math.sin(pa) * pr);
         ctx.rotate(pa + 0.8);
-        ctx.fillStyle = pt % 2 === 0 ? '#fdf2f8' : '#f472b6';
+        ctx.fillStyle = pt % 3 === 0 ? '#f472b6' : '#4ade80';
+        ctx.strokeStyle = '#14532d';
+        ctx.lineWidth = 1.2;
         ctx.beginPath();
-        ctx.ellipse(0, 0, 7, 3.5, 0, 0, Math.PI * 2);
+        ctx.moveTo(-8, 0);
+        ctx.quadraticCurveTo(0, -5, 9, 0);
+        ctx.quadraticCurveTo(0, 5, -8, 0);
+        ctx.closePath();
         ctx.fill();
+        ctx.stroke();
         ctx.restore();
       }
       ctx.restore();
@@ -1400,6 +1411,40 @@ function drawAmbientElementalWeaponAura(
 
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(mx - 0.75, my - 0.75, 1.5, 1.5);
+    }
+  } else if (elem === 'es') {
+    const shardCount = 3 + lv;
+    for (let i = 0; i < shardCount; i++) {
+      const a = time * 5 + (i * Math.PI * 2) / shardCount;
+      const r = 8 + lv * 2;
+      const ix = Math.cos(a) * r;
+      const iy = Math.sin(a) * r * 0.65;
+
+      ctx.fillStyle = i % 2 === 0 ? '#67e8f9' : '#e0f2fe';
+      ctx.beginPath();
+      ctx.moveTo(ix, iy - 3.5);
+      ctx.lineTo(ix + 2.2, iy);
+      ctx.lineTo(ix, iy + 3.5);
+      ctx.lineTo(ix - 2.2, iy);
+      ctx.closePath();
+      ctx.fill();
+    }
+  } else if (elem === 'daun') {
+    const leafCount = 3 + lv;
+    for (let i = 0; i < leafCount; i++) {
+      const a = time * 6 + (i * Math.PI * 2) / leafCount;
+      const r = 9 + lv * 2;
+      const lx = Math.cos(a) * r;
+      const ly = Math.sin(a) * r * 0.65;
+
+      ctx.save();
+      ctx.translate(lx, ly);
+      ctx.rotate(a + 0.7);
+      ctx.fillStyle = i % 2 === 0 ? '#4ade80' : '#f472b6';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 3.5, 1.8, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
     }
   }
 

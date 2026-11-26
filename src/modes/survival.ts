@@ -40,6 +40,8 @@ export type ShopItemId =
   | 'elem_api'
   | 'elem_badai'
   | 'elem_suci'
+  | 'elem_es'
+  | 'elem_daun'
   | 'tower_pos'
   | 'upgrade_core'
   | 'shield_core'
@@ -495,6 +497,8 @@ export function buyShopItem(
       api: '🔥 API KOBARAN',
       badai: '🌀 BADAI TOPAN',
       suci: '✨ CAHAYA SUCI',
+      es: '❄️ ES GLETSER',
+      daun: '🍃 DAUN RIMBA',
     };
     const elemColors: Record<SlashElement, string> = {
       none: '#ffffff',
@@ -502,6 +506,8 @@ export function buyShopItem(
       api: '#f97316',
       badai: '#34d399',
       suci: '#facc15',
+      es: '#67e8f9',
+      daun: '#4ade80',
     };
 
     state.floatingTexts.push({

@@ -293,6 +293,29 @@ export class ProceduralAudio {
       })
     );
 
+    this.buffers.set(
+      'slash_es',
+      makeBuf(0.24, (t) => {
+        const env = Math.exp(-t * 13);
+        const crystal =
+          Math.sin(2 * Math.PI * 2093 * t) * 0.4 +
+          Math.sin(2 * Math.PI * 2637 * t) * 0.3 +
+          Math.sin(2 * Math.PI * 3136 * t) * 0.2;
+        const crack = t < 0.04 ? (Math.random() * 2 - 1) * 0.65 : 0;
+        return (crystal + crack) * env * 0.52;
+      })
+    );
+
+    this.buffers.set(
+      'slash_daun',
+      makeBuf(0.2, (t) => {
+        const env = Math.exp(-t * 14);
+        const razor = Math.sin(2 * Math.PI * (920 - t * 2800) * t) * 0.5;
+        const rustle = (Math.random() * 2 - 1) * Math.sin(t * 950) * 0.48;
+        return (razor + rustle) * env * 0.5;
+      })
+    );
+
     // 11. Hero Unique Weapon Slash Audio (Mat Clurit, Bang Bambang)
     this.buffers.set(
       'slash_clurit',

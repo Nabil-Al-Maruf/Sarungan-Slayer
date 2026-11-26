@@ -367,12 +367,13 @@ export function updatePlayer(
         });
       }
     } else if (uType === 'gempa') {
-      // Bang Bambang: Gempa Hantam Tunjungan (Seismic Slam Ring + Heavy Stun & Knockback)
+      // Bang Bambang: Hantam Gletser Es (Glacier Slam Ring + Deep Freeze Stun & Armor Shatter)
       player.ultActiveTimer = 0.65;
       player.invulnTimer = Math.max(player.invulnTimer, 1.3);
       player.vz = 240;
       player.scaleX = 1.45;
       player.scaleY = 0.65;
+      state.soundQueue.push('slash_es');
       state.soundQueue.push('ult_start');
       state.shakeTimer = Math.max(state.shakeTimer, 0.55);
       state.shakeIntensity = Math.max(state.shakeIntensity, 12);
@@ -380,8 +381,8 @@ export function updatePlayer(
         x: player.x,
         y: player.y - player.z - 65,
         vy: -55,
-        text: '🌋 GEMPA HANTAM TUNJUNGAN! 🌋',
-        color: '#f59e0b',
+        text: '❄️ HANTAM GLETSER ES! ❄️',
+        color: '#67e8f9',
         scale: 1.35,
         life: 1.4,
         maxLife: 1.4,
@@ -402,17 +403,17 @@ export function updatePlayer(
           const dmg = Math.round(base * (isArmored ? 1.5 : 1.0) * player.dmgMult);
           e.hp = Math.max(0, e.hp - dmg);
           e.hitFlashTimer = 0.32;
-          e.stunTimer = Math.max(e.stunTimer, 1.6);
+          e.stunTimer = Math.max(e.stunTimer, 1.8);
           const ang = Math.atan2(e.y - player.y, e.x - player.x);
-          e.vx += Math.cos(ang) * 460;
-          e.vy += Math.sin(ang) * 340;
-          e.vz = 260;
+          e.vx += Math.cos(ang) * 440;
+          e.vy += Math.sin(ang) * 320;
+          e.vz = 250;
           state.floatingTexts.push({
             x: e.x,
             y: e.y - e.z - 42,
             vy: -55,
-            text: isArmored ? `🌋 PECAH PERISAI -${dmg}!` : `🌋 -${dmg} (STUN!)`,
-            color: isArmored ? '#f97316' : '#fbbf24',
+            text: isArmored ? `❄️ PECAH BEKU -${dmg}!` : `❄️ BEKU -${dmg}!`,
+            color: isArmored ? '#38bdf8' : '#a5f3fc',
             scale: isArmored ? 1.2 : 1.1,
             life: 1.0,
             maxLife: 1.0,
@@ -433,16 +434,17 @@ export function updatePlayer(
           gravity: 420,
           life: 0.55,
           maxLife: 0.55,
-          color: i % 2 === 0 ? '#f59e0b' : '#ef4444',
+          color: i % 2 === 0 ? '#67e8f9' : '#e0f2fe',
         });
       }
     } else if (uType === 'selendang') {
-      // Mbak Sri: Badai Selendang Sutra (High-Speed 360° Silk Cyclone)
+      // Mbak Sri: Badai Daun Sutra (High-Speed 360° Razor Leaf-Silk Cyclone)
       player.ultActiveTimer = 2.4;
       player.ultTickTimer = 0;
       player.invulnTimer = Math.max(player.invulnTimer, 2.5);
       player.scaleX = 1.32;
       player.scaleY = 0.78;
+      state.soundQueue.push('slash_daun');
       state.soundQueue.push('ult_start');
       state.shakeTimer = Math.max(state.shakeTimer, 0.25);
       state.shakeIntensity = Math.max(state.shakeIntensity, 6);
@@ -450,8 +452,8 @@ export function updatePlayer(
         x: player.x,
         y: player.y - player.z - 60,
         vy: -48,
-        text: '💃 BADAI SELENDANG SUTRA! 💃',
-        color: '#f472b6',
+        text: '🍃 BADAI DAUN SUTRA! 🍃',
+        color: '#4ade80',
         scale: 1.3,
         life: 1.3,
         maxLife: 1.3,
@@ -470,7 +472,7 @@ export function updatePlayer(
           gravity: 0,
           life: 0.5,
           maxLife: 0.5,
-          color: i % 2 === 0 ? '#ec4899' : '#fbcfe8',
+          color: i % 2 === 0 ? '#4ade80' : '#f472b6',
         });
       }
     } else {
@@ -578,6 +580,10 @@ export function updatePlayer(
       state.soundQueue.push('slash_badai');
     } else if (slashElem === 'suci') {
       state.soundQueue.push('slash_suci');
+    } else if (slashElem === 'es') {
+      state.soundQueue.push('slash_es');
+    } else if (slashElem === 'daun') {
+      state.soundQueue.push('slash_daun');
     } else if (player.heroId === 'mat_clurit') {
       state.soundQueue.push('slash_clurit');
     } else if (player.heroId === 'bambang') {
@@ -669,6 +675,40 @@ export function updatePlayer(
           life: 0.22 + Math.random() * 0.15,
           maxLife: 0.37,
           gravity: -40,
+        });
+      }
+    } else if (slashElem === 'es') {
+      for (let p = 0; p < 5 * slashElemLv; p++) {
+        state.particles.push({
+          x: player.x + player.dirX * 28 + (Math.random() - 0.5) * 20,
+          y: player.y - player.z - 18 + (Math.random() - 0.5) * 20,
+          z: 12,
+          vx: player.dirX * 150 + (Math.random() - 0.5) * 130,
+          vy: player.dirY * 150 + (Math.random() - 0.5) * 130,
+          vz: 40 + Math.random() * 60,
+          size: 3 + Math.random() * 2.5,
+          color: Math.random() < 0.6 ? '#67e8f9' : '#e0f2fe',
+          alpha: 0.95,
+          life: 0.2 + Math.random() * 0.14,
+          maxLife: 0.34,
+          gravity: 120,
+        });
+      }
+    } else if (slashElem === 'daun') {
+      for (let p = 0; p < 5 * slashElemLv; p++) {
+        state.particles.push({
+          x: player.x + player.dirX * 30 + (Math.random() - 0.5) * 20,
+          y: player.y - player.z - 18 + (Math.random() - 0.5) * 20,
+          z: 14,
+          vx: player.dirX * 170 + (Math.random() - 0.5) * 140,
+          vy: player.dirY * 170 + (Math.random() - 0.5) * 140,
+          vz: 50 + Math.random() * 70,
+          size: 3 + Math.random() * 2,
+          color: Math.random() < 0.65 ? '#4ade80' : '#f472b6',
+          alpha: 0.95,
+          life: 0.24 + Math.random() * 0.14,
+          maxLife: 0.38,
+          gravity: -20,
         });
       }
     }

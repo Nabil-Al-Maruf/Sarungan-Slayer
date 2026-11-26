@@ -519,7 +519,7 @@ console.log('\n=== TEST 16: Hero & Elemental Procedural Audio Cues ===');
 {
   const testHeroAudio = (
     heroId: 'bima' | 'mat_clurit' | 'bambang' | 'gus_dimas' | 'pak_rt' | 'mbak_sri',
-    element: 'none' | 'petir' | 'api' | 'badai' | 'suci',
+    element: 'none' | 'petir' | 'api' | 'badai' | 'suci' | 'es' | 'daun',
     expectedSound: string
   ) => {
     const roster = [{ id: 'p1', name: 'Tester', paletteIndex: 0, heroId, isBot: false }];
@@ -538,7 +538,9 @@ console.log('\n=== TEST 16: Hero & Elemental Procedural Audio Cues ===');
   };
 
   testHeroAudio('mat_clurit', 'petir', 'slash_petir');
-  testHeroAudio('bambang', 'api', 'slash_api');
+  testHeroAudio('bambang', 'es', 'slash_es');
+  testHeroAudio('mbak_sri', 'daun', 'slash_daun');
+  testHeroAudio('pak_rt', 'api', 'slash_api');
   testHeroAudio('mbak_sri', 'badai', 'slash_badai');
   testHeroAudio('gus_dimas', 'suci', 'slash_suci');
   testHeroAudio('mat_clurit', 'none', 'slash_clurit');

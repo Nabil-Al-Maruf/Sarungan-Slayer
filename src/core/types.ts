@@ -34,7 +34,7 @@ export type SarungStyle =
   | 'lipit_dinas'
   | 'lilit_kebaya';
 
-export type SlashElement = 'none' | 'petir' | 'api' | 'badai' | 'suci';
+export type SlashElement = 'none' | 'petir' | 'api' | 'badai' | 'suci' | 'es' | 'daun';
 
 export type HeroId =
   | 'bima'
@@ -347,6 +347,8 @@ export type SoundEvent =
   | 'slash_api'
   | 'slash_badai'
   | 'slash_suci'
+  | 'slash_es'
+  | 'slash_daun'
   | 'slash_clurit'
   | 'slash_tinju'
   | 'smash_ball';

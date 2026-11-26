@@ -1241,6 +1241,8 @@ function refreshShopUI(): void {
     { id: 'api', name: 'Api Kobaran', perk: 'Lidah api & luka bakar membara' },
     { id: 'badai', name: 'Badai Topan', perk: 'Jangkauan tebasan amba & puyuh angin' },
     { id: 'suci', name: 'Cahaya Suci', perk: 'Karomah suci, sedot darah & ulti' },
+    { id: 'es', name: 'Es Gletser', perk: 'Kristal es tajam & beku stun musuh' },
+    { id: 'daun', name: 'Daun Rimba', perk: 'Daun silet & angkat musuh ke udara' },
   ];
 
   for (const cfg of elemConfigs) {
@@ -1566,6 +1568,8 @@ function renderHeroEncyclopedia(heroId: HeroId): void {
     api: '🔥 ELEMEN API',
     badai: '🌀 ELEMEN BADAI',
     suci: '✨ ELEMEN SUCI',
+    es: '❄️ ELEMEN ES',
+    daun: '🍃 ELEMEN DAUN',
   };
 
   document.querySelectorAll<HTMLButtonElement>('#hero-dex-tabs .hero-dex-tab').forEach((btn) => {
@@ -2035,7 +2039,7 @@ function cycleSlashElement(player: PlayerState): void {
     player.slashElement = chosen;
     player.slashElementLevel = chosen === 'none' ? 1 : (player.unlockedElements?.[chosen] || 1);
   } else if (state.mode === 'sandbox') {
-    const elements: SlashElement[] = ['none', 'petir', 'api', 'badai', 'suci'];
+    const elements: SlashElement[] = ['none', 'petir', 'api', 'badai', 'suci', 'es', 'daun'];
     const curIdx = elements.indexOf(player.slashElement || 'none');
     const nextIdx = (curIdx + 1) % elements.length;
     player.slashElement = elements[nextIdx];
@@ -2072,6 +2076,8 @@ function cycleSlashElement(player: PlayerState): void {
     api: `API KOBARAN LV.${player.slashElementLevel}`,
     badai: `BADAI TOPAN LV.${player.slashElementLevel}`,
     suci: `CAHAYA SUCI LV.${player.slashElementLevel}`,
+    es: `ES GLETSER LV.${player.slashElementLevel}`,
+    daun: `DAUN RIMBA LV.${player.slashElementLevel}`,
   };
   const colors: Record<SlashElement, string> = {
     none: '#94a3b8',
@@ -2079,6 +2085,8 @@ function cycleSlashElement(player: PlayerState): void {
     api: '#f97316',
     badai: '#34d399',
     suci: '#facc15',
+    es: '#67e8f9',
+    daun: '#4ade80',
   };
 
   state.floatingTexts.push({
@@ -2129,6 +2137,8 @@ function upgradeSlashElementLevel(player: PlayerState): void {
     api: `API KOBARAN LV.${player.slashElementLevel}`,
     badai: `BADAI TOPAN LV.${player.slashElementLevel}`,
     suci: `CAHAYA SUCI LV.${player.slashElementLevel}`,
+    es: `ES GLETSER LV.${player.slashElementLevel}`,
+    daun: `DAUN RIMBA LV.${player.slashElementLevel}`,
   };
   const colors: Record<SlashElement, string> = {
     none: '#94a3b8',
@@ -2136,6 +2146,8 @@ function upgradeSlashElementLevel(player: PlayerState): void {
     api: '#f97316',
     badai: '#34d399',
     suci: '#facc15',
+    es: '#67e8f9',
+    daun: '#4ade80',
   };
 
   state.floatingTexts.push({
