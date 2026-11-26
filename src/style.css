@@ -5263,3 +5263,48 @@ body {
   color: #fef08a;
   font-weight: 700;
 }
+
+.hero-dex-matchup-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.hero-dex-matchup-box {
+  border-radius: 10px;
+  padding: 8px 10px;
+  border: 1.5px solid rgba(148, 163, 184, 0.28);
+  background: rgba(15, 23, 42, 0.72);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.hero-dex-matchup-box.matchup-strong {
+  border-color: rgba(74, 222, 128, 0.45);
+  background: rgba(20, 83, 45, 0.28);
+}
+
+.hero-dex-matchup-box.matchup-weak {
+  border-color: rgba(248, 113, 113, 0.45);
+  background: rgba(127, 29, 29, 0.28);
+}
+
+.dex-matchup-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.dex-matchup-item strong {
+  display: block;
+  font-size: 11.5px;
+  color: #f8fafc;
+}
+
+.dex-matchup-item small {
+  display: block;
+  font-size: 10px;
+  color: #cbd5e1;
+  line-height: 1.25;
+}

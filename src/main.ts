@@ -3,6 +3,7 @@ import { ProceduralAudio } from './audio/sfx';
 import { FIXED_DT, PLAYER_PALETTES, ULT_DEFS, VIRTUAL_HEIGHT, VIRTUAL_WIDTH } from './core/constants';
 import { HERO_DEFS, getHeroDef } from './core/heroes';
 import { InputManager } from './core/input';
+import { getHeroZombieMatchups } from './core/zombieMatchups';
 import type { BrawlStageTheme, BuffId, EnemyKind, EnemyState, GameState, HeroId, PlayerInput, PlayerState, ProjectileState, SlashElement, UltType } from './core/types';
 import { createBrawlState, stepBrawl, type BrawlRosterMember } from './modes/brawl';
 import { createSandboxState, stepSandbox } from './modes/sandbox';
@@ -1612,6 +1613,26 @@ function renderHeroEncyclopedia(heroId: HeroId): void {
   setText('dex-ult-name', h.ultName);
   setText('dex-ult-desc', h.ultDesc);
   setText('dex-ult-impact', h.ultImpactDesc);
+
+  const zMatch = getHeroZombieMatchups(heroId);
+  const strongEl = document.getElementById('dex-strong-zombies');
+  const weakEl = document.getElementById('dex-weak-zombies');
+  if (strongEl) {
+    strongEl.innerHTML = zMatch.strongVsZombies
+      .map(
+        (z) =>
+          `<div class="dex-matchup-item"><strong>${z.zombieName}</strong><small>${z.weakReason}</small></div>`
+      )
+      .join('');
+  }
+  if (weakEl) {
+    weakEl.innerHTML = zMatch.weakVsZombies
+      .map(
+        (z) =>
+          `<div class="dex-matchup-item"><strong>${z.zombieName}</strong><small>${z.strongReason}</small></div>`
+      )
+      .join('');
+  }
 
   const equipBtn = document.getElementById('btn-equip-dex-hero') as HTMLButtonElement | null;
   if (equipBtn) {

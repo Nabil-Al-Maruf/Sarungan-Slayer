@@ -5,9 +5,15 @@ import { createBrawlState, stepBrawl } from '../src/modes/brawl';
 import { createSandboxState, cyclePlayerSlashElement, upgradePlayerSlashLevel } from '../src/modes/sandbox';
 import { createStoryState } from '../src/modes/story';
 import { buyShopItem, createSurvivalState } from '../src/modes/survival';
-import { resolveCombat } from '../src/entities/combat';
+import { resolveCombat, hitEnemy } from '../src/entities/combat';
 import { createPlayer, updatePlayer } from '../src/entities/player';
-import { spawnEnemy } from '../src/entities/enemyFactory';
+import { spawnEnemy, updateEnemies } from '../src/entities/enemyFactory';
+import {
+  ZOMBIE_MATCHUPS,
+  getHeroZombieMatchups,
+  getZombieDealtDmgMatchup,
+  getZombieTakenDmgMatchup,
+} from '../src/core/zombieMatchups';
 import { packGameSnapshot } from '../src/net/protocol';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -403,6 +409,59 @@ console.log('\n=== TEST 13: Play View Hero Selector Strip in HTML ===');
   assert(html.includes('data-hero="gus_dimas"'), 'Hero picker contains Gus Dimas');
   assert(html.includes('data-hero="pak_rt"'), 'Hero picker contains Pak RT');
   assert(html.includes('data-hero="mbak_sri"'), 'Hero picker contains Mbak Sri');
+  assert(html.includes('id="dex-strong-zombies"'), 'Info Hero contains #dex-strong-zombies');
+  assert(html.includes('id="dex-weak-zombies"'), 'Info Hero contains #dex-weak-zombies');
+}
+
+console.log('\n=== TEST 14: Zombie vs 6-Hero Strengths & Weaknesses ===');
+{
+  const entries = Object.values(ZOMBIE_MATCHUPS).filter(Boolean);
+  assert(entries.length === 9, `All 9 zombie types have matchups defined (got ${entries.length})`);
+
+  for (const m of entries) {
+    assert(m!.weakAgainst !== m!.strongAgainst, `${m!.zombieKind} has distinct weak & strong hero`);
+  }
+
+  // Every single one of the 6 heroes has at least 1 zombie it counters AND 1 zombie that counters it
+  for (const heroId of HERO_LIST.map((h) => h.id)) {
+    const hm = getHeroZombieMatchups(heroId);
+    assert(hm.strongVsZombies.length >= 1, `${heroId} counters at least 1 zombie (${hm.strongVsZombies.length})`);
+    assert(hm.weakVsZombies.length >= 1, `${heroId} is countered by at least 1 zombie (${hm.weakVsZombies.length})`);
+  }
+
+  // Real combat test: Gus Dimas vs Zombie Pocong (weak -> 1.55x) vs Pak RT vs Zombie Pocong (strong -> 0.65x)
+  const st = createSurvivalState(0, undefined, 'Tester', 'gus_dimas');
+  const gus = st.players[0];
+  const pocong1 = spawnEnemy(st, 'zombie_pocong', 300, 300);
+  pocong1.hp = 200;
+  hitEnemy(st, pocong1, gus, 20, 0, 0, 0, false);
+  const gusDmg = 200 - pocong1.hp;
+  assert(gusDmg === 31, `Gus Dimas deals 1.55x weakness dmg to Zombie Pocong (expected 31, got ${gusDmg})`);
+  assert(
+    st.floatingTexts.some((ft) => ft.text.includes('LEMAH')),
+    'Weakness hit spawns LEMAH floating text'
+  );
+
+  const st2 = createSurvivalState(0, undefined, 'Tester', 'pak_rt');
+  const pakRt = st2.players[0];
+  const pocong2 = spawnEnemy(st2, 'zombie_pocong', 300, 300);
+  pocong2.hp = 200;
+  hitEnemy(st2, pocong2, pakRt, 20, 0, 0, 0, false);
+  const pakRtDmg = 200 - pocong2.hp;
+  assert(pakRtDmg === 13, `Pak RT deals 0.65x resisted dmg to Zombie Pocong (expected 13, got ${pakRtDmg})`);
+  assert(
+    st2.floatingTexts.some((ft) => ft.text.includes('KEBAL')),
+    'Resisted hit spawns KEBAL floating text'
+  );
+
+  // Zombie contact counter damage: Pocong hits Pak RT (1.35x -> 14) vs Pocong hits Gus Dimas (0.8x -> 8)
+  assert(getZombieTakenDmgMatchup('zombie_buto_ijo', 'bambang').mult === 1.55, 'Buto Ijo weak to Bang Bambang');
+  assert(getZombieDealtDmgMatchup('zombie_pocong', 'pak_rt').mult === 1.35, 'Pocong deals 1.35x to Pak RT');
+
+  pakRt.x = 300; pakRt.y = 300; pakRt.z = 0; pakRt.invulnTimer = 0; pakRt.hp = 100;
+  pocong2.x = 305; pocong2.y = 300; pocong2.z = 0; pocong2.attackCooldown = 0; pocong2.stunTimer = 0;
+  updateEnemies(st2, 0.0167);
+  assert(pakRt.hp === 86, `Zombie Pocong dealt 1.35x counter damage (14) to Pak RT (hp = ${pakRt.hp})`);
 }
 
 console.log('\n=============================================');

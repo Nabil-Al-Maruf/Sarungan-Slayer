@@ -1,5 +1,6 @@
 import { circlesOverlap, stepTopDownPhysics } from '../core/physics';
 import type { EnemyKind, EnemyState, GameState } from '../core/types';
+import { getZombieDealtDmgMatchup } from '../core/zombieMatchups';
 import { BARRICADE_MAX_HP } from '../modes/survival';
 import { handleDefenseKill } from './combat';
 import { damagePlayer } from './player';
@@ -259,7 +260,7 @@ export function updateEnemies(state: GameState, dt: number): void {
           }
 
           enemy.attackCooldown = enemy.isBoss ? 0.95 : 1.15;
-          const dmg =
+          const baseDmg =
             enemy.isBoss
               ? 16
               : enemy.kind === 'zombie_buto_ijo'
@@ -271,10 +272,25 @@ export function updateEnemies(state: GameState, dt: number): void {
                     : enemy.kind === 'elite'
                       ? 14
                       : 10;
+          const zMatchup = getZombieDealtDmgMatchup(enemy.kind, targetPlayer.heroId);
+          const dmg = Math.max(1, Math.round(baseDmg * zMatchup.mult));
           const dx = targetPlayer.x - enemy.x;
           const dy = targetPlayer.y - enemy.y;
           const d = Math.hypot(dx, dy) || 1;
           damagePlayer(state, targetPlayer, dmg, dx / d, dy / d);
+
+          if (zMatchup.relation === 'strong') {
+            state.floatingTexts.push({
+              x: targetPlayer.x,
+              y: targetPlayer.y - targetPlayer.z - 56,
+              vy: -48,
+              text: `⚠️ COUNTER ZOMBIE (-${dmg})!`,
+              color: '#f87171',
+              scale: 0.95,
+              life: 0.85,
+              maxLife: 0.85,
+            });
+          }
 
           // Tuyul steals a bit of Uang Receh on hit!
           if (enemy.kind === 'zombie_tuyul' && targetPlayer.coins > 0) {

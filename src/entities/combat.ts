@@ -12,6 +12,7 @@ import {
 } from '../core/constants';
 import { circlesOverlap } from '../core/physics';
 import type { EnemyState, GameState, PlayerState } from '../core/types';
+import { getZombieTakenDmgMatchup } from '../core/zombieMatchups';
 import { damageCrate } from './crate';
 import { explodePetasan } from './enemyFactory';
 import { damagePlayer } from './player';
@@ -867,7 +868,13 @@ export function hitEnemy(
   blocked: boolean,
   defenseSource?: 'tower' | 'barrier' | 'shield'
 ): void {
-  enemy.hp -= damage;
+  // Zombie vs 6-Hero Matchup Multiplier (Kelemahan 1.55x / Kebal 0.65x)
+  const matchup = !defenseSource
+    ? getZombieTakenDmgMatchup(enemy.kind, attacker?.heroId)
+    : { mult: 1, relation: 'neutral' as const };
+  const effectiveDamage = Math.max(1, Math.round(damage * matchup.mult));
+
+  enemy.hp -= effectiveDamage;
   enemy.hitFlashTimer = 0.12;
   if (!enemy.isBoss) {
     enemy.stunTimer = Math.max(enemy.stunTimer, blocked ? 0.1 : 0.24);
@@ -888,17 +895,32 @@ export function hitEnemy(
 
   state.soundQueue.push(blocked ? 'crate_hit' : 'hit');
   state.shakeTimer = Math.max(state.shakeTimer, 0.09);
-  state.shakeIntensity = Math.max(state.shakeIntensity, blocked ? 2 : 4);
+  state.shakeIntensity = Math.max(state.shakeIntensity, blocked ? 2 : matchup.relation === 'weak' ? 5.5 : 4);
+
+  const dmgLabel = blocked
+    ? `BLOKIR (${effectiveDamage})`
+    : matchup.relation === 'weak'
+      ? `💥 LEMAH! ${effectiveDamage}`
+      : matchup.relation === 'strong'
+        ? `🛡️ KEBAL ${effectiveDamage}`
+        : `${effectiveDamage}`;
+  const dmgColor = blocked
+    ? '#cbd5e1'
+    : matchup.relation === 'weak'
+      ? '#4ade80'
+      : matchup.relation === 'strong'
+        ? '#f87171'
+        : '#fef08a';
 
   state.floatingTexts.push({
     x: enemy.x + (Math.random() - 0.5) * 14,
     y: enemy.y - enemy.z - (enemy.isBoss ? 68 : 42),
     vy: -65,
-    text: blocked ? `BLOKIR (${damage})` : `${damage}`,
-    color: blocked ? '#cbd5e1' : '#fef08a',
-    scale: blocked ? 0.9 : 1,
-    life: 0.65,
-    maxLife: 0.65,
+    text: dmgLabel,
+    color: dmgColor,
+    scale: blocked ? 0.9 : matchup.relation === 'weak' ? 1.15 : matchup.relation === 'strong' ? 0.92 : 1,
+    life: 0.68,
+    maxLife: 0.68,
   });
 
   for (let i = 0; i < (blocked ? 4 : 8); i++) {
