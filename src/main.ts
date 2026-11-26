@@ -1232,7 +1232,9 @@ function refreshShopUI(): void {
   if (titleEl && ultDef) titleEl.textContent = ultDef.title;
   if (descEl && ultDef) descEl.textContent = ultDef.desc;
 
-  // Refresh Elemental Upgrade Buttons
+  // Refresh Elemental Upgrade Buttons (Locked strictly to chosen Hero's signature element)
+  const heroDef = getHeroDef(player.heroId);
+  const heroElem = heroDef.defaultElement;
   const elemConfigs = [
     { id: 'petir', name: 'Petir Halilintar', perk: 'Sengatan listrik & stun lumpuh' },
     { id: 'api', name: 'Api Kobaran', perk: 'Lidah api & luka bakar membara' },
@@ -1245,6 +1247,14 @@ function refreshShopUI(): void {
     const desc = document.getElementById(`shop-elem-${cfg.id}-desc`);
     const cost = document.getElementById(`shop-elem-${cfg.id}-cost`);
     if (!btn) continue;
+
+    const isHeroElement = !heroElem || heroElem === 'none' || cfg.id === heroElem;
+    btn.classList.toggle('hidden', !isHeroElement);
+    if (!isHeroElement) {
+      btn.disabled = true;
+      continue;
+    }
+
     const isEquipped = player.slashElement === cfg.id;
     const curLv = isEquipped ? (player.slashElementLevel || 1) : 0;
     if (curLv >= 3) {
@@ -1258,7 +1268,7 @@ function refreshShopUI(): void {
       if (desc) {
         desc.textContent =
           curLv === 0
-            ? `Aktifkan ${cfg.name} Lv.1 • ${cfg.perk}`
+            ? `Aktifkan ${cfg.name} Lv.1 (${heroDef.name}) • ${cfg.perk}`
             : `Upgrade ${cfg.name} Lv.${curLv} ➔ Lv.${nextLv} • ${cfg.perk}`;
       }
       if (cost) cost.textContent = `${c} Receh`;

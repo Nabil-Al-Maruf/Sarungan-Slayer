@@ -113,39 +113,44 @@ console.log('\n=== TEST 4: Element Cycling in Sandbox Mode ===');
   assert(step5.element === 'none', `Cycle 5 wraps back to none (got ${step5.element})`);
 }
 
-console.log('\n=== TEST 5: Survival Warung Elemental Upgrade Purchases ===');
+console.log('\n=== TEST 5: Survival Warung Elemental Upgrade Purchases (Locked to Hero Element) ===');
 {
+  // Cak Bima's signature element is 'badai'
   const state = createSurvivalState(0, undefined, 'Survivor', 'bima');
   const p = state.players[0];
   p.coins = 500;
 
-  // Buy Petir Lv.1
-  const buy1 = buyShopItem(state, p, 'elem_petir');
-  assert(buy1.ok, `Buy elem_petir Lv.1 succeeded: ${buy1.message}`);
-  assert(p.slashElement === 'petir', `Player active element is petir`);
+  // Reject buying another hero's element
+  const wrongElem = buyShopItem(state, p, 'elem_petir');
+  assert(!wrongElem.ok, `Rejected elem_petir for Cak Bima (locked to badai): ${wrongElem.message}`);
+
+  // Buy Badai Lv.1
+  const buy1 = buyShopItem(state, p, 'elem_badai');
+  assert(buy1.ok, `Buy elem_badai Lv.1 succeeded: ${buy1.message}`);
+  assert(p.slashElement === 'badai', `Player active element is badai`);
   assert(p.slashElementLevel === 1, `Player active element level is 1`);
   assert(p.coins === 500 - 75, `Coins deducted correctly for Lv.1 (coins = ${p.coins})`);
 
-  // Upgrade Petir to Lv.2
-  const buy2 = buyShopItem(state, p, 'elem_petir');
-  assert(buy2.ok, `Upgrade elem_petir Lv.2 succeeded: ${buy2.message}`);
+  // Upgrade Badai to Lv.2
+  const buy2 = buyShopItem(state, p, 'elem_badai');
+  assert(buy2.ok, `Upgrade elem_badai Lv.2 succeeded: ${buy2.message}`);
   assert(p.slashElementLevel === 2, `Player active element level is now 2`);
   assert(p.coins === 500 - 75 - 150, `Coins deducted correctly for Lv.2 (coins = ${p.coins})`);
 
-  // Upgrade Petir to Lv.3 (Max)
-  const buy3 = buyShopItem(state, p, 'elem_petir');
-  assert(buy3.ok, `Upgrade elem_petir Lv.3 succeeded: ${buy3.message}`);
+  // Upgrade Badai to Lv.3 (Max)
+  const buy3 = buyShopItem(state, p, 'elem_badai');
+  assert(buy3.ok, `Upgrade elem_badai Lv.3 succeeded: ${buy3.message}`);
   assert(p.slashElementLevel === 3, `Player active element level is now 3`);
 
   // Cannot upgrade beyond Lv.3
-  const buy4 = buyShopItem(state, p, 'elem_petir');
+  const buy4 = buyShopItem(state, p, 'elem_badai');
   assert(!buy4.ok, `Cannot upgrade past Lv.3 (correctly rejected)`);
 
-  // Switch element to Api
+  // Cannot switch to Api when playing Bima
   p.coins = 200;
   const buyApi = buyShopItem(state, p, 'elem_api');
-  assert(buyApi.ok, `Switched element to Api`);
-  assert(p.slashElement === 'api', `Active element is now api`);
+  assert(!buyApi.ok, `Cannot switch to elem_api when hero is Bima (correctly rejected)`);
+  assert(p.slashElement === 'badai', `Active element remains badai`);
 }
 
 console.log('\n=== TEST 6: Elemental Combat Effects in Combat Engine ===');

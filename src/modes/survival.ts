@@ -1,3 +1,4 @@
+import { getHeroDef } from '../core/heroes';
 import {
   ARENA_MAX_X,
   ARENA_MIN_X,
@@ -463,6 +464,14 @@ export function buyShopItem(
 
   if (itemId.startsWith('elem_')) {
     const elem = itemId.replace('elem_', '') as SlashElement;
+    const heroDef = getHeroDef(player.heroId);
+    const allowedElem = heroDef.defaultElement;
+    if (allowedElem && allowedElem !== 'none' && elem !== allowedElem) {
+      return {
+        ok: false,
+        message: `${heroDef.name} hanya bisa upgrade elemen ${allowedElem.toUpperCase()}!`,
+      };
+    }
     const isSame = player.slashElement === elem;
     const curLv = isSame ? (player.slashElementLevel || 1) : 0;
     if (curLv >= 3) {
