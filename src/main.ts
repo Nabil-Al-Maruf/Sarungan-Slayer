@@ -62,7 +62,7 @@ const HAPTIC_STORAGE_KEY = 'arek_slayer_haptic_v1';
 
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 const stageWrap = document.getElementById('stage-wrap') as HTMLDivElement;
-const ctx = (canvas.getContext('2d', { alpha: false, desynchronized: true }) || canvas.getContext('2d'))!;
+const ctx = (canvas.getContext('2d', { alpha: false }) || canvas.getContext('2d'))!;
 
 const audio = new ProceduralAudio();
 const input = new InputManager(() => audio.unlock());
