@@ -9,10 +9,37 @@ import type { SoundEvent } from '../core/types';
 export class ProceduralAudio {
   private ctx: AudioContext | null = null;
   private buffers = new Map<SoundEvent, AudioBuffer>();
+  private externalSamplesLoaded = false;
   private sfxMuted = false;
   private bgmEnabled = false;
+  private bgmAudio: HTMLAudioElement | null = null;
+  private bgmTrackUrl = '/audio/bgm/battle_theme.mp3';
   private bgmTimer: number | null = null;
   private bgmStep = 0;
+
+  private static readonly EXTERNAL_SFX_FILES: Partial<Record<SoundEvent, string>> = {
+    kibas: '/audio/sfx/kibas.ogg',
+    hit: '/audio/sfx/hit.ogg',
+    pecut: '/audio/sfx/pecut.ogg',
+    jump: '/audio/sfx/jump.ogg',
+    double_jump: '/audio/sfx/double_jump.ogg',
+    dash: '/audio/sfx/dash.ogg',
+    ult_start: '/audio/sfx/ult_start.ogg',
+    ult_tick: '/audio/sfx/ult_tick.ogg',
+    crate_hit: '/audio/sfx/crate_hit.ogg',
+    crate_break: '/audio/sfx/crate_break.ogg',
+    pickup_heal: '/audio/sfx/pickup_heal.ogg',
+    pickup_kopi: '/audio/sfx/pickup_kopi.ogg',
+    buff_pick: '/audio/sfx/buff_pick.ogg',
+    tower_shoot: '/audio/sfx/tower_shoot.ogg',
+    player_hurt: '/audio/sfx/player_hurt.ogg',
+    ko: '/audio/sfx/ko.ogg',
+    slash_clurit: '/audio/sfx/slash_clurit.ogg',
+    slash_tinju: '/audio/sfx/slash_tinju.ogg',
+    slash_api: '/audio/sfx/slash_api.ogg',
+    slash_suci: '/audio/sfx/slash_suci.ogg',
+    smash_ball: '/audio/sfx/smash_ball.ogg',
+  };
 
   public unlock(): void {
     if (!this.ctx) {
@@ -22,11 +49,31 @@ export class ProceduralAudio {
       if (AudioCtx) {
         this.ctx = new AudioCtx();
         this.bakeSampleBuffers();
+        void this.loadExternalSfxSamples();
       }
     }
     if (this.ctx && this.ctx.state === 'suspended') {
       this.ctx.resume().catch(() => {});
     }
+  }
+
+  private async loadExternalSfxSamples(): Promise<void> {
+    if (this.externalSamplesLoaded || !this.ctx || typeof fetch !== 'function') return;
+    this.externalSamplesLoaded = true;
+    const entries = Object.entries(ProceduralAudio.EXTERNAL_SFX_FILES) as Array<[SoundEvent, string]>;
+    await Promise.all(
+      entries.map(async ([ev, url]) => {
+        try {
+          const res = await fetch(url);
+          if (!res.ok || !this.ctx) return;
+          const arr = await res.arrayBuffer();
+          const decoded = await this.ctx.decodeAudioData(arr);
+          this.buffers.set(ev, decoded);
+        } catch {
+          // Keep procedural fallback buffer seamlessly
+        }
+      })
+    );
   }
 
   private bakeSampleBuffers(): void {
@@ -309,7 +356,36 @@ export class ProceduralAudio {
     return this.bgmEnabled;
   }
 
+  public setBgmTrack(track: 'battle' | 'brawl'): void {
+    const nextUrl = track === 'brawl' ? '/audio/bgm/brawl_theme.mp3' : '/audio/bgm/battle_theme.mp3';
+    if (this.bgmTrackUrl === nextUrl) return;
+    this.bgmTrackUrl = nextUrl;
+    if (this.bgmEnabled) {
+      this.stopBgm();
+      this.startBgm();
+    }
+  }
+
   private startBgm(): void {
+    this.stopBgm();
+    try {
+      const el = new Audio(this.bgmTrackUrl);
+      el.loop = true;
+      el.volume = 0.28;
+      this.bgmAudio = el;
+      const playPromise = el.play();
+      if (playPromise && typeof playPromise.catch === 'function') {
+        playPromise.catch(() => {
+          // Fallback to procedural chiptune loop if browser blocks or offline
+          this.startFallbackBgm();
+        });
+      }
+    } catch {
+      this.startFallbackBgm();
+    }
+  }
+
+  private startFallbackBgm(): void {
     if (this.bgmTimer !== null) return;
     const bassLine = [110, 110, 146.83, 130.81, 110, 110, 164.81, 146.83];
     const leadLine = [440, 523.25, 587.33, 659.25, 587.33, 523.25, 440, 392.0];
@@ -328,6 +404,15 @@ export class ProceduralAudio {
   }
 
   private stopBgm(): void {
+    if (this.bgmAudio) {
+      try {
+        this.bgmAudio.pause();
+        this.bgmAudio.currentTime = 0;
+      } catch {
+        // Ignore
+      }
+      this.bgmAudio = null;
+    }
     if (this.bgmTimer !== null) {
       clearInterval(this.bgmTimer);
       this.bgmTimer = null;

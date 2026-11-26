@@ -192,6 +192,7 @@ const btnStickExit = document.getElementById('btn-stick-exit') as HTMLButtonElem
 const stickToastEl = document.getElementById('stick-toast') as HTMLDivElement | null;
 const btnLockLandscape = document.getElementById('btn-lock-landscape') as HTMLButtonElement | null;
 let stickToastTimer: number | null = null;
+let lastStickCanShop = false;
 
 function showStickToast(message: string, isError = false): void {
   if (!stickToastEl) return;
@@ -439,32 +440,27 @@ const localPeer = new LocalPeerManager({
       return;
     }
 
-    if (localPeer.isHost) {
-      if (localPeer.gameMode === 'brawl') {
-        const roster: BrawlRosterMember[] = localPeer.lobbyPlayers
-          .filter((p) => p.role !== 'monitor')
-          .map((p) => ({
-            id: p.id,
-            paletteIndex: p.paletteIndex,
-            name: p.name,
-            heroId: p.heroId || 'bima',
-            isBot: p.isBot,
-          }));
-        const brawlThemes: BrawlStageTheme[] = ['alun_alun', 'atap_warga', 'jembatan_kali'];
-  const stageTheme = brawlThemes[Math.floor(Math.random() * brawlThemes.length)];
-  state = createBrawlState(roster, 3, stageTheme);
-      } else {
-        const roster = localPeer.lobbyPlayers
-          .filter((p) => p.role !== 'monitor')
-          .map((p) => ({
-            id: p.id,
-            paletteIndex: p.paletteIndex,
-            name: p.name,
-            heroId: p.heroId,
-          }));
-        state = createSurvivalState(selectedPalette, roster, playerName, selectedHeroId);
-      }
+    const activeRoster = localPeer.lobbyPlayers
+      .filter((p) => p.role !== 'monitor')
+      .map((p) => ({
+        id: p.id,
+        paletteIndex: p.paletteIndex,
+        name: p.name,
+        heroId: p.heroId || 'bima',
+        isBot: p.isBot,
+      }));
+
+    if (localPeer.gameMode === 'brawl') {
+      const roster: BrawlRosterMember[] = activeRoster;
+      const brawlThemes: BrawlStageTheme[] = ['alun_alun', 'atap_warga', 'jembatan_kali'];
+      const stageTheme = brawlThemes[Math.floor(Math.random() * brawlThemes.length)];
+      state = createBrawlState(roster, 3, stageTheme);
+      audio.setBgmTrack('brawl');
+    } else {
+      state = createSurvivalState(selectedPalette, activeRoster, playerName, selectedHeroId);
+      audio.setBgmTrack('battle');
     }
+    lastStickCanShop = false;
 
     menuOpen = false;
     lobbyOpen = false;
@@ -723,6 +719,15 @@ const localPeer = new LocalPeerManager({
   },
   onStickSnapshot(snap: StickPersonalSnapshot) {
     if (localPeer.localRole !== 'stick') return;
+    if (snap.gameMode === 'survival' && (state.mode !== 'survival' || !state.survival)) {
+      const activeRoster = localPeer.lobbyPlayers
+        .filter((pl) => pl.role !== 'monitor')
+        .map((pl) => ({ id: pl.id, paletteIndex: pl.paletteIndex, name: pl.name, heroId: pl.heroId || 'bima' }));
+      state = createSurvivalState(selectedPalette, activeRoster, playerName, selectedHeroId);
+    } else if (snap.gameMode === 'brawl') {
+      state.mode = 'brawl';
+    }
+    lastStickCanShop = !!snap.canShop;
     const p = getLocalPlayer();
     if (p) {
       if (snap.x !== undefined) p.x = snap.x;
@@ -1446,7 +1451,12 @@ function toggleWarung(): void {
     return;
   }
 
-  if (!canOpenWarung(state, player)) {
+  const canOpen =
+    localPeer.localRole === 'stick'
+      ? lastStickCanShop || canOpenWarung(state, player)
+      : canOpenWarung(state, player);
+
+  if (!canOpen) {
     if (localPeer.localRole === 'stick') {
       showStickToast('🏪 Dekati Pos Warkop atau tunggu Jeda Wave!', true);
       haptic.damage();
@@ -2334,6 +2344,9 @@ const touchHandle = bindTouchControls(
   () => {
     if (state.mode === 'survival') {
       toggleWarung();
+    } else if (localPeer.localRole === 'stick') {
+      showStickToast('🏪 Warung hanya aktif di mode Survival!', true);
+      haptic.damage();
     } else {
       const player = getLocalPlayer();
       if (player) {
