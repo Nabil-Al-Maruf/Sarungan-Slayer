@@ -124,7 +124,8 @@ export function bindTouchControls(
   const joyKnob = document.getElementById('joystick-knob');
 
   if (joyZone && joyBase && joyKnob) {
-    let activePointerId: number | null = null;
+    let activeTouchId: number | null = null;
+    let activeMousePointerId: number | null = null;
     let centerX = 0;
     let centerY = 0;
     let maxRadius = 46;
@@ -157,7 +158,8 @@ export function bindTouchControls(
     };
 
     const resetStick = () => {
-      activePointerId = null;
+      activeTouchId = null;
+      activeMousePointerId = null;
       inDeadzone = true;
       joyZone.classList.remove('active');
       joyKnob.style.transform = 'translate(0px, 0px)';
@@ -171,70 +173,20 @@ export function bindTouchControls(
       maxRadius = Math.max(32, rect.width * 0.42);
     };
 
-    const joyStart = (clientX: number, clientY: number, id: number) => {
-      onTouchActive?.();
-      if (activePointerId !== null && activePointerId !== id) return;
-      activePointerId = id;
-      joyZone.classList.add('active');
-      haptic.stick();
-      setupStickMetrics();
-      updateStick(clientX, clientY);
-    };
-
-    const joyMove = (clientX: number, clientY: number, id: number) => {
-      if (activePointerId !== id) return;
-      updateStick(clientX, clientY);
-    };
-
-    const joyEnd = (id: number) => {
-      if (activePointerId !== id) return;
-      resetStick();
-    };
-
-    // 1. Pointer Events (Desktop Mouse, Stylus & Pointer Devices)
-    joyZone.addEventListener('pointerdown', (e: PointerEvent) => {
-      e.preventDefault();
-      try {
-        joyZone.setPointerCapture(e.pointerId);
-      } catch {
-        // Safe ignore
-      }
-      joyStart(e.clientX, e.clientY, e.pointerId);
-    });
-
-    window.addEventListener(
-      'pointermove',
-      (e: PointerEvent) => {
-        if (activePointerId === e.pointerId) {
-          joyMove(e.clientX, e.clientY, e.pointerId);
-        }
-      },
-      { passive: true }
-    );
-
-    const onPointerUp = (e: PointerEvent) => {
-      if (activePointerId === e.pointerId) {
-        try {
-          if (joyZone.hasPointerCapture(e.pointerId)) {
-            joyZone.releasePointerCapture(e.pointerId);
-          }
-        } catch {
-          // Safe ignore
-        }
-        joyEnd(e.pointerId);
-      }
-    };
-    window.addEventListener('pointerup', onPointerUp, { passive: true });
-    window.addEventListener('pointercancel', onPointerUp, { passive: true });
-    joyZone.addEventListener('lostpointercapture', () => resetStick());
-
-    // 2. Touch Events (Native Multi-Touch Guarantee on Mobile)
+    // 1. Native Touch Events (Mobile Android / iOS — zero conflict with PointerEvents!)
     joyZone.addEventListener(
       'touchstart',
       (e: TouchEvent) => {
         e.preventDefault();
+        onTouchActive?.();
+        if (activeTouchId !== null) return;
         const t = e.changedTouches[0];
-        if (t) joyStart(t.clientX, t.clientY, t.identifier);
+        if (!t) return;
+        activeTouchId = t.identifier;
+        joyZone.classList.add('active');
+        haptic.stick();
+        setupStickMetrics();
+        updateStick(t.clientX, t.clientY);
       },
       { passive: false }
     );
@@ -242,29 +194,78 @@ export function bindTouchControls(
     window.addEventListener(
       'touchmove',
       (e: TouchEvent) => {
-        if (activePointerId === null) return;
+        if (activeTouchId === null) return;
         for (let i = 0; i < e.touches.length; i++) {
           const t = e.touches[i];
-          if (t.identifier === activePointerId) {
-            joyMove(t.clientX, t.clientY, t.identifier);
+          if (t.identifier === activeTouchId) {
+            e.preventDefault();
+            updateStick(t.clientX, t.clientY);
             break;
           }
         }
       },
-      { passive: true }
+      { passive: false }
     );
 
     const onTouchEnd = (e: TouchEvent) => {
-      if (activePointerId === null) return;
+      if (activeTouchId === null) return;
       for (let i = 0; i < e.changedTouches.length; i++) {
-        if (e.changedTouches[i].identifier === activePointerId) {
-          joyEnd(e.changedTouches[i].identifier);
+        if (e.changedTouches[i].identifier === activeTouchId) {
+          resetStick();
           break;
         }
       }
     };
     window.addEventListener('touchend', onTouchEnd, { passive: true });
     window.addEventListener('touchcancel', onTouchEnd, { passive: true });
+
+    // 2. Pointer Events (Desktop Mouse / Stylus ONLY — never intercepts touch!)
+    joyZone.addEventListener('pointerdown', (e: PointerEvent) => {
+      if (e.pointerType === 'touch') return;
+      e.preventDefault();
+      onTouchActive?.();
+      if (activeMousePointerId !== null) return;
+      activeMousePointerId = e.pointerId;
+      try {
+        joyZone.setPointerCapture(e.pointerId);
+      } catch {
+        // Safe ignore
+      }
+      joyZone.classList.add('active');
+      haptic.stick();
+      setupStickMetrics();
+      updateStick(e.clientX, e.clientY);
+    });
+
+    window.addEventListener(
+      'pointermove',
+      (e: PointerEvent) => {
+        if (e.pointerType === 'touch') return;
+        if (activeMousePointerId === e.pointerId) {
+          updateStick(e.clientX, e.clientY);
+        }
+      },
+      { passive: true }
+    );
+
+    const onPointerUp = (e: PointerEvent) => {
+      if (e.pointerType === 'touch') return;
+      if (activeMousePointerId === e.pointerId) {
+        try {
+          if (joyZone.hasPointerCapture(e.pointerId)) {
+            joyZone.releasePointerCapture(e.pointerId);
+          }
+        } catch {
+          // Safe ignore
+        }
+        resetStick();
+      }
+    };
+    window.addEventListener('pointerup', onPointerUp, { passive: true });
+    window.addEventListener('pointercancel', onPointerUp, { passive: true });
+    joyZone.addEventListener('lostpointercapture', () => {
+      if (activeMousePointerId !== null) resetStick();
+    });
 
     // Window lifecycle safety
     window.addEventListener('blur', resetStick);
@@ -332,12 +333,14 @@ export function bindTouchControls(
     };
 
     btn.addEventListener('pointerdown', (e: PointerEvent) => {
+      if (e.pointerType === 'touch') return;
       e.preventDefault();
       boundPointerId = e.pointerId;
       startPress();
     });
 
     btn.addEventListener('pointerup', (e: PointerEvent) => {
+      if (e.pointerType === 'touch') return;
       e.preventDefault();
       if (boundPointerId === null || boundPointerId === e.pointerId) {
         endPress();
@@ -345,12 +348,14 @@ export function bindTouchControls(
     });
 
     btn.addEventListener('pointercancel', (e: PointerEvent) => {
+      if (e.pointerType === 'touch') return;
       if (boundPointerId === null || boundPointerId === e.pointerId) {
         endPress();
       }
     });
 
     btn.addEventListener('pointerleave', (e: PointerEvent) => {
+      if (e.pointerType === 'touch') return;
       if (boundPointerId === e.pointerId) {
         endPress();
       }
