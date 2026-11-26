@@ -1819,7 +1819,7 @@ window.addEventListener('keydown', (e) => {
       cycleSlashElement(player);
     }
   }
-  if (e.code === 'KeyE' && !menuOpen && !lobbyOpen && !storyDialogueOpen && state.mode !== 'survival') {
+  if (e.code === 'KeyE' && !menuOpen && !lobbyOpen && !storyDialogueOpen && state.mode === 'sandbox') {
     const player = getLocalPlayer();
     if (player) {
       e.preventDefault();
@@ -1880,12 +1880,33 @@ function cycleSlashElement(player: PlayerState): void {
     const chosen = survivalCycle[nextIdx];
     player.slashElement = chosen;
     player.slashElementLevel = chosen === 'none' ? 1 : (player.unlockedElements?.[chosen] || 1);
-  } else {
+  } else if (state.mode === 'sandbox') {
     const elements: SlashElement[] = ['none', 'petir', 'api', 'badai', 'suci'];
     const curIdx = elements.indexOf(player.slashElement || 'none');
     const nextIdx = (curIdx + 1) % elements.length;
     player.slashElement = elements[nextIdx];
     player.slashElementLevel = player.slashElement === 'none' ? 1 : Math.min(3, Math.max(1, player.slashElementLevel || 1));
+  } else {
+    haptic.tap();
+    const msg =
+      state.mode === 'brawl'
+        ? 'Elemen Hero di Brawl sudah paten sesuai Pendekar!'
+        : 'Upgrade & Ganti Elemen bebas hanya di Pelatihan Dojo!';
+    if (localPeer.localRole === 'stick') {
+      showStickToast(msg, true);
+    } else {
+      state.floatingTexts.push({
+        x: player.x,
+        y: player.y - player.z - 48,
+        vy: -40,
+        text: msg,
+        color: '#f87171',
+        scale: 1.05,
+        life: 1.2,
+        maxLife: 1.2,
+      });
+    }
+    return;
   }
   haptic.tap();
   audio.unlock();
@@ -1921,14 +1942,18 @@ function cycleSlashElement(player: PlayerState): void {
 }
 
 function upgradeSlashElementLevel(player: PlayerState): void {
-  if (state.mode === 'survival') {
+  if (state.mode !== 'sandbox') {
+    const msg =
+      state.mode === 'survival'
+        ? 'Upgrade Level Elemen ing Warung Warkop!'
+        : 'Upgrade Bebas hanya di Pelatihan Dojo!';
     state.floatingTexts.push({
       x: player.x,
       y: player.y - player.z - 48,
       vy: -40,
-      text: 'Upgrade Level Elemen ing Warung Warkop!',
+      text: msg,
       color: '#fbbf24',
-      scale: 1.1,
+      scale: 1.05,
       life: 1.2,
       maxLife: 1.2,
     });

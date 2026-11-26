@@ -109,6 +109,8 @@ assert(html.includes('id="stick-toast"'), 'Stick controller toast banner exists 
 assert(css.includes('@media (max-width: 960px) and (orientation: portrait)'), 'Portrait mobile screens trigger mandatory landscape overlay');
 assert(ts.includes('localPeer.sendBuyItem(itemId)'), 'Client/Stick Warung purchases sync authoritatively to Host');
 assert(ts.includes('if (snapAccum >= FIXED_DT || state.status !== \'playing\')'), 'Host broadcasts network snapshots at full 60Hz');
+assert(ts.includes("state.mode === 'sandbox'") && ts.includes('Upgrade Bebas hanya di Pelatihan Dojo!'), 'Free element upgrades are strictly restricted to Pelatihan Dojo (sandbox)');
+assert(ts.includes("} else if (state.mode === 'sandbox') {\n    const elements: SlashElement[]"), 'Free element cycling is strictly restricted to Pelatihan Dojo (sandbox)');
 assert(ts.includes('shopOverlay?.addEventListener(\'click\''), 'shopOverlay backdrop click listener wired in main.ts');
 assert(ts.includes('pauseOverlay?.addEventListener(\'click\''), 'pauseOverlay backdrop click listener wired in main.ts');
 assert(ts.includes('lobbyOverlay?.addEventListener(\'click\''), 'lobbyOverlay backdrop click listener wired in main.ts');

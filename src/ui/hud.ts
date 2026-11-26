@@ -266,7 +266,7 @@ export class HudController {
       }
     }
 
-    // Active Slash Element Pill
+    // Active Slash Element Pill (only interactive in Dojo/Survival; hidden in Story)
     const elem = player.slashElement || 'none';
     const elemLv = player.slashElementLevel || 1;
     const elemInfoMap: Record<string, { icon: string; name: string }> = {
@@ -278,12 +278,21 @@ export class HudController {
     };
     const currentElemInfo = elemInfoMap[elem] || elemInfoMap.none;
     const elemTxt = `${currentElemInfo.icon} ${currentElemInfo.name}`;
+    const showElemPill = state.mode !== 'story';
+    if (this.elementPillEl) {
+      this.elementPillEl.classList.toggle('hidden', !showElemPill);
+    }
+    const elemArcBtn = document.getElementById('vbtn-elem-arc');
+    const elemStickBtn = document.getElementById('vbtn-stick-elem');
+    const allowElemSwitch = state.mode === 'sandbox' || state.mode === 'survival';
+    elemArcBtn?.classList.toggle('hidden', !allowElemSwitch);
+    elemStickBtn?.classList.toggle('hidden', !allowElemSwitch);
     if (this.lastElementText !== elemTxt) {
       this.lastElementText = elemTxt;
       if (this.elementIconEl) this.elementIconEl.textContent = currentElemInfo.icon;
       if (this.elementNameEl) this.elementNameEl.textContent = currentElemInfo.name;
       if (this.elementPillEl) {
-        this.elementPillEl.className = `element-pill elem-${elem}`;
+        this.elementPillEl.className = `element-pill elem-${elem}${showElemPill ? '' : ' hidden'}`;
       }
     }
   }
