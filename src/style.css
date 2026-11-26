@@ -1761,7 +1761,8 @@ body {
 .act-btn {
   position: absolute;
   width: 28%;
-  height: 34%;
+  aspect-ratio: 1 / 1;
+  height: auto;
   border-radius: 50%;
   box-shadow: 0 4px 0 var(--border-ink);
   line-height: 1.02;
@@ -1782,7 +1783,8 @@ body {
   right: 2%;
   bottom: 2%;
   width: 42%;
-  height: 51%;
+  aspect-ratio: 1 / 1;
+  height: auto;
   border-radius: 50%;
   background: linear-gradient(135deg, #dc2626, #f97316);
   box-shadow: 0 0 14px rgba(239, 68, 68, 0.4), 0 5px 0 var(--border-ink);
@@ -3822,8 +3824,9 @@ body {
   position: absolute;
   left: 19%;
   top: 2%;
-  width: 16%;
-  height: 21%;
+  width: 17%;
+  aspect-ratio: 1 / 1;
+  height: auto;
   border-radius: 50%;
   background: rgba(14, 165, 233, 0.35);
   border: 2px solid #38bdf8;
@@ -3841,18 +3844,20 @@ body {
 
 .app-shell.touch-active .act-shop-mini {
   display: flex;
-  left: 2%;
+  left: 0%;
   top: 2%;
   width: 16%;
-  height: 21%;
+  aspect-ratio: 1 / 1;
+  height: auto;
 }
 
 .app-shell.touch-active .act-elem-mini {
   display: flex;
-  left: 19%;
+  left: 18%;
   top: 2%;
   width: 16%;
-  height: 21%;
+  aspect-ratio: 1 / 1;
+  height: auto;
 }
 
 .app-shell.stick-controller-mode .act-shop-mini,
@@ -4767,5 +4772,48 @@ body {
   .lobby-card .profile-bar .skin-picker-row {
     width: 100%;
     justify-content: center;
+  }
+
+  /* Stick HP Controller HUD Bar: wrap cleanly into 2 rows on narrow screens so HP bar never crushes and buttons never clip */
+  .app-shell.stick-controller-mode .stick-hud-bar {
+    flex-wrap: wrap;
+    row-gap: 6px;
+    column-gap: 6px;
+    padding: 6px 8px;
+  }
+
+  .app-shell.stick-controller-mode .stick-hud-left {
+    flex: 0 0 auto;
+    gap: 6px;
+  }
+
+  .app-shell.stick-controller-mode .stick-badge {
+    width: 30px;
+    height: 30px;
+    font-size: 11px;
+  }
+
+  .app-shell.stick-controller-mode .stick-hud-mid {
+    flex: 1 1 120px;
+    min-width: 110px;
+    gap: 5px;
+  }
+
+  .app-shell.stick-controller-mode .stick-hud-right {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 4px;
+  }
+
+  .app-shell.stick-controller-mode .stick-stat-pill {
+    padding: 2px 6px;
+    font-size: 9px;
+  }
+
+  .app-shell.stick-controller-mode .stick-action-btn {
+    padding: 5px 8px;
+    font-size: 10px;
+    border-radius: 8px;
   }
 }

@@ -119,6 +119,8 @@ assert(css.includes('@media (max-width: 768px) {\n  .brawl-scoreboard-strip') &&
 assert(css.includes('.app-shell.touch-active .sandbox-skills-bar {\n  top: 68px;\n  bottom: auto;'), 'Sandbox skills bar moves below HUD when touch controls are active to prevent overlap');
 assert(css.includes('.app-shell.touch-active .brawl-scoreboard-strip {\n  max-width: calc(100% - 380px);'), 'Brawl scoreboard clears virtual touch controls on wide screens');
 assert(css.includes('@media (max-width: 720px) {\n  .desktop-hints {\n    display: none !important;'), 'HUD wraps cleanly and hides desktop hints on narrow screens');
+assert(css.includes('.act-btn {\n  position: absolute;\n  width: 28%;\n  aspect-ratio: 1 / 1;\n  height: auto;'), 'Virtual controller action buttons maintain 1:1 circular aspect ratio');
+assert(css.includes('.app-shell.stick-controller-mode .stick-hud-bar {\n    flex-wrap: wrap;'), 'Stick controller HUD bar wraps cleanly on narrow screens without clipping');
 
 console.log('\n=======================================');
 console.log('ALL MENU & OVERLAY VERIFICATION TESTS PASSED!');

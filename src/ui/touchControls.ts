@@ -63,10 +63,10 @@ export function bindTouchControls(
     } else if (mode === 'off') {
       active = false;
     } else {
-      // 'auto': If device supports touch, or is on mobile/tablet dimensions (<= 1024px), enable touch controls!
+      // 'auto': Enable automatically on touch devices or narrow mobile viewports (<= 900px)
       const hasTouch = detectTouchDevice();
-      const isMobileOrTablet = window.innerWidth <= 1024 || window.innerHeight <= 768;
-      active = hasTouch || isMobileOrTablet;
+      const isNarrowMobile = window.innerWidth <= 900;
+      active = hasTouch || isNarrowMobile;
     }
 
     appEl.classList.toggle('touch-active', active);
