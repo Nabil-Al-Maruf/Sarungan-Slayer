@@ -434,6 +434,52 @@ export interface BrawlState {
   };
 }
 
+export interface ComboUltParticipant {
+  playerId: string;
+  name: string;
+  heroId: HeroId;
+  paletteIndex: number;
+  element: SlashElement;
+}
+
+export interface ComboUltState {
+  /** Number of synchronized players (2..6) */
+  tier: 2 | 3 | 4 | 5 | 6;
+  comboKey: string;
+  title: string;
+  subtitle: string;
+  tierLabel: string;
+  primaryColor: string;
+  secondaryColor: string;
+  visualPattern:
+    | 'dual_clash'
+    | 'trinity_prism'
+    | 'quartet_cross'
+    | 'penta_star'
+    | 'hexad_shatter';
+  participants: ComboUltParticipant[];
+  /** Total elapsed time since activation */
+  elapsed: number;
+  /** Cut-in cinematic freeze duration (seconds) */
+  cutinDuration: number;
+  /** Total duration (cut-in + arena finisher animation) */
+  totalDuration: number;
+  /** Whether the finisher impact burst has already executed */
+  impactApplied: boolean;
+  /** Center of finisher burst in arena coordinates */
+  centerX: number;
+  centerY: number;
+}
+
+export interface UltSyncEntry {
+  playerId: string;
+  name: string;
+  heroId: HeroId;
+  paletteIndex: number;
+  element: SlashElement;
+  pressedAt: number;
+}
+
 export interface GameState {
   mode: 'sandbox' | 'story' | 'survival' | 'brawl';
   theme: MapTheme;
@@ -471,4 +517,8 @@ export interface GameState {
   nextEntityId: number;
   crateSpawnTimer: number;
   enemyRespawnTimer: number;
+  /** Recent ultimate activations for detecting simultaneous Mabar Co-op Combo Ultimates */
+  ultSyncBuffer?: UltSyncEntry[];
+  /** Active Wuthering-Waves style Co-op Team Combo Ultimate state */
+  comboUlt?: ComboUltState;
 }

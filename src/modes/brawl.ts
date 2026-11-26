@@ -5,6 +5,7 @@ import {
   PROJ_COOLDOWN,
 } from '../core/constants';
 import { getHeroDef } from '../core/heroes';
+import { registerUltActivationForCombo, stepComboUlt } from '../core/comboUlt';
 import type {
   BrawlPlatform,
   BrawlStageTheme,
@@ -365,6 +366,23 @@ export function stepBrawl(
     return;
   }
 
+  // Co-op Synchronized Combo Ultimate (Wuthering Waves Cut-In Freeze + Live Upgrade for 3-6 players!)
+  if (state.comboUlt) {
+    if (!state.comboUlt.impactApplied) {
+      for (const pl of state.players) {
+        if ((pl.brawlStocks ?? 0) <= 0) continue;
+        const pInp = inputs[pl.id];
+        if (pInp?.ultPressed && pl.ult >= pl.maxUlt) {
+          pl.ult = 0;
+          registerUltActivationForCombo(state, pl);
+        }
+      }
+    }
+    if (stepComboUlt(state, dt)) {
+      return;
+    }
+  }
+
   state.time += dt;
 
   // Match timer
@@ -606,22 +624,29 @@ export function stepBrawl(
 
     // Ultimate trigger
     if (inp.ultPressed && player.ult >= player.maxUlt && player.ultActiveTimer <= 0 && !inHitstun) {
-      player.ultActiveTimer = 3.2;
-      player.ultTickTimer = 0.1;
-      player.invulnTimer = 3.2;
-      state.soundQueue.push('ult_start');
-      state.shakeTimer = 0.16;
-      state.shakeIntensity = 2.6;
-      state.floatingTexts.push({
-        x: player.x,
-        y: player.y - 65,
-        vy: -55,
-        text: `⚡ JURUS: ${hDef.ultName.toUpperCase()}!`,
-        color: hDef.accentColor,
-        scale: 1.45,
-        life: 1.8,
-        maxLife: 1.8,
-      });
+      const comboTriggered = registerUltActivationForCombo(state, player);
+      if (comboTriggered) {
+        player.ult = 0;
+        player.ultActiveTimer = 0.5;
+        player.invulnTimer = Math.max(player.invulnTimer, comboTriggered.totalDuration + 0.3);
+      } else {
+        player.ultActiveTimer = 3.2;
+        player.ultTickTimer = 0.1;
+        player.invulnTimer = 3.2;
+        state.soundQueue.push('ult_start');
+        state.shakeTimer = 0.16;
+        state.shakeIntensity = 2.6;
+        state.floatingTexts.push({
+          x: player.x,
+          y: player.y - 65,
+          vy: -55,
+          text: `⚡ JURUS: ${hDef.ultName.toUpperCase()}!`,
+          color: hDef.accentColor,
+          scale: 1.45,
+          life: 1.8,
+          maxLife: 1.8,
+        });
+      }
     }
 
     // Clean afterimages

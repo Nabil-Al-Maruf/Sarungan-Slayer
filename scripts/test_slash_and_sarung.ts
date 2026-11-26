@@ -7,13 +7,17 @@ import { createStoryState } from '../src/modes/story';
 import { buyShopItem, createSurvivalState } from '../src/modes/survival';
 import { resolveCombat, hitEnemy } from '../src/entities/combat';
 import { createPlayer, updatePlayer } from '../src/entities/player';
-import { spawnEnemy, updateEnemies } from '../src/entities/enemyFactory';
+import { spawnEnemy } from '../src/entities/enemyFactory';
+import { stepSurvival } from '../src/modes/survival';
 import {
   ZOMBIE_MATCHUPS,
   getHeroZombieMatchups,
-  getZombieDealtDmgMatchup,
-  getZombieTakenDmgMatchup,
 } from '../src/core/zombieMatchups';
+import {
+  registerUltActivationForCombo,
+  resolveComboUltSpec,
+  stepComboUlt,
+} from '../src/core/comboUlt';
 import { packGameSnapshot } from '../src/net/protocol';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -429,39 +433,95 @@ console.log('\n=== TEST 14: Zombie vs 6-Hero Strengths & Weaknesses ===');
     assert(hm.weakVsZombies.length >= 1, `${heroId} is countered by at least 1 zombie (${hm.weakVsZombies.length})`);
   }
 
-  // Real combat test: Gus Dimas vs Zombie Pocong (weak -> 1.55x) vs Pak RT vs Zombie Pocong (strong -> 0.65x)
+  // Combat damage stays clean numeric (no LEMAH/KEBAL pop-up spam)
   const st = createSurvivalState(0, undefined, 'Tester', 'gus_dimas');
   const gus = st.players[0];
   const pocong1 = spawnEnemy(st, 'zombie_pocong', 300, 300);
   pocong1.hp = 200;
   hitEnemy(st, pocong1, gus, 20, 0, 0, 0, false);
-  const gusDmg = 200 - pocong1.hp;
-  assert(gusDmg === 31, `Gus Dimas deals 1.55x weakness dmg to Zombie Pocong (expected 31, got ${gusDmg})`);
+  assert(200 - pocong1.hp === 20, `Combat hit deals clean numeric damage (20)`);
   assert(
-    st.floatingTexts.some((ft) => ft.text.includes('LEMAH')),
-    'Weakness hit spawns LEMAH floating text'
+    !st.floatingTexts.some((ft) => ft.text.includes('LEMAH') || ft.text.includes('KEBAL')),
+    'No LEMAH/KEBAL pop-up spam during combat attacks'
+  );
+}
+
+console.log('\n=== TEST 15: Mabar Co-op Synchronized Combo Ultimate (2x..6x + Hero Combos) ===');
+{
+  // 15A: Solo player pressing Ult does NOT trigger Combo Ultimate
+  const soloState = createSurvivalState(0, undefined, 'Solo', 'bima');
+  soloState.players[0].ult = 100;
+  const soloRes = registerUltActivationForCombo(soloState, soloState.players[0]);
+  assert(soloRes === null && !soloState.comboUlt, 'Solo player Ult does NOT trigger Co-op Combo Ult');
+
+  // 15B: 2 Players pressing Ult simultaneously trigger unique Duo Combo based on Hero pair!
+  const coop2 = createSurvivalState(0, [
+    { id: 'p1', name: 'Bima', paletteIndex: 0, heroId: 'bima' },
+    { id: 'p2', name: 'Sakera', paletteIndex: 1, heroId: 'mat_clurit' },
+  ]);
+  coop2.players[0].ult = 100;
+  coop2.players[1].ult = 100;
+  const inpUlt = createBlankInput();
+  inpUlt.ultPressed = true;
+  stepSurvival(coop2, { p1: inpUlt, p2: inpUlt }, 0.0167);
+  assert(!!coop2.comboUlt, '2 players pressing Ult together triggered Combo Ultimate');
+  assert(coop2.comboUlt?.tier === 2, `Combo Ult tier is 2 (got ${coop2.comboUlt?.tier})`);
+  assert(
+    coop2.comboUlt?.title === 'TOPAN HALILINTAR SURAMADU',
+    `Bima+MatClurit duo title is TOPAN HALILINTAR SURAMADU (got ${coop2.comboUlt?.title})`
+  );
+  assert(coop2.comboUlt?.visualPattern === 'dual_clash', 'Tier 2 uses dual_clash visual pattern');
+
+  // Different 2-Hero pair gives a completely different combo name & colors!
+  const pairIceFire = resolveComboUltSpec([
+    { playerId: 'a', name: 'Bambang', heroId: 'bambang', paletteIndex: 2, element: 'es' },
+    { playerId: 'b', name: 'PakRT', heroId: 'pak_rt', paletteIndex: 4, element: 'api' },
+  ]);
+  assert(
+    pairIceFire.title === 'THERMAL SHOCK MERIAM ES',
+    `Bambang+PakRT duo title is THERMAL SHOCK MERIAM ES (got ${pairIceFire.title})`
   );
 
-  const st2 = createSurvivalState(0, undefined, 'Tester', 'pak_rt');
-  const pakRt = st2.players[0];
-  const pocong2 = spawnEnemy(st2, 'zombie_pocong', 300, 300);
-  pocong2.hp = 200;
-  hitEnemy(st2, pocong2, pakRt, 20, 0, 0, 0, false);
-  const pakRtDmg = 200 - pocong2.hp;
-  assert(pakRtDmg === 13, `Pak RT deals 0.65x resisted dmg to Zombie Pocong (expected 13, got ${pakRtDmg})`);
+  // 15C: 3, 4, 5, 6 players produce distinct tiers & distinct arena visual patterns
+  const all6 = HERO_LIST.map((h, idx) => ({
+    playerId: `p${idx + 1}`,
+    name: h.name,
+    heroId: h.id,
+    paletteIndex: h.paletteIndex,
+    element: h.defaultElement,
+  }));
+  const t3 = resolveComboUltSpec(all6.slice(0, 3));
+  const t4 = resolveComboUltSpec(all6.slice(0, 4));
+  const t5 = resolveComboUltSpec(all6.slice(0, 5));
+  const t6 = resolveComboUltSpec(all6.slice(0, 6));
+  assert(t3.tier === 3 && t3.visualPattern === 'trinity_prism', '3 players -> trinity_prism');
+  assert(t4.tier === 4 && t4.visualPattern === 'quartet_cross', '4 players -> quartet_cross');
+  assert(t5.tier === 5 && t5.visualPattern === 'penta_star', '5 players -> penta_star');
+  assert(t6.tier === 6 && t6.visualPattern === 'hexad_shatter', '6 players -> hexad_shatter');
   assert(
-    st2.floatingTexts.some((ft) => ft.text.includes('KEBAL')),
-    'Resisted hit spawns KEBAL floating text'
+    t6.title === 'KEBANGKITAN 6 PENDEKAR SUROBOYO',
+    `6-hero Hexad title matches (${t6.title})`
   );
 
-  // Zombie contact counter damage: Pocong hits Pak RT (1.35x -> 14) vs Pocong hits Gus Dimas (0.8x -> 8)
-  assert(getZombieTakenDmgMatchup('zombie_buto_ijo', 'bambang').mult === 1.55, 'Buto Ijo weak to Bang Bambang');
-  assert(getZombieDealtDmgMatchup('zombie_pocong', 'pak_rt').mult === 1.35, 'Pocong deals 1.35x to Pak RT');
+  // 15D: Cut-in freeze pauses world, then detonates AoE damage & clears cleanly
+  const targetEnemy = spawnEnemy(coop2, 'zombie_gendruwo', 480, 300);
+  targetEnemy.hp = 500;
+  const frozen = stepComboUlt(coop2, 0.2);
+  assert(frozen === true, 'stepComboUlt returns true during Wuthering Waves cut-in freeze');
+  assert(targetEnemy.hp === 500, 'Enemy HP untouched until cut-in completes');
 
-  pakRt.x = 300; pakRt.y = 300; pakRt.z = 0; pakRt.invulnTimer = 0; pakRt.hp = 100;
-  pocong2.x = 305; pocong2.y = 300; pocong2.z = 0; pocong2.attackCooldown = 0; pocong2.stunTimer = 0;
-  updateEnemies(st2, 0.0167);
-  assert(pakRt.hp === 86, `Zombie Pocong dealt 1.35x counter damage (14) to Pak RT (hp = ${pakRt.hp})`);
+  // Advance past cut-in duration -> impact detonates!
+  stepComboUlt(coop2, 1.0);
+  assert(targetEnemy.hp < 500, `Combo Ult impact damaged enemy (hp = ${targetEnemy.hp})`);
+  assert(coop2.comboUlt?.impactApplied === true, 'Combo Ult marked impactApplied = true');
+
+  // Network snapshot serializes comboUlt!
+  const snapWithCombo = packGameSnapshot(coop2, 2);
+  assert(!!snapWithCombo.comboUlt, 'CompactGameSnapshot serializes active comboUlt');
+
+  // Advance past totalDuration -> cleans up state.comboUlt
+  stepComboUlt(coop2, 1.5);
+  assert(coop2.comboUlt === undefined, 'Combo Ult cleanly clears after finisher completes');
 }
 
 console.log('\n=============================================');

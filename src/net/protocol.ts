@@ -1,4 +1,5 @@
 import type {
+  ComboUltState,
   GameState,
   HeroId,
   PlayerInput,
@@ -88,6 +89,7 @@ export interface CompactGameSnapshot {
   projectiles?: Array<{ x: number; y: number; kind: string; color: string; radius: number }>;
   sounds: SoundEvent[];
   shakeIntensity: number;
+  comboUlt?: ComboUltState;
 }
 
 export interface StickPersonalSnapshot {
@@ -226,5 +228,6 @@ export function packGameSnapshot(state: GameState, seq: number): CompactGameSnap
     projectiles,
     sounds,
     shakeIntensity: state.shakeIntensity,
+    comboUlt: state.comboUlt,
   };
 }

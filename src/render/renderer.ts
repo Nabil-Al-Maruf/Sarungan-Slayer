@@ -15,6 +15,7 @@ import type {
 import { TOWER_TIER_NAME } from '../modes/survival';
 import { drawTopDownMapGround, drawTopDownObstacle } from './backgrounds';
 import { drawCrate, drawEnemy, drawPickup, drawPlayer } from './characterRig';
+import { drawComboUltArenaFinisher, drawComboUltCutIn } from './comboUltCutin';
 
 const enum RenderType {
   OBSTACLE = 1,
@@ -301,6 +302,12 @@ export function renderGame(
       ctx.fillText(surv.mapBannerText, VIRTUAL_WIDTH * 0.5, 146);
       ctx.restore();
     }
+  }
+
+  // Co-op Synchronized Team Ultimate (Arena Finisher + Wuthering Waves Cut-In Scene)
+  if (state.comboUlt) {
+    drawComboUltArenaFinisher(ctx, state);
+    drawComboUltCutIn(ctx, state);
   }
 
   ctx.restore();

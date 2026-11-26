@@ -498,6 +498,7 @@ const localPeer = new LocalPeerManager({
     state.status = snap.status;
     state.koCount = snap.koCount;
     state.shakeIntensity = snap.shakeIntensity;
+    state.comboUlt = snap.comboUlt;
 
     if (snap.gameMode === 'brawl') {
       state.mode = 'brawl';

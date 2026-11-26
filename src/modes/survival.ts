@@ -1,4 +1,5 @@
 import { getHeroDef } from '../core/heroes';
+import { registerUltActivationForCombo, stepComboUlt } from '../core/comboUlt';
 import {
   ARENA_MAX_X,
   ARENA_MIN_X,
@@ -740,10 +741,29 @@ export function stepSurvival(
     return;
   }
 
+  // Co-op Synchronized Combo Ultimate (Wuthering Waves Cut-In Freeze + Live Upgrade for 3-6 players!)
+  const isSingleInput = 'up' in inputs;
+  if (state.comboUlt) {
+    if (!state.comboUlt.impactApplied) {
+      for (const player of state.players) {
+        if (player.knockedDown) continue;
+        const pInput = isSingleInput
+          ? (inputs as PlayerInput)
+          : (inputs as Record<string, PlayerInput>)[player.id] ?? IDLE_INPUT;
+        if (pInput.ultPressed && player.ult >= player.maxUlt) {
+          player.ult = 0;
+          registerUltActivationForCombo(state, player);
+        }
+      }
+    }
+    if (stepComboUlt(state, dt)) {
+      return;
+    }
+  }
+
   state.time += dt;
 
   // 1. Update All Players
-  const isSingleInput = 'up' in inputs;
   for (const player of state.players) {
     if (player.knockedDown) continue;
     const pInput = isSingleInput

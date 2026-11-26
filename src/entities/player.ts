@@ -19,6 +19,7 @@ import {
   ULT_MAX,
 } from '../core/constants';
 import { getHeroDef } from '../core/heroes';
+import { registerUltActivationForCombo } from '../core/comboUlt';
 import { stepTopDownPhysics } from '../core/physics';
 import type { GameState, HeroId, PlayerInput, PlayerState } from '../core/types';
 
@@ -138,9 +139,15 @@ export function updatePlayer(
     }
   }
 
-  // Ultimate Activation (Gasing, Petir, Mercon, or Naga)
+  // Ultimate Activation (Gasing, Petir, Mercon, Naga, Gempa, Selendang — or Co-op Synchronized Combo Ult!)
   if (input.ultPressed && player.ult >= player.maxUlt && player.ultActiveTimer <= 0) {
     player.ult = 0;
+    const comboTriggered = registerUltActivationForCombo(state, player);
+    if (comboTriggered) {
+      player.ultActiveTimer = 0.5;
+      player.invulnTimer = Math.max(player.invulnTimer, comboTriggered.totalDuration + 0.3);
+      return;
+    }
     const uType = player.ultType ?? 'gasing';
 
     if (uType === 'petir') {
