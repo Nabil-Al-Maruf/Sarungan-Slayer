@@ -1248,8 +1248,14 @@ function executeHeroUltTick(
   player: PlayerState,
   hDef: ReturnType<typeof getHeroDef>
 ): void {
-  const ultRadius = 150;
+  const uType = player.ultType ?? hDef.ultType ?? 'gasing';
+  const ultRadius = uType === 'naga' ? 210 : uType === 'selendang' ? 175 : uType === 'gempa' ? 185 : 150;
   state.soundQueue.push('ult_tick');
+
+  // Gus Dimas Karomah Healing tick in Brawl (+4% HP per tick)
+  if (uType === 'naga') {
+    player.hp = Math.min(player.maxHp, player.hp + 4);
+  }
 
   for (const other of state.players) {
     if (other.id === player.id || (other.brawlStocks ?? 0) <= 0 || other.invulnTimer > 0) {
@@ -1258,26 +1264,48 @@ function executeHeroUltTick(
 
     const d = Math.hypot(other.x - player.x, other.y - player.y);
     if (d < ultRadius) {
-      const tickDmg = 16 * hDef.dmgMult;
+      const isExecute = uType === 'petir' && other.hp < other.maxHp * 0.5;
+      const tickDmg = (isExecute ? 22 : 16) * hDef.dmgMult;
       other.hp = Math.max(0, other.hp - tickDmg);
-      other.hitFlashTimer = 0.16;
+      other.hitFlashTimer = uType === 'petir' ? 0.42 : uType === 'gempa' ? 0.34 : 0.18;
       other.lastHitBy = player.id;
       other.lastHitTime = state.time;
       other.isGrounded = false;
 
       const damageFactor = Math.max(1, (other.maxHp - other.hp) / 16);
+      const angOut = Math.atan2(other.y - player.y, other.x - player.x);
 
-      // Vortex pull or blast launch depending on hero
-      if (hDef.id === 'bima' || hDef.id === 'mbak_sri') {
-        // Whirlwind vortex: pull inward and spin upward
-        const ang = Math.atan2(player.y - other.y, player.x - other.x);
-        other.vx = Math.cos(ang) * 260;
+      if (uType === 'gasing') {
+        // Cak Bima: Pull inward, then blast outward on final tick
+        if (player.ultActiveTimer <= 0.25) {
+          other.vx = Math.cos(angOut) * (420 * damageFactor);
+          other.vy = -260 * damageFactor;
+        } else {
+          const angIn = Math.atan2(player.y - other.y, player.x - other.x);
+          other.vx = Math.cos(angIn) * 260;
+          other.vy = -140;
+        }
+      } else if (uType === 'selendang') {
+        // Mbak Sri: Continuous upward silk juggle toward top blast zone
+        other.vx = Math.cos(angOut) * 180;
+        other.vy = -310 * Math.min(1.8, damageFactor);
+      } else if (uType === 'gempa') {
+        // Bang Bambang: Massive horizontal seismic smash (1.4x knockback)
+        other.vx = Math.cos(angOut) * (460 * damageFactor);
+        other.vy = -220 * damageFactor;
+      } else if (uType === 'mercon') {
+        // Pak RT: Explosive skyward mortar blast
+        other.vx = Math.cos(angOut) * (300 * damageFactor);
+        other.vy = -440 * damageFactor;
+      } else if (uType === 'naga') {
+        // Gus Dimas: Long-range directional spirit pushback
+        const pushDir = player.dirX >= 0 ? 1 : -1;
+        other.vx = pushDir * (380 * damageFactor);
         other.vy = -180;
       } else {
-        // Massive radial explosion launch
-        const ang = Math.atan2(other.y - player.y, other.x - player.x);
-        other.vx = Math.cos(ang) * (360 * damageFactor);
-        other.vy = -Math.abs(Math.sin(ang)) * (340 * damageFactor) - 100;
+        // Mat Clurit (petir): Stun-lock & lightning execute burst
+        other.vx = Math.cos(angOut) * (340 * damageFactor);
+        other.vy = -240 * damageFactor;
       }
     }
   }

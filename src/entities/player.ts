@@ -163,10 +163,12 @@ export function updatePlayer(
         maxLife: 1.5,
       });
 
-      // Strike all visible enemies with balanced high-voltage lightning & electric stun
+      // Strike all visible enemies with balanced high-voltage lightning + Assassin Execute (+40% vs <50% HP)
       const activeEnemies = state.enemies.filter((e) => e.hp > 0);
       for (const e of activeEnemies) {
-        const dmg = Math.round((e.isBoss ? 225 : 175) * player.dmgMult);
+        const isExecute = e.hp < e.maxHp * 0.5;
+        const base = e.isBoss ? 225 : 175;
+        const dmg = Math.round(base * (isExecute ? 1.4 : 1.0) * player.dmgMult);
         e.hp = Math.max(0, e.hp - dmg);
         e.hitFlashTimer = 0.3;
         e.stunTimer = Math.max(e.stunTimer, 1.8); // Balanced 1.8s Electric Stun
@@ -176,9 +178,9 @@ export function updatePlayer(
           x: e.x,
           y: e.y - e.z - 45,
           vy: -60,
-          text: `⚡ -${dmg} (STUN!)`,
-          color: '#38bdf8',
-          scale: 1.15,
+          text: isExecute ? `⚡ EKSEKUSI -${dmg}!` : `⚡ -${dmg} (STUN!)`,
+          color: isExecute ? '#fde047' : '#38bdf8',
+          scale: isExecute ? 1.25 : 1.15,
           life: 1.1,
           maxLife: 1.1,
         });
@@ -310,9 +312,24 @@ export function updatePlayer(
         maxLife: 1.5,
       });
 
-      // Gus Dimas Karomah Healing Bonus (+25% Max HP)
-      const healAmt = Math.round(player.maxHp * 0.25);
-      player.hp = Math.min(player.maxHp, player.hp + healAmt);
+      // Gus Dimas Karomah Healing Bonus (+25% Max HP to self & nearby co-op allies!)
+      for (const ally of state.players) {
+        if (ally.hp <= 0 || ally.knockedDown) continue;
+        if (ally.id === player.id || Math.hypot(ally.x - player.x, ally.y - player.y) <= 260) {
+          const healAmt = Math.round(ally.maxHp * 0.25);
+          ally.hp = Math.min(ally.maxHp, ally.hp + healAmt);
+          state.floatingTexts.push({
+            x: ally.x,
+            y: ally.y - ally.z - 44,
+            vy: -45,
+            text: `✨ +${healAmt} HP KAROMAH!`,
+            color: '#34d399',
+            scale: 1.05,
+            life: 1.1,
+            maxLife: 1.1,
+          });
+        }
+      }
 
       const nagaAngle = Math.atan2(player.dirY, player.dirX);
       state.projectiles.push({
@@ -375,21 +392,28 @@ export function updatePlayer(
         if (e.hp <= 0) continue;
         const dist = Math.hypot(e.x - player.x, e.y - player.y);
         if (dist <= quakeRadius) {
-          const dmg = Math.round((e.isBoss ? 235 : 185) * player.dmgMult);
+          // Shield & Tank Breaker (+50% damage vs Bosses, Shields, Gendruwo, Buto Ijo)
+          const isArmored =
+            e.isBoss ||
+            e.kind === 'perisai_kardus' ||
+            e.kind === 'zombie_gendruwo' ||
+            e.kind === 'zombie_buto_ijo';
+          const base = e.isBoss ? 200 : 175;
+          const dmg = Math.round(base * (isArmored ? 1.5 : 1.0) * player.dmgMult);
           e.hp = Math.max(0, e.hp - dmg);
           e.hitFlashTimer = 0.32;
           e.stunTimer = Math.max(e.stunTimer, 1.6);
           const ang = Math.atan2(e.y - player.y, e.x - player.x);
-          e.vx += Math.cos(ang) * 440;
-          e.vy += Math.sin(ang) * 320;
-          e.vz = 210;
+          e.vx += Math.cos(ang) * 460;
+          e.vy += Math.sin(ang) * 340;
+          e.vz = 260;
           state.floatingTexts.push({
             x: e.x,
             y: e.y - e.z - 42,
             vy: -55,
-            text: `🌋 -${dmg}`,
-            color: '#fbbf24',
-            scale: 1.1,
+            text: isArmored ? `🌋 PECAH PERISAI -${dmg}!` : `🌋 -${dmg} (STUN!)`,
+            color: isArmored ? '#f97316' : '#fbbf24',
+            scale: isArmored ? 1.2 : 1.1,
             life: 1.0,
             maxLife: 1.0,
           });

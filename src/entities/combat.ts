@@ -159,7 +159,7 @@ export function resolveCombat(state: GameState, dt: number): void {
       player.ultActiveTimer = Math.max(0, player.ultActiveTimer - dt);
       const uType = player.ultType ?? 'gasing';
 
-      if (uType === 'gasing' || uType === 'selendang') {
+      if (uType === 'gasing') {
         player.ultTickTimer -= dt;
 
         // Suction Vacuum: Whirlwind pulls nearby enemies towards the center!
@@ -251,6 +251,68 @@ export function resolveCombat(state: GameState, dt: number): void {
                 160,
                 false
               );
+            }
+          }
+        }
+      } else if (uType === 'selendang') {
+        // Mbak Sri: 360° Silk Juggle Cyclone — lifts & suspends enemies airborne so they cannot attack back!
+        player.ultTickTimer -= dt;
+        const silkRadius = ULT_RADIUS + 30;
+
+        if (player.ultTickTimer <= 0) {
+          player.ultTickTimer = 0.15;
+          state.soundQueue.push('ult_tick');
+          for (const enemy of state.enemies) {
+            if (enemy.hp <= 0) continue;
+            const dx = enemy.x - player.x;
+            const dy = enemy.y - player.y;
+            const d = Math.hypot(dx, dy);
+            if (d <= silkRadius + enemy.radius) {
+              const nx = d > 0.1 ? dx / d : 1;
+              const ny = d > 0.1 ? dy / d : 0;
+              enemy.stunTimer = Math.max(enemy.stunTimer, 0.55); // Disrupts enemy attacks
+              hitEnemy(
+                state,
+                enemy,
+                player,
+                Math.round(16 * player.dmgMult),
+                nx * 140,
+                ny * 140,
+                185, // Continuous airborne juggle!
+                false
+              );
+            }
+          }
+          for (const crate of state.crates) {
+            if (crate.hp <= 0) continue;
+            if (Math.hypot(crate.x - player.x, crate.y - player.y) <= silkRadius + crate.radius) {
+              damageCrate(state, crate, 18);
+            }
+          }
+        }
+
+        // Final Upward Spiral Silk Launch
+        if (player.ultActiveTimer <= 0) {
+          state.soundQueue.push('slash_badai');
+          for (const enemy of state.enemies) {
+            if (enemy.hp <= 0) continue;
+            const dx = enemy.x - player.x;
+            const dy = enemy.y - player.y;
+            const d = Math.hypot(dx, dy);
+            if (d <= silkRadius + 40) {
+              const nx = d > 0.1 ? dx / d : 1;
+              const ny = d > 0.1 ? dy / d : 0;
+              hitEnemy(state, enemy, player, Math.round(52 * player.dmgMult), nx * 240, ny * 240, 290, false);
+              state.floatingTexts.push({
+                x: enemy.x,
+                y: enemy.y - enemy.z - 42,
+                vy: -55,
+                text: '💃 TERBANG!',
+                color: '#f472b6',
+                scale: 1.05,
+                life: 0.9,
+                maxLife: 0.9,
+              });
             }
           }
         }

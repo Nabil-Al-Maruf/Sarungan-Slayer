@@ -18,6 +18,7 @@ export interface HeroDef {
   projDesc: string;
   ultName: string;
   ultDesc: string;
+  ultImpactDesc: string;
   ultType: UltType;
 
   // Visual & Elemental Styles
@@ -58,6 +59,7 @@ export const HERO_DEFS: Record<HeroId, HeroDef> = {
     projDesc: 'Sabetan angin pecut lurus sing nyengat',
     ultName: 'Badai Gasing Suroboyo',
     ultDesc: 'Muter kaya gasing narik kabeh musuh ing badai',
+    ultImpactDesc: 'Menyedot semua musuh ke pusat pusaran, lalu meledakkan mentalan besar (knockback 420) di akhir!',
     ultType: 'gasing',
     slashStyle: 'sarung_whip',
     sarungStyle: 'gulung_tempur',
@@ -88,8 +90,9 @@ export const HERO_DEFS: Record<HeroId, HeroDef> = {
     weaponDesc: '4x sabetan super cepet karo damage kritis dhuwur',
     projName: 'Clurit Putar',
     projDesc: 'Lemparan clurit boomerang sing mbalik maneh',
-    ultName: 'Tebasan Kilat Sakera',
-    ultDesc: 'Dash kilat nembus kabeh musuh karo sayatan maut',
+    ultName: 'Tebasan Petir Halilintar',
+    ultDesc: 'Sambaran kilat langit berantai menyambar musuh di arena',
+    ultImpactDesc: 'Melumpuhkan musuh (Stun Listrik 1.8 detik) + Bonus Eksekusi +40% Damage ke musuh sekarat (<50% HP)!',
     ultType: 'petir',
     slashStyle: 'clurit_crescent',
     sarungStyle: 'sarung_celana',
@@ -122,6 +125,7 @@ export const HERO_DEFS: Record<HeroId, HeroDef> = {
     projDesc: 'Lemparan sandal kayu abot sing nggulingno lawan',
     ultName: 'Gempa Hantam Tunjungan',
     ultDesc: 'Lompat dhuwur terus ngantem bumi gawe gelombang seismik & stun berat',
+    ultImpactDesc: 'Pemecah Perisai (+50% Damage ke Boss & musuh berpelindung/tank) + lempar ke udara & Stun 1.6 detik!',
     ultType: 'gempa',
     slashStyle: 'tinju_shockwave',
     sarungStyle: 'lipit_jawara',
@@ -152,8 +156,9 @@ export const HERO_DEFS: Record<HeroId, HeroDef> = {
     weaponDesc: 'Tusukan tongkat dawa sing aman saka kadohan',
     projName: 'Angin Tasbih',
     projDesc: 'Gelombang suci tembus sing ndorong musuh mundur',
-    ultName: 'Hujan Bambu Runcing Gaib',
-    ultDesc: 'Udan bambu runcing gaib numpes musuh sa-arena',
+    ultName: 'Naga Barong & Bambu Suci',
+    ultDesc: 'Arwah Naga Barong menerjang menembus musuh + pulihkan HP tim',
+    ultImpactDesc: 'Menyapu mundur barisan musuh + meninggalkan jejak api suci + memulihkan +25% HP diri sendiri & kawan terdekat!',
     ultType: 'naga',
     slashStyle: 'bambu_radiant',
     sarungStyle: 'jubah_wali',
@@ -184,8 +189,9 @@ export const HERO_DEFS: Record<HeroId, HeroDef> = {
     weaponDesc: 'Kibasan sapu lidi kanggo ngusir musuh cedak',
     projName: 'Mercon Banting',
     projDesc: 'Bom petasan sing mumbul terus mbledos amba',
-    ultName: 'Meriam Karbit Raksasa',
-    ultDesc: 'Nembak meriam karbit gluduk sing mbledos sak layar',
+    ultName: 'Meriam Bazooka Karbit',
+    ultDesc: 'Nembak 3 roket artileri karbit + kawah api membara 3 detik',
+    ultImpactDesc: '3 Ledakan Area Luas + meninggalkan Kawah Api di tanah yang membakar terus-menerus & memperlambat musuh!',
     ultType: 'mercon',
     slashStyle: 'mercon_burst',
     sarungStyle: 'lipit_dinas',
@@ -218,6 +224,7 @@ export const HERO_DEFS: Record<HeroId, HeroDef> = {
     projDesc: 'Lemparan piring sambel cepet kaya frisbee',
     ultName: 'Badai Selendang Sutra',
     ultDesc: 'Pusaran pita sutra 360° kecepatan tinggi mengiris & melontarkan musuh ke udara',
+    ultImpactDesc: 'Mengangkat & menjuggle musuh terus-menerus di udara (tidak bisa menyerang balik) + lemparan spiral ke atas!',
     ultType: 'selendang',
     slashStyle: 'selendang_cyclone',
     sarungStyle: 'lilit_kebaya',

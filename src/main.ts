@@ -95,6 +95,7 @@ const menuSettingsView = document.getElementById('menu-settings-view') as HTMLDi
 const menuStoryView = document.getElementById('menu-story-view') as HTMLDivElement;
 const menuCreditsView = document.getElementById('menu-credits-view') as HTMLDivElement;
 const menuChangelogView = document.getElementById('menu-changelog-view') as HTMLDivElement;
+const menuHeroesView = document.getElementById('menu-heroes-view') as HTMLDivElement | null;
 const menuTitleHero = document.getElementById('menu-title-hero') as HTMLDivElement | null;
 const menuSideDock = document.getElementById('menu-side-dock') as HTMLDivElement | null;
 const menuFooterCredit = document.getElementById('menu-footer-credit') as HTMLDivElement | null;
@@ -1489,7 +1490,7 @@ function toggleWarung(): void {
   shopOverlay.classList.remove('hidden');
 }
 
-function showMenuView(view: 'home' | 'play' | 'settings' | 'story' | 'credits' | 'changelog'): void {
+function showMenuView(view: 'home' | 'play' | 'settings' | 'story' | 'credits' | 'changelog' | 'heroes'): void {
   const isHome = view === 'home';
   menuOverlay.classList.toggle('in-subview', !isHome);
   if (menuTitleHero) menuTitleHero.classList.toggle('hidden', !isHome);
@@ -1502,7 +1503,105 @@ function showMenuView(view: 'home' | 'play' | 'settings' | 'story' | 'credits' |
   menuStoryView.classList.toggle('hidden', view !== 'story');
   menuCreditsView.classList.toggle('hidden', view !== 'credits');
   menuChangelogView.classList.toggle('hidden', view !== 'changelog');
+  menuHeroesView?.classList.toggle('hidden', view !== 'heroes');
 }
+
+let currentDexHeroId: HeroId = 'bima';
+let heroesReturnView: 'home' | 'play' = 'home';
+
+function renderHeroEncyclopedia(heroId: HeroId): void {
+  currentDexHeroId = heroId;
+  const h = getHeroDef(heroId);
+  const uDef = ULT_DEFS[h.ultType];
+  const elemBadges: Record<SlashElement, string> = {
+    none: '⚪ STANDAR',
+    petir: '⚡ ELEMEN PETIR',
+    api: '🔥 ELEMEN API',
+    badai: '🌀 ELEMEN BADAI',
+    suci: '✨ ELEMEN SUCI',
+  };
+
+  document.querySelectorAll<HTMLButtonElement>('#hero-dex-tabs .hero-dex-tab').forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.dexHero === heroId);
+  });
+
+  const setText = (id: string, val: string) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
+  };
+  const setWidth = (id: string, pct: number) => {
+    const el = document.getElementById(id) as HTMLElement | null;
+    if (el) el.style.width = `${Math.max(12, Math.min(100, Math.round(pct)))}%`;
+  };
+
+  setText('dex-hero-avatar', h.avatar);
+  setText('dex-hero-name', h.name);
+  setText('dex-hero-archetype', h.archetype.toUpperCase());
+  setText('dex-hero-elem', elemBadges[h.defaultElement] || '⚪ STANDAR');
+  setText('dex-hero-alias', h.alias);
+  setText('dex-hero-tagline', `"${h.tagline}"`);
+
+  setWidth('dex-stat-hp', (h.maxHp / 145) * 100);
+  setText('dex-stat-hp-val', `${h.maxHp}`);
+  setWidth('dex-stat-spd', (h.moveSpeed / 255) * 100);
+  setText('dex-stat-spd-val', `${h.moveSpeed}`);
+  setWidth('dex-stat-dmg', (h.dmgMult / 1.4) * 100);
+  setText('dex-stat-dmg-val', `${h.dmgMult.toFixed(2)}x`);
+  setWidth('dex-stat-kb', (h.knockbackMult / 1.55) * 100);
+  setText('dex-stat-kb-val', `${h.knockbackMult.toFixed(2)}x`);
+
+  setText('dex-weapon-name', h.weaponName);
+  setText('dex-weapon-desc', h.weaponDesc);
+  setText('dex-sarung-style', `Sarung: ${h.sarungSilhouetteName}`);
+  setText('dex-proj-name', h.projName);
+  setText('dex-proj-desc', h.projDesc);
+  setText('dex-slash-style', `Slash: ${h.slashStyleName}`);
+
+  setText('dex-ult-icon', uDef?.icon || '🔥');
+  setText('dex-ult-name', h.ultName);
+  setText('dex-ult-desc', h.ultDesc);
+  setText('dex-ult-impact', h.ultImpactDesc);
+
+  const equipBtn = document.getElementById('btn-equip-dex-hero') as HTMLButtonElement | null;
+  if (equipBtn) {
+    const isEquipped = selectedHeroId === heroId;
+    equipBtn.textContent = isEquipped ? '✓ SEDANG DIPAKAI' : `✅ PAKAI ${h.name.toUpperCase()}`;
+  }
+}
+
+document.querySelectorAll<HTMLButtonElement>('#hero-dex-tabs .hero-dex-tab').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    audio.unlock();
+    const id = btn.dataset.dexHero as HeroId;
+    if (id) renderHeroEncyclopedia(id);
+  });
+});
+
+document.getElementById('btn-open-heroes')?.addEventListener('click', () => {
+  audio.unlock();
+  heroesReturnView = 'home';
+  renderHeroEncyclopedia(selectedHeroId);
+  showMenuView('heroes');
+});
+
+document.getElementById('btn-play-hero-info')?.addEventListener('click', () => {
+  audio.unlock();
+  heroesReturnView = 'play';
+  renderHeroEncyclopedia(selectedHeroId);
+  showMenuView('heroes');
+});
+
+document.getElementById('btn-back-home-heroes')?.addEventListener('click', () => {
+  audio.unlock();
+  showMenuView(heroesReturnView);
+});
+
+document.getElementById('btn-equip-dex-hero')?.addEventListener('click', () => {
+  audio.unlock();
+  haptic.tap();
+  selectHero(currentDexHeroId);
+  renderHeroEncyclopedia(currentDexHeroId);
+});
 
 let gfxQuality: 'low' | 'med' | 'high' =
   (localStorage.getItem(GFX_STORAGE_KEY) as 'low' | 'med' | 'high') || 'med';

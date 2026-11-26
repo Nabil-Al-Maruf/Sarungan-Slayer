@@ -112,6 +112,8 @@ assert(ts.includes('localPeer.sendBuyItem(itemId)'), 'Client/Stick Warung purcha
 assert(ts.includes('if (snapAccum >= FIXED_DT || state.status !== \'playing\')'), 'Host broadcasts network snapshots at full 60Hz');
 assert(ts.includes("state.mode === 'sandbox'") && ts.includes('Upgrade Bebas hanya di Pelatihan Dojo!'), 'Free element upgrades are strictly restricted to Pelatihan Dojo (sandbox)');
 assert(ts.includes("} else if (state.mode === 'sandbox') {\n    const elements: SlashElement[]"), 'Free element cycling is strictly restricted to Pelatihan Dojo (sandbox)');
+assert(html.includes('id="menu-heroes-view"') && html.includes('id="btn-open-heroes"'), 'Hero Encyclopedia menu and dock button exist in HTML');
+assert(ts.includes('function renderHeroEncyclopedia('), 'renderHeroEncyclopedia wired in main.ts');
 assert(ts.includes('shopOverlay?.addEventListener(\'click\''), 'shopOverlay backdrop click listener wired in main.ts');
 assert(ts.includes('pauseOverlay?.addEventListener(\'click\''), 'pauseOverlay backdrop click listener wired in main.ts');
 assert(ts.includes('lobbyOverlay?.addEventListener(\'click\''), 'lobbyOverlay backdrop click listener wired in main.ts');

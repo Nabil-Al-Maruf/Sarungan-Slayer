@@ -249,7 +249,10 @@
                 <div class="play-hero-selection-panel">
                   <div class="play-hero-header">
                     <span class="play-hero-title">⚔️ PILIH PENDEKAR:</span>
-                    <span id="play-hero-active-badge" class="play-hero-active-badge">Cak Bima • Balanced</span>
+                    <div class="play-hero-header-right">
+                      <span id="play-hero-active-badge" class="play-hero-active-badge">Cak Bima • Balanced</span>
+                      <button id="btn-play-hero-info" class="play-hero-info-btn" title="Lihat Penjelasan Lengkap 6 Hero">📖 INFO HERO</button>
+                    </div>
                   </div>
                   <div id="play-hero-picker" class="hero-picker-row play-hero-picker-row">
                     <button class="hero-card active" data-hero="bima" style="--hero-color: #ef4444" title="Cak Bima (Whip &amp; Gulung Tempur)">
@@ -647,6 +650,99 @@
               </div>
             </div>
 
+            <!-- View 5: Hero Encyclopedia / Daftar & Penjelasan 6 Pendekar -->
+            <div id="menu-heroes-view" class="menu-view scenic-subpanel subpanel-heroes hidden">
+              <div class="subpanel-header">
+                <span class="subpanel-eyebrow eyebrow-gold">📖 ENSIKLOPEDIA PENDEKAR SUROBOYO</span>
+                <h2 class="subpanel-title-lg">DAFTAR 6 HERO &amp; JURUS ULTI</h2>
+                <p class="subpanel-subtitle">Pelajari statistik, serangan khas, elemen, dan dampak Ultimate setiap pendekar</p>
+              </div>
+
+              <div class="subpanel-body">
+                <div id="hero-dex-tabs" class="hero-dex-tabs">
+                  <button class="hero-dex-tab active" data-dex-hero="bima">🧣 Bima</button>
+                  <button class="hero-dex-tab" data-dex-hero="mat_clurit">🗡️ Sakera</button>
+                  <button class="hero-dex-tab" data-dex-hero="bambang">🥊 Bambang</button>
+                  <button class="hero-dex-tab" data-dex-hero="gus_dimas">🎋 Dimas</button>
+                  <button class="hero-dex-tab" data-dex-hero="pak_rt">🧨 Pak RT</button>
+                  <button class="hero-dex-tab" data-dex-hero="mbak_sri">💃 Sri</button>
+                </div>
+
+                <div id="hero-dex-card" class="hero-dex-card">
+                  <div class="hero-dex-top">
+                    <div id="dex-hero-avatar" class="hero-dex-avatar">🧣</div>
+                    <div class="hero-dex-identity">
+                      <div class="hero-dex-name-row">
+                        <strong id="dex-hero-name">Cak Bima</strong>
+                        <span id="dex-hero-archetype" class="hero-dex-badge">Balanced</span>
+                        <span id="dex-hero-elem" class="hero-dex-elem-badge">🌀 BADAI</span>
+                      </div>
+                      <span id="dex-hero-alias" class="hero-dex-alias">Pendekar Sarung Sakti</span>
+                      <p id="dex-hero-tagline" class="hero-dex-tagline">"Kibasane nggepuk, pecute nyamber!"</p>
+                    </div>
+                  </div>
+
+                  <div class="hero-dex-stats">
+                    <div class="dex-stat-row">
+                      <span>❤️ HP</span>
+                      <div class="dex-stat-track"><div id="dex-stat-hp" class="dex-stat-fill fill-hp" style="width: 78%"></div></div>
+                      <b id="dex-stat-hp-val">110</b>
+                    </div>
+                    <div class="dex-stat-row">
+                      <span>⚡ SPEED</span>
+                      <div class="dex-stat-track"><div id="dex-stat-spd" class="dex-stat-fill fill-spd" style="width: 85%"></div></div>
+                      <b id="dex-stat-spd-val">210</b>
+                    </div>
+                    <div class="dex-stat-row">
+                      <span>⚔️ DMG</span>
+                      <div class="dex-stat-track"><div id="dex-stat-dmg" class="dex-stat-fill fill-dmg" style="width: 74%"></div></div>
+                      <b id="dex-stat-dmg-val">1.0x</b>
+                    </div>
+                    <div class="dex-stat-row">
+                      <span>💥 KB</span>
+                      <div class="dex-stat-track"><div id="dex-stat-kb" class="dex-stat-fill fill-kb" style="width: 66%"></div></div>
+                      <b id="dex-stat-kb-val">1.0x</b>
+                    </div>
+                  </div>
+
+                  <div class="hero-dex-kit-grid">
+                    <div class="hero-dex-kit-box">
+                      <span class="kit-label">🗡️ SERANGAN UTAMA &amp; SARUNG</span>
+                      <strong id="dex-weapon-name">Kibasan Sarung</strong>
+                      <small id="dex-weapon-desc">3x sabetan combo seimbang karo jangkauan apik</small>
+                      <small id="dex-sarung-style" class="kit-meta">Sarung: Gulung Tempur Di Atas Lutut</small>
+                    </div>
+                    <div class="hero-dex-kit-box">
+                      <span class="kit-label">🎯 SKILL PROYEKTIL</span>
+                      <strong id="dex-proj-name">Pecut Kilat</strong>
+                      <small id="dex-proj-desc">Sabetan angin pecut lurus sing nyengat</small>
+                      <small id="dex-slash-style" class="kit-meta">Slash: Kibasan Cambuk Anyaman Sarung</small>
+                    </div>
+                  </div>
+
+                  <div class="hero-dex-ult-box">
+                    <div class="hero-dex-ult-head">
+                      <span id="dex-ult-icon" class="dex-ult-icon">🌀</span>
+                      <div>
+                        <span class="kit-label">🔥 JURUS ULTIMATE KHAS</span>
+                        <strong id="dex-ult-name">Badai Gasing Suroboyo</strong>
+                      </div>
+                    </div>
+                    <p id="dex-ult-desc" class="dex-ult-desc"></p>
+                    <div class="hero-dex-impact">
+                      <span>⚡ DAMPAK KE MUSUH:</span>
+                      <strong id="dex-ult-impact"></strong>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="menu-footer-actions">
+                <button id="btn-back-home-heroes" class="ghost-btn back-btn">← KEMBALI</button>
+                <button id="btn-equip-dex-hero" class="primary-btn">✅ PAKAI PENDEKAR INI</button>
+              </div>
+            </div>
+
             <div class="title-bottom-credit scenic-footer-credit" id="menu-footer-credit">
               <span>© 2026 Nabil Al-Ma'ruf • Arek Sarungan Slayer</span>
               <span>v1.8.0</span>
@@ -655,6 +751,9 @@
 
           <!-- Right-Side Translucent Cartoon Icon Dock (matches reference) -->
           <div class="menu-side-dock" id="menu-side-dock" aria-label="Menu Cepat">
+            <button id="btn-open-heroes" class="dock-icon-btn dock-purple" title="Ensiklopedia 6 Hero &amp; Jurus Ulti">
+              <span class="dock-emoji">🥋</span>
+            </button>
             <button id="btn-open-changelog" class="dock-icon-btn dock-red" title="Info Update v1.8.0">
               <span class="dock-emoji">📰</span>
             </button>
