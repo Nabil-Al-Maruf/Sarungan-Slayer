@@ -1335,6 +1335,7 @@ body {
 /* ===== PROFILE NAME, LOBBY SKIN PICKER, HOTSPOT TABS & 2-WAVE BUFF MODAL ===== */
 .profile-bar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
   gap: 8px;
@@ -1346,6 +1347,7 @@ body {
   font-weight: 900;
   color: var(--accent-gold);
   letter-spacing: 0.6px;
+  white-space: nowrap;
 }
 
 .profile-name-input {
@@ -2938,6 +2940,9 @@ body {
 
 .subpanel-body {
   flex: 1 1 auto;
+  min-height: 0;
+  position: relative;
+  z-index: 1;
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
@@ -2965,6 +2970,8 @@ body {
 
 .menu-footer-actions {
   flex-shrink: 0;
+  position: relative;
+  z-index: 2;
   display: flex;
   justify-content: center;
   gap: 10px;
@@ -4585,4 +4592,180 @@ body {
   align-items: center;
   gap: 10px;
   font-size: 11px;
+}
+
+/* ===== ANTI-OVERLAP RESPONSIVE HUD, DOCKS & TOUCH LAYOUTS ===== */
+/* When Virtual Touch Controls are active, move Sandbox Dock below top HUD so it never collides with Joystick / Action Arc */
+.app-shell.touch-active .sandbox-skills-bar {
+  top: 68px;
+  bottom: auto;
+}
+
+/* Keep Brawl Scoreboard clear of Touch Controls on wide screens, and move below HUD on <= 960px */
+.app-shell.touch-active .brawl-scoreboard-strip {
+  max-width: calc(100% - 380px);
+}
+
+@media (max-width: 960px) {
+  .app-shell.touch-active .brawl-scoreboard-strip {
+    top: 64px;
+    bottom: auto;
+    max-width: calc(100% - 16px);
+  }
+}
+
+@media (max-width: 920px) {
+  .hud {
+    gap: 5px;
+    left: 8px;
+    right: 8px;
+  }
+
+  .player-badge {
+    width: 28px;
+    height: 28px;
+    font-size: 11px;
+  }
+
+  .bar-track {
+    width: 78px;
+    height: 8px;
+  }
+
+  .bar-val {
+    min-width: 36px;
+    font-size: 9px;
+  }
+
+  .mode-pill {
+    font-size: 9.5px;
+    padding: 2px 8px;
+  }
+
+  .score-pill,
+  .hud-btn {
+    padding: 4px 6px;
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 720px) {
+  .desktop-hints {
+    display: none !important;
+  }
+
+  .hud {
+    top: max(4px, env(safe-area-inset-top, 0px));
+    left: 6px;
+    right: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+    row-gap: 4px;
+    column-gap: 4px;
+  }
+
+  .hud-left {
+    order: 1;
+    gap: 4px;
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+
+  .hud-right {
+    order: 2;
+    margin-left: auto;
+    gap: 3px;
+    flex-shrink: 0;
+  }
+
+  .hud-center {
+    order: 3;
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px;
+  }
+
+  #hud-perf {
+    display: none;
+  }
+
+  .player-badge {
+    width: 24px;
+    height: 24px;
+    font-size: 10px;
+    border-radius: 6px;
+  }
+
+  .bars-stack {
+    padding: 3px 5px;
+    gap: 2px;
+  }
+
+  .bar-row {
+    gap: 4px;
+  }
+
+  .bar-label {
+    font-size: 8.5px;
+    width: 18px;
+  }
+
+  .bar-track {
+    width: 46px;
+    height: 7px;
+  }
+
+  .bar-val {
+    font-size: 8.5px;
+    min-width: 30px;
+  }
+
+  .mode-pill {
+    font-size: 9px;
+    padding: 2px 7px;
+  }
+
+  .cooldown-pill,
+  .element-pill {
+    font-size: 9px;
+    padding: 2px 6px;
+    gap: 4px;
+  }
+
+  .cd-track {
+    width: 36px;
+    height: 6px;
+  }
+
+  .score-pill {
+    padding: 3px 5px;
+    font-size: 9px;
+  }
+
+  .hud-btn {
+    padding: 3px 5px;
+    font-size: 9.5px;
+    border-radius: 6px;
+  }
+
+  /* Push top-docked bars below 2-row wrapped HUD on narrow screens */
+  .app-shell.touch-active .sandbox-skills-bar,
+  .app-shell.touch-active .brawl-scoreboard-strip {
+    top: 98px;
+    bottom: auto;
+    max-width: calc(100% - 12px);
+  }
+
+  .brawl-fighter-card {
+    min-width: 82px;
+    padding: 2px 5px;
+  }
+
+  /* Prevent Lobby skin swatches from stacking into a tall 1-column strip */
+  .lobby-card .profile-bar .skin-picker-row {
+    width: 100%;
+    justify-content: center;
+  }
 }

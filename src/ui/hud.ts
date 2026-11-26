@@ -120,9 +120,12 @@ export class HudController {
         }
       } else {
         this.brawlStripEl.classList.add('hidden');
-        document.getElementById('desktop-hints')?.classList.remove('hidden');
       }
     }
+
+    // Hide desktop keybind hints in Brawl & Sandbox so bottom docks never overlap
+    const hideDesktopHints = state.mode === 'brawl' || state.mode === 'sandbox';
+    document.getElementById('desktop-hints')?.classList.toggle('hidden', hideDesktopHints);
 
     // Monitor Screen Layout Toggle
     if (this.lastWasMonitor !== isMonitor) {

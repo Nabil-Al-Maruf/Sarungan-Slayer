@@ -116,6 +116,9 @@ assert(css.includes('.overlay-modal {\n  position: absolute;'), 'Overlay modals 
 assert(css.includes('.app-shell.touch-active .controls-deck {\n  display: block;\n  position: fixed;'), 'Touch controls use unified fullscreen overlay');
 assert(css.includes('.vbtn.act-elem-mini {') && css.includes('position: absolute;'), 'Virtual control action arc positions .act-elem-mini');
 assert(css.includes('@media (max-width: 768px) {\n  .brawl-scoreboard-strip') && css.includes('flex-wrap: nowrap;'), 'Brawl scoreboard strip preserves single-row layout on mobile');
+assert(css.includes('.app-shell.touch-active .sandbox-skills-bar {\n  top: 68px;\n  bottom: auto;'), 'Sandbox skills bar moves below HUD when touch controls are active to prevent overlap');
+assert(css.includes('.app-shell.touch-active .brawl-scoreboard-strip {\n  max-width: calc(100% - 380px);'), 'Brawl scoreboard clears virtual touch controls on wide screens');
+assert(css.includes('@media (max-width: 720px) {\n  .desktop-hints {\n    display: none !important;'), 'HUD wraps cleanly and hides desktop hints on narrow screens');
 
 console.log('\n=======================================');
 console.log('ALL MENU & OVERLAY VERIFICATION TESTS PASSED!');
