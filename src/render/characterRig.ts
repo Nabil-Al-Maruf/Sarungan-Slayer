@@ -53,91 +53,312 @@ export function drawPlayer(
     ctx.restore();
   }
 
-  // 2. Active Ultimate Visual Effects
+  // 2. Active Ultimate Visual Effects (6 Distinct Signature Hero Animations)
   if (player.ultActiveTimer > 0) {
     const ultType = player.ultType ?? 'gasing';
+    const aimAngle = Math.atan2(player.dirY, player.dirX);
     ctx.save();
     ctx.translate(player.x, player.y - 6);
 
     if (ultType === 'petir') {
-      // Petir Halilintar Aura: Electric shockwaves & lightning arcs
-      ctx.scale(1, 0.75);
-      ctx.fillStyle = 'rgba(56, 189, 248, 0.25)';
+      // === MAT CLURIT: Sky-to-Ground Thunderbolts + Forked Lightning + Twin Electric Blades ===
+      // Ground electric surge ring
+      ctx.save();
+      ctx.scale(1, 0.7);
+      const pulse = 0.85 + Math.sin(time * 45) * 0.15;
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 4;
       ctx.beginPath();
-      ctx.arc(0, 0, 140, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.arc(0, 0, 128 * pulse, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = '#fef08a';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([14, 10]);
+      ctx.beginPath();
+      ctx.arc(0, 0, 96, time * 12, time * 12 + Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
 
-      for (let i = 0; i < 4; i++) {
-        const a1 = time * 24 + (i * Math.PI) / 2;
-        const r1 = 35 + ((time * 180 + i * 40) % 95);
-        ctx.strokeStyle = i % 2 === 0 ? '#38bdf8' : '#fde047';
-        ctx.lineWidth = 3.5;
+      // 3 Vertical Sky Thunderbolts crashing down around Mat Clurit
+      for (let b = 0; b < 3; b++) {
+        const bx = Math.cos(time * 18 + b * 2.1) * (48 + b * 26);
+        const by = Math.sin(time * 14 + b * 2.1) * 28;
+        ctx.strokeStyle = b === 0 ? '#ffffff' : '#38bdf8';
+        ctx.lineWidth = b === 0 ? 5.5 : 3.5;
         ctx.beginPath();
-        ctx.moveTo(Math.cos(a1) * 20, Math.sin(a1) * 20);
-        ctx.lineTo(Math.cos(a1 + 0.3) * (r1 * 0.6), Math.sin(a1 + 0.3) * (r1 * 0.6));
-        ctx.lineTo(Math.cos(a1 - 0.2) * r1, Math.sin(a1 - 0.2) * r1);
+        ctx.moveTo(bx + Math.sin(time * 60 + b) * 18, -220);
+        for (let seg = 1; seg <= 6; seg++) {
+          const sy = -220 + ((by + 220) * seg) / 6;
+          const jitter = Math.sin(time * 90 + seg * 7 + b * 13) * 16;
+          ctx.lineTo(bx + jitter, sy);
+        }
         ctx.stroke();
+        // Ground impact flash
+        ctx.fillStyle = 'rgba(254, 240, 138, 0.75)';
+        ctx.beginPath();
+        ctx.ellipse(bx, by, 18, 9, 0, 0, Math.PI * 2);
+        ctx.fill();
       }
-    } else if (ultType === 'naga') {
-      // Naga Api Aura: Fiery flame rings and embers
-      ctx.scale(1, 0.72);
-      ctx.fillStyle = 'rgba(239, 68, 68, 0.24)';
-      ctx.beginPath();
-      ctx.arc(0, 0, 125, 0, Math.PI * 2);
-      ctx.fill();
 
-      for (let i = 0; i < 3; i++) {
+      // Twin orbiting electric crescent sickles
+      for (let s = 0; s < 2; s++) {
         ctx.save();
-        ctx.rotate(-time * 14 + (i * Math.PI * 2) / 3);
-        ctx.strokeStyle = i % 2 === 0 ? '#ef4444' : '#f97316';
-        ctx.lineWidth = 9;
+        ctx.scale(1, 0.72);
+        ctx.rotate(time * 24 + s * Math.PI);
+        ctx.strokeStyle = '#fef08a';
+        ctx.lineWidth = 6;
         ctx.lineCap = 'round';
         ctx.beginPath();
-        ctx.arc(0, 0, 48 + i * 22, 0, Math.PI * 0.75);
+        ctx.arc(0, 0, 74, -0.55, 0.55);
+        ctx.stroke();
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(0, 0, 82, -0.45, 0.45);
         ctx.stroke();
         ctx.restore();
       }
-    } else if (ultType === 'mercon') {
-      // Mercon Bazooka Aura: Sparks & explosion flash
-      ctx.scale(1, 0.72);
-      ctx.fillStyle = 'rgba(251, 146, 60, 0.25)';
+    } else if (ultType === 'gempa') {
+      // === BANG BAMBANG: Seismic Earth Shatter + Magma Fissures + Expanding Shockwave Rings ===
+      const progress = Math.max(0, Math.min(1, 1 - player.ultActiveTimer / 0.65));
+      ctx.save();
+      ctx.scale(1, 0.68);
+
+      // Expanding seismic shockwave rings
+      for (let rIdx = 0; rIdx < 2; rIdx++) {
+        const ringP = Math.min(1, progress * 1.35 - rIdx * 0.22);
+        if (ringP > 0) {
+          const rad = 30 + ringP * 195;
+          ctx.strokeStyle = rIdx === 0 ? `rgba(245, 158, 11, ${1 - ringP})` : `rgba(239, 68, 68, ${(1 - ringP) * 0.9})`;
+          ctx.lineWidth = 10 * (1 - ringP * 0.6);
+          ctx.beginPath();
+          ctx.arc(0, 0, rad, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      }
+
+      // 8 Jagged Ground Magma Cracks radiating outward
+      for (let c = 0; c < 8; c++) {
+        const ang = (c * Math.PI * 2) / 8 + 0.18;
+        const maxLen = 95 + (c % 2) * 55;
+        const len = maxLen * Math.min(1, progress * 2.2);
+        ctx.strokeStyle = '#090c14';
+        ctx.lineWidth = 7;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(Math.cos(ang + 0.12) * (len * 0.48), Math.sin(ang + 0.12) * (len * 0.48));
+        ctx.lineTo(Math.cos(ang - 0.08) * len, Math.sin(ang - 0.08) * len);
+        ctx.stroke();
+
+        ctx.strokeStyle = '#fbbf24';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(Math.cos(ang + 0.12) * (len * 0.48), Math.sin(ang + 0.12) * (len * 0.48));
+        ctx.lineTo(Math.cos(ang - 0.08) * len, Math.sin(ang - 0.08) * len);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // Erupting rock/paving debris chunks flying upward
+      for (let k = 0; k < 8; k++) {
+        const ang = (k * Math.PI * 2) / 8 + 0.4;
+        const dist = 32 + progress * 115;
+        const lift = Math.sin(progress * Math.PI) * (58 + (k % 3) * 24);
+        ctx.save();
+        ctx.translate(Math.cos(ang) * dist, Math.sin(ang) * dist * 0.65 - lift);
+        ctx.rotate(progress * 8 + k);
+        ctx.fillStyle = k % 2 === 0 ? '#78716c' : '#a8a29e';
+        ctx.strokeStyle = '#090c14';
+        ctx.lineWidth = 2;
+        ctx.fillRect(-7, -5, 14, 10);
+        ctx.strokeRect(-7, -5, 14, 10);
+        ctx.restore();
+      }
+    } else if (ultType === 'naga') {
+      // === GUS DIMAS: Sacred Emerald-Gold Octagonal Mandala + Healing Pillars + Spirit Dragon Coils ===
+      ctx.save();
+      ctx.scale(1, 0.68);
+      // Rotating Sacred Geometric Mandala (2 counter-rotating squares = 8-point star)
+      ctx.fillStyle = 'rgba(16, 185, 129, 0.2)';
       ctx.beginPath();
-      ctx.arc(0, 0, 95, 0, Math.PI * 2);
+      ctx.arc(0, 0, 118, 0, Math.PI * 2);
       ctx.fill();
 
-      for (let i = 0; i < 6; i++) {
-        const sa = (i * Math.PI * 2) / 6 + time * 12;
-        const sr = 35 + ((time * 240 + i * 25) % 65);
-        ctx.fillStyle = '#facc15';
+      for (let sq = 0; sq < 2; sq++) {
+        ctx.save();
+        ctx.rotate((sq === 0 ? 1 : -1) * time * 3.5 + (sq * Math.PI) / 4);
+        ctx.strokeStyle = sq === 0 ? '#34d399' : '#facc15';
+        ctx.lineWidth = 3.5;
+        ctx.strokeRect(-68, -68, 136, 136);
+        ctx.restore();
+      }
+      ctx.strokeStyle = '#fde047';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(0, 0, 102, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+
+      // Rising Golden-Emerald Karomah Light Pillars
+      for (let p = 0; p < 5; p++) {
+        const px = Math.cos(time * 4 + p * 1.25) * 58;
+        const py = Math.sin(time * 4 + p * 1.25) * 26;
+        const grad = ctx.createLinearGradient(px, py, px, py - 120);
+        grad.addColorStop(0, 'rgba(52, 211, 153, 0.65)');
+        grad.addColorStop(0.5, 'rgba(250, 204, 21, 0.45)');
+        grad.addColorStop(1, 'rgba(250, 204, 21, 0)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(px - 6, py - 120, 12, 120);
+      }
+
+      // Coiling Emerald-Gold Spirit Dragon Ribbon around Gus Dimas
+      ctx.strokeStyle = '#10b981';
+      ctx.lineWidth = 6;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      for (let t = 0; t <= 16; t++) {
+        const f = t / 16;
+        const angle = time * 12 + f * Math.PI * 3.2;
+        const rx = Math.cos(angle) * (46 - f * 18);
+        const ry = -f * 95 + Math.sin(angle) * 14;
+        if (t === 0) ctx.moveTo(rx, ry);
+        else ctx.lineTo(rx, ry);
+      }
+      ctx.stroke();
+    } else if (ultType === 'mercon') {
+      // === PAK RT KARBIT: Directional Bamboo Cannon Muzzle Blast Cone + Smoke Plumes + Fuse Sparks ===
+      ctx.save();
+      ctx.rotate(aimAngle);
+
+      // Giant Bamboo Karbit Cannon Barrel held at side
+      ctx.fillStyle = '#15803d';
+      ctx.strokeStyle = '#090c14';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.roundRect(-14, -22, 54, 18, 5);
+      ctx.fill();
+      ctx.stroke();
+      // Bamboo nodes
+      ctx.strokeStyle = '#fef08a';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(4, -22);
+      ctx.lineTo(4, -4);
+      ctx.moveTo(22, -22);
+      ctx.lineTo(22, -4);
+      ctx.stroke();
+
+      // Explosive Forward Muzzle Blast Cone
+      const flare = 0.85 + Math.sin(time * 55) * 0.25;
+      ctx.fillStyle = 'rgba(249, 115, 22, 0.72)';
+      ctx.beginPath();
+      ctx.moveTo(40, -13);
+      ctx.lineTo(135 * flare, -52 * flare);
+      ctx.lineTo(155 * flare, -13);
+      ctx.lineTo(135 * flare, 26 * flare);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = 'rgba(254, 240, 138, 0.92)';
+      ctx.beginPath();
+      ctx.moveTo(40, -13);
+      ctx.lineTo(92 * flare, -32 * flare);
+      ctx.lineTo(106 * flare, -13);
+      ctx.lineTo(92 * flare, 6 * flare);
+      ctx.closePath();
+      ctx.fill();
+
+      // Billowing Gunpowder Smoke Rings
+      for (let sm = 0; sm < 4; sm++) {
+        const sp = ((time * 5 + sm * 0.25) % 1);
+        ctx.fillStyle = `rgba(148, 163, 184, ${(1 - sp) * 0.55})`;
         ctx.beginPath();
-        ctx.arc(Math.cos(sa) * sr, Math.sin(sa) * sr, 4, 0, Math.PI * 2);
+        ctx.arc(46 + sp * 95, -13 + Math.sin(sm * 3 + time * 10) * 18, 10 + sp * 20, 0, Math.PI * 2);
         ctx.fill();
       }
-    } else {
-      // Badai Gasing Sarung: Classic Whirlwind Vortex
+      ctx.restore();
+    } else if (ultType === 'selendang') {
+      // === MBAK SRI: Flowing Crimson-Pink Silk Ribbon Rose-Cyclone + Floating Petals ===
+      ctx.save();
       ctx.scale(1, 0.72);
-      ctx.fillStyle = 'rgba(56, 189, 248, 0.18)';
+
+      // Soft magenta cyclone glow
+      const grad = ctx.createRadialGradient(0, 0, 18, 0, 0, 138);
+      grad.addColorStop(0, 'rgba(236, 72, 153, 0.35)');
+      grad.addColorStop(0.7, 'rgba(244, 114, 182, 0.16)');
+      grad.addColorStop(1, 'rgba(244, 114, 182, 0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(0, 0, 138, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 2 Long Undulating Silk Ribbons tracing a 3-petal rose curve
+      for (let rib = 0; rib < 2; rib++) {
+        ctx.strokeStyle = rib === 0 ? '#ec4899' : '#fbcfe8';
+        ctx.lineWidth = rib === 0 ? 9 : 5;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        for (let step = 0; step <= 28; step++) {
+          const theta = (step / 28) * Math.PI * 2 + time * (rib === 0 ? 10 : -8);
+          const r = 78 + Math.sin(theta * 3 + time * 14 + rib * 1.5) * 42;
+          const rx = Math.cos(theta) * r;
+          const ry = Math.sin(theta) * r;
+          if (step === 0) ctx.moveTo(rx, ry);
+          else ctx.lineTo(rx, ry);
+        }
+        ctx.stroke();
+      }
+
+      // Orbiting Silk Flower Petals
+      for (let pt = 0; pt < 10; pt++) {
+        const pa = time * 9 + (pt * Math.PI * 2) / 10;
+        const pr = 52 + ((pt * 29 + time * 90) % 80);
+        ctx.save();
+        ctx.translate(Math.cos(pa) * pr, Math.sin(pa) * pr);
+        ctx.rotate(pa + 0.8);
+        ctx.fillStyle = pt % 2 === 0 ? '#fdf2f8' : '#f472b6';
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 7, 3.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+      ctx.restore();
+    } else {
+      // === CAK BIMA (gasing): Rising 3D Funnel Tornado + Woven Sarung Whip Rings ===
+      // Stacked rising tornado funnel rings from feet to above head
+      for (let tier = 0; tier < 4; tier++) {
+        const tierY = -tier * 22;
+        const tierR = 44 + tier * 24 + Math.sin(time * 22 + tier) * 6;
+        ctx.save();
+        ctx.translate(0, tierY);
+        ctx.scale(1, 0.45);
+        ctx.rotate(time * (18 + tier * 3) * (tier % 2 === 0 ? 1 : -1));
+
+        ctx.strokeStyle = tier % 2 === 0 ? palette.sarung : palette.sarungStripe;
+        ctx.lineWidth = 10 - tier * 1.2;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.arc(0, 0, tierR, 0, Math.PI * 1.15);
+        ctx.stroke();
+
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(0, 0, tierR + 8, Math.PI * 0.4, Math.PI * 1.45);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // Ground vortex suction swirl
+      ctx.save();
+      ctx.scale(1, 0.68);
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.16)';
       ctx.beginPath();
       ctx.arc(0, 0, ULT_RADIUS, 0, Math.PI * 2);
       ctx.fill();
-
-      for (let i = 0; i < 3; i++) {
-        ctx.save();
-        ctx.rotate(time * 16 + (i * Math.PI * 2) / 3);
-        ctx.strokeStyle = i % 2 === 0 ? palette.sarung : palette.sarungStripe;
-        ctx.lineWidth = 11;
-        ctx.lineCap = 'round';
-        ctx.beginPath();
-        ctx.arc(0, 0, 52 + i * 20, 0, Math.PI * 0.85);
-        ctx.stroke();
-
-        ctx.strokeStyle = '#090c14';
-        ctx.lineWidth = 2.5;
-        ctx.beginPath();
-        ctx.arc(0, 0, 58 + i * 20, 0, Math.PI * 0.85);
-        ctx.stroke();
-        ctx.restore();
-      }
+      ctx.restore();
     }
     ctx.restore();
   }
@@ -225,8 +446,49 @@ function drawTopDownArekRig(
   ctx.save();
   ctx.translate(footX, footY);
 
-  const spinScale = player.ultActiveTimer > 0 ? Math.cos(time * 28) || 0.2 : flipX;
-  ctx.scale(spinScale * player.scaleX, player.scaleY);
+  // Per-Hero Distinct Ultimate Body Motion (no generic spin slop!)
+  let ultScaleX = flipX;
+  let ultScaleY = 1;
+  let ultRot = 0;
+  let ultOffsetX = 0;
+  let ultOffsetY = 0;
+  if (player.ultActiveTimer > 0) {
+    const uType = player.ultType ?? 'gasing';
+    if (uType === 'gasing') {
+      // Cak Bima: Classic rapid top-spin tornado
+      ultScaleX = Math.cos(time * 30) || 0.25;
+      ultRot = Math.sin(time * 24) * 0.14;
+    } else if (uType === 'petir') {
+      // Mat Clurit: Assassin high-speed lightning flash crouch + micro-teleport jitter
+      ultOffsetX = Math.sin(time * 95) * 4.5;
+      ultRot = flipX * 0.22;
+      ultScaleX = flipX * 1.08;
+      ultScaleY = 0.92;
+    } else if (uType === 'gempa') {
+      // Bang Bambang: Heavy Juggernaut Meteor Slam + seismic body tremor
+      ultOffsetX = Math.sin(time * 72) * 3;
+      ultOffsetY = Math.cos(time * 80) * 2;
+      ultScaleX = flipX * 1.2;
+      ultScaleY = 0.84;
+    } else if (uType === 'naga') {
+      // Gus Dimas: Calm Sacred Levitation hover
+      ultOffsetY = -12 - Math.sin(time * 8) * 4;
+      ultRot = Math.sin(time * 4) * 0.04;
+    } else if (uType === 'mercon') {
+      // Pak RT: Heavy Bamboo Cannon artillery recoil lean-back
+      const recoil = Math.abs(Math.sin(time * 28)) * 5;
+      ultOffsetX = -flipX * recoil;
+      ultRot = -flipX * 0.22;
+    } else if (uType === 'selendang') {
+      // Mbak Sri: Graceful dancer pirouette + rhythmic bounce
+      ultOffsetY = -5 - Math.abs(Math.sin(time * 14)) * 7;
+      ultRot = Math.sin(time * 18) * 0.22;
+      ultScaleX = (Math.cos(time * 16) >= 0 ? 1 : -1) * 1.04;
+    }
+  }
+  ctx.translate(ultOffsetX, ultOffsetY);
+  if (ultRot !== 0) ctx.rotate(ultRot);
+  ctx.scale(ultScaleX * player.scaleX, ultScaleY * player.scaleY);
 
   const speed = Math.hypot(player.vx, player.vy);
   const isWalking = speed > 20 && player.z === 0;
