@@ -336,7 +336,7 @@ io.on('connection', (socket) => {
     });
   });
 
-  // 9. Full Snapshot Streaming (Host -> non-stick clients, volatile to prevent Wi-Fi bufferbloat)
+  // 9. Full Snapshot Streaming (Host -> non-stick clients)
   socket.on('snap', (data) => {
     const mapping = socketToRoom.get(socket.id);
     if (!mapping) return;
@@ -345,12 +345,12 @@ io.on('connection', (socket) => {
 
     for (const p of room.players.values()) {
       if (p.socketId && p.socketId !== socket.id && p.role !== 'stick') {
-        io.to(p.socketId).volatile.emit('snap', data.snap);
+        io.to(p.socketId).emit('snap', data.snap);
       }
     }
   });
 
-  // 10. Stick Personal Snapshot (Host -> specific stick phone, volatile to prevent lag pileup)
+  // 10. Stick Personal Snapshot (Host -> specific stick phone)
   socket.on('stick_snap', (data) => {
     const mapping = socketToRoom.get(socket.id);
     if (!mapping) return;
@@ -359,7 +359,7 @@ io.on('connection', (socket) => {
 
     const targetPlayer = room.players.get(data.playerId);
     if (targetPlayer && targetPlayer.socketId) {
-      io.to(targetPlayer.socketId).volatile.emit('stick_snap', data.snap);
+      io.to(targetPlayer.socketId).emit('stick_snap', data.snap);
     }
   });
 

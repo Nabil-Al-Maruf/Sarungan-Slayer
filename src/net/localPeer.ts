@@ -865,8 +865,8 @@ export class LocalPeerManager {
     if (!this.isHost) return;
 
     if (this.transport === 'socket.io' && this.socket) {
-      // 1. Volatile emit so stale frames NEVER queue up & cause signal lag on Wi-Fi/Hotspot
-      this.socket.volatile.emit('snap', { snap });
+      // 1. Reliable emit at 30Hz (never silently dropped by socket.io-client volatile check!)
+      this.socket.emit('snap', { snap });
 
       // 2. Emit lightweight stick personal snapshots directly to each phone controller
       for (const pl of this.lobbyPlayers) {
@@ -874,16 +874,16 @@ export class LocalPeerManager {
           const pState = snap.players.find((p) => p.id === pl.id);
           if (pState) {
             const stickSnap = this.buildStickSnapshot(snap, pState);
-            this.socket.volatile.emit('stick_snap', { playerId: pl.id, snap: stickSnap });
+            this.socket.emit('stick_snap', { playerId: pl.id, snap: stickSnap });
           }
         }
       }
     } else {
-      // PeerJS fallback with WebRTC backpressure protection (prevents bufferbloat lag!)
+      // PeerJS fallback with generous backpressure guard (32KB)
       for (const [_, conn] of this.connections) {
         if (!conn.open) continue;
         const buffered = (conn as any).dataChannel?.bufferedAmount ?? 0;
-        if (buffered > 8192) continue;
+        if (buffered > 32768) continue;
 
         const pId = (conn as any)._playerId;
         const targetPl = this.lobbyPlayers.find((p) => p.id === pId);

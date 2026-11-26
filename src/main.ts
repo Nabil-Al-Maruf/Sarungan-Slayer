@@ -3119,8 +3119,9 @@ function frame(now: number): void {
             }
             const target = netPlayerTargets.get(lp.id);
             if (target) {
-              lp.x += (target.x - lp.x) * 0.25;
-              lp.y += (target.y - lp.y) * 0.25;
+              lp.x += (target.x - lp.x) * 0.35;
+              lp.y += (target.y - lp.y) * 0.35;
+              lp.z += (target.z - lp.z) * 0.5;
             }
           }
 
@@ -3199,9 +3200,9 @@ function frame(now: number): void {
         }
         audio.playQueue(state.soundQueue);
 
-        // Broadcast snapshot at full 60Hz (every FIXED_DT tick) with volatile Socket.IO emit for ultra-smooth 60 FPS LAN
+        // Broadcast snapshot at steady 30Hz (every 33ms) for zero Wi-Fi congestion + silky 60 FPS client interpolation!
         snapAccum += FIXED_DT;
-        if (snapAccum >= FIXED_DT || state.status !== 'playing') {
+        if (snapAccum >= 1 / 30 || state.status !== 'playing') {
           snapAccum = 0;
           snapSeq++;
           const snap = packGameSnapshot(state, snapSeq);
