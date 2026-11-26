@@ -12,11 +12,17 @@ const distDir = path.join(__dirname, 'dist');
 
 const app = express();
 const server = http.createServer(app);
+server.on('connection', (tcpSocket) => {
+  tcpSocket.setNoDelay(true);
+});
+
 const io = new Server(server, {
   cors: {
     origin: '*',
     methods: ['GET', 'POST'],
   },
+  httpCompression: false,
+  perMessageDeflate: false,
   pingInterval: 10000,
   pingTimeout: 5000,
   maxHttpBufferSize: 1e6, // 1 MB
@@ -330,7 +336,7 @@ io.on('connection', (socket) => {
     });
   });
 
-  // 9. Full Snapshot Streaming (Host -> non-stick clients)
+  // 9. Full Snapshot Streaming (Host -> non-stick clients, volatile to prevent Wi-Fi bufferbloat)
   socket.on('snap', (data) => {
     const mapping = socketToRoom.get(socket.id);
     if (!mapping) return;
@@ -339,12 +345,12 @@ io.on('connection', (socket) => {
 
     for (const p of room.players.values()) {
       if (p.socketId && p.socketId !== socket.id && p.role !== 'stick') {
-        io.to(p.socketId).emit('snap', data.snap);
+        io.to(p.socketId).volatile.emit('snap', data.snap);
       }
     }
   });
 
-  // 10. Stick Personal Snapshot (Host -> specific stick phone)
+  // 10. Stick Personal Snapshot (Host -> specific stick phone, volatile to prevent lag pileup)
   socket.on('stick_snap', (data) => {
     const mapping = socketToRoom.get(socket.id);
     if (!mapping) return;
@@ -353,7 +359,7 @@ io.on('connection', (socket) => {
 
     const targetPlayer = room.players.get(data.playerId);
     if (targetPlayer && targetPlayer.socketId) {
-      io.to(targetPlayer.socketId).emit('stick_snap', data.snap);
+      io.to(targetPlayer.socketId).volatile.emit('stick_snap', data.snap);
     }
   });
 

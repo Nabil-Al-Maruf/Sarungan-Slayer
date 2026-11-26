@@ -3,7 +3,7 @@ import { ProceduralAudio } from './audio/sfx';
 import { FIXED_DT, PLAYER_PALETTES, ULT_DEFS, VIRTUAL_HEIGHT, VIRTUAL_WIDTH } from './core/constants';
 import { HERO_DEFS, getHeroDef } from './core/heroes';
 import { InputManager } from './core/input';
-import type { BrawlStageTheme, BuffId, GameState, HeroId, PlayerInput, PlayerState, SlashElement, UltType } from './core/types';
+import type { BrawlStageTheme, BuffId, EnemyKind, EnemyState, GameState, HeroId, PlayerInput, PlayerState, ProjectileState, SlashElement, UltType } from './core/types';
 import { createBrawlState, stepBrawl, type BrawlRosterMember } from './modes/brawl';
 import { createSandboxState, stepSandbox } from './modes/sandbox';
 import {
@@ -370,6 +370,14 @@ function updateStickHud(): void {
   }
 }
 
+const netPlayerTargets = new Map<string, { x: number; y: number; z: number; vx: number; vy: number }>();
+const netEnemyTargets = new Map<number, { x: number; y: number }>();
+
+function resetNetTargets(): void {
+  netPlayerTargets.clear();
+  netEnemyTargets.clear();
+}
+
 // ===== LOCAL WEBRTC P2P MANAGER =====
 const localPeer = new LocalPeerManager({
   onStatus(msg, isError) {
@@ -442,6 +450,7 @@ const localPeer = new LocalPeerManager({
     brawlVictoryOverlay?.classList.add('hidden');
 
     setStickMode(localPeer.localRole === 'stick');
+    resetNetTargets();
     updateStickHud();
     void requestScreenWakeLock();
   },
@@ -555,15 +564,24 @@ const localPeer = new LocalPeerManager({
         };
         state.players.push(lp);
       } else {
-        if (sp.id !== localPeer.localPlayerId) {
-          lp.x = sp.x;
-          lp.y = sp.y;
+        netPlayerTargets.set(sp.id, { x: sp.x, y: sp.y, z: sp.z, vx: sp.vx, vy: sp.vy });
+        if (sp.id === localPeer.localPlayerId) {
+          // Reconcile local predicted player smoothly; snap only if divergence is large
+          const err = Math.hypot(sp.x - lp.x, sp.y - lp.y);
+          if (err > 90) {
+            lp.x = sp.x;
+            lp.y = sp.y;
+          }
           lp.z = sp.z;
-          lp.vx = sp.vx;
-          lp.vy = sp.vy;
+        } else {
           lp.dirX = sp.dirX;
           lp.animTime = sp.animTime;
         }
+        lp.vx = sp.vx;
+        lp.vy = sp.vy;
+        if (sp.meleeTimer !== undefined) lp.meleeTimer = sp.meleeTimer;
+        if (sp.dashTimer !== undefined) lp.dashTimer = sp.dashTimer;
+        if (sp.hitFlashTimer !== undefined) lp.hitFlashTimer = sp.hitFlashTimer;
         lp.hp = sp.hp;
         lp.maxHp = sp.maxHp;
         lp.ult = sp.ult;
@@ -580,6 +598,79 @@ const localPeer = new LocalPeerManager({
         if (sp.brawlStocks !== undefined) lp.brawlStocks = sp.brawlStocks;
         if (sp.brawlKos !== undefined) lp.brawlKos = sp.brawlKos;
       }
+    }
+
+    // Sync enemies from host snapshot
+    if (snap.enemies) {
+      const seenIds = new Set<number>();
+      for (const se of snap.enemies) {
+        seenIds.add(se.id);
+        netEnemyTargets.set(se.id, { x: se.x, y: se.y });
+        const existing = state.enemies.find((e) => e.id === se.id);
+        const aiState = se.aiState as EnemyState['aiState'];
+        if (!existing) {
+          const newEnemy: EnemyState = {
+            id: se.id,
+            kind: se.kind as EnemyKind,
+            name: se.kind,
+            isBoss: se.kind.startsWith('boss_'),
+            x: se.x,
+            y: se.y,
+            z: 0,
+            vx: 0,
+            vy: 0,
+            vz: 0,
+            radius: 16,
+            dirX: se.dirX,
+            dirY: 0,
+            hp: se.hp,
+            maxHp: se.maxHp,
+            hitFlashTimer: 0,
+            stunTimer: 0,
+            attackCooldown: 1,
+            specialTimer: 0,
+            aiState,
+            aiTimer: 0,
+            phase: 1,
+            summonedReinforcements: false,
+            lastHitSwingId: 0,
+            scaleX: 1,
+            scaleY: 1,
+            animTime: 0,
+            shirtColor: '#ef4444',
+            sarungColor: '#1e293b',
+          };
+          state.enemies.push(newEnemy);
+        } else {
+          existing.hp = se.hp;
+          existing.maxHp = se.maxHp;
+          existing.dirX = se.dirX;
+          existing.aiState = aiState;
+        }
+      }
+      state.enemies = state.enemies.filter((e) => seenIds.has(e.id));
+    }
+
+    // Sync projectiles from host snapshot
+    if (snap.projectiles) {
+      state.projectiles = snap.projectiles.map((pr, idx) => ({
+        id: idx + 1,
+        ownerId: 'host',
+        x: pr.x,
+        y: pr.y,
+        vx: 0,
+        vy: 0,
+        angle: 0,
+        radius: pr.radius,
+        damage: 0,
+        life: 0.5,
+        maxLife: 0.5,
+        color: pr.color,
+        fromPlayer: true,
+        pierceLeft: 1,
+        hitIds: [],
+        kind: pr.kind as ProjectileState['kind'],
+      }));
     }
 
     // Sound queue
@@ -2561,10 +2652,59 @@ function frame(now: number): void {
 
     if (!menuOpen && !lobbyOpen && state.status === 'playing') {
       if (localPeer.connected && !localPeer.isHost) {
-        // Client: Send input to Host via WebRTC UDP DataChannel
+        // Client: Send input immediately on change (0ms) + 15Hz heartbeat
         localPeer.sendInput(sampled);
         if (localPeer.localRole === 'stick') {
           updateStickHud();
+        } else {
+          // Client-side local player movement prediction (0ms visual response)
+          const lp = state.players.find((p) => p.id === localPeer.localPlayerId);
+          if (lp && !lp.knockedDown && lp.hp > 0) {
+            const ix =
+              typeof sampled.moveX === 'number' && Math.abs(sampled.moveX) > 0.05
+                ? sampled.moveX
+                : (sampled.right ? 1 : 0) - (sampled.left ? 1 : 0);
+            const iy =
+              typeof sampled.moveY === 'number' && Math.abs(sampled.moveY) > 0.05
+                ? sampled.moveY
+                : (sampled.down ? 1 : 0) - (sampled.up ? 1 : 0);
+            const len = Math.hypot(ix, iy);
+            if (len > 0) {
+              const clamped = Math.min(1, len);
+              const nx = (ix / len) * clamped;
+              const ny = (iy / len) * clamped;
+              const predSpeed = 240 * (lp.speedMult || 1);
+              lp.x = Math.max(24, Math.min(VIRTUAL_WIDTH - 24, lp.x + nx * predSpeed * FIXED_DT));
+              if (state.mode !== 'brawl') {
+                lp.y = Math.max(96, Math.min(VIRTUAL_HEIGHT - 28, lp.y + ny * predSpeed * FIXED_DT));
+              }
+              lp.dirX = nx >= 0 ? 1 : -1;
+              lp.animTime += FIXED_DT;
+            }
+            const target = netPlayerTargets.get(lp.id);
+            if (target) {
+              lp.x += (target.x - lp.x) * 0.2;
+              lp.y += (target.y - lp.y) * 0.2;
+            }
+          }
+
+          // Smooth 60 FPS interpolation for remote players and enemies
+          for (const rp of state.players) {
+            if (rp.id === localPeer.localPlayerId) continue;
+            const target = netPlayerTargets.get(rp.id);
+            if (target) {
+              rp.x += (target.x - rp.x) * 0.35;
+              rp.y += (target.y - rp.y) * 0.35;
+              rp.z += (target.z - rp.z) * 0.35;
+            }
+          }
+          for (const re of state.enemies) {
+            const target = netEnemyTargets.get(re.id);
+            if (target) {
+              re.x += (target.x - re.x) * 0.35;
+              re.y += (target.y - re.y) * 0.35;
+            }
+          }
         }
       } else if (localPeer.connected && localPeer.isHost) {
         // Host: Simulate game with all player inputs
@@ -2589,7 +2729,7 @@ function frame(now: number): void {
 
         for (const p of state.players) {
           if (p.id === localPeer.localPlayerId) continue;
-          const rem = localPeer.clientInputs.get(p.id);
+          const rem = localPeer.consumeClientInput(p.id);
           if (rem) allInputs[p.id] = rem;
         }
 
@@ -2621,9 +2761,9 @@ function frame(now: number): void {
         }
         audio.playQueue(state.soundQueue);
 
-        // Broadcast snapshot at 25Hz (0.04s) for ultra fluid 60 FPS replication
+        // Broadcast snapshot at 30Hz (0.033s) for fluid 60 FPS replication
         snapAccum += FIXED_DT;
-        if (snapAccum >= 0.04 || state.status !== 'playing') {
+        if (snapAccum >= 0.033 || state.status !== 'playing') {
           snapAccum = 0;
           snapSeq++;
           const snap = packGameSnapshot(state, snapSeq);

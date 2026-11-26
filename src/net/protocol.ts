@@ -47,6 +47,9 @@ export interface PlayerCompactRow {
   brawlKos?: number;
   elem?: SlashElement;
   elemLv?: number;
+  meleeTimer?: number;
+  dashTimer?: number;
+  hitFlashTimer?: number;
 }
 
 export interface EnemyCompactRow {
@@ -154,6 +157,9 @@ export function packGameSnapshot(state: GameState, seq: number): CompactGameSnap
     brawlKos: p.brawlKos,
     elem: p.slashElement,
     elemLv: p.slashElementLevel,
+    meleeTimer: p.meleeTimer > 0 ? Math.round(p.meleeTimer * 100) / 100 : 0,
+    dashTimer: p.dashTimer > 0 ? Math.round(p.dashTimer * 100) / 100 : 0,
+    hitFlashTimer: p.hitFlashTimer > 0 ? Math.round(p.hitFlashTimer * 100) / 100 : 0,
   }));
 
   const enemies: EnemyCompactRow[] = state.enemies.map((e) => ({

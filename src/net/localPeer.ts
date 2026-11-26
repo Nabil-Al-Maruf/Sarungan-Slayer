@@ -58,10 +58,14 @@ export class LocalPeerManager {
 
   public lobbyPlayers: LobbyPlayerInfo[] = [];
   public clientInputs = new Map<string, PlayerInput>();
+  private clientLastSeq = new Map<string, number>();
 
   private callbacks: LocalPeerCallbacks;
   private pingInterval: number | null = null;
   private seqCounter = 0;
+  private lastSnapSeq = -1;
+  private lastSentInput: PlayerInput | null = null;
+  private lastInputSendTime = 0;
 
   constructor(callbacks: LocalPeerCallbacks) {
     this.callbacks = callbacks;
@@ -196,7 +200,7 @@ export class LocalPeerManager {
 
       this.socket.on('client_input', (data: { playerId: string; seq: number; input: PlayerInput }) => {
         if (data.playerId && data.input) {
-          this.clientInputs.set(data.playerId, data.input);
+          this.mergeClientInput(data.playerId, data.seq ?? 0, data.input);
         }
       });
 
@@ -273,14 +277,20 @@ export class LocalPeerManager {
       });
 
       this.socket.on('start_game', () => {
+        this.lastSnapSeq = -1;
+        this.lastSentInput = null;
         this.callbacks.onGameStart();
       });
 
       this.socket.on('snap', (snap: CompactGameSnapshot) => {
+        if (snap.seq <= this.lastSnapSeq) return;
+        this.lastSnapSeq = snap.seq;
         this.callbacks.onSnapshot(snap);
       });
 
       this.socket.on('stick_snap', (snap: StickPersonalSnapshot) => {
+        if (snap.seq <= this.lastSnapSeq) return;
+        this.lastSnapSeq = snap.seq;
         this.callbacks.onStickSnapshot(snap);
       });
 
@@ -452,7 +462,7 @@ export class LocalPeerManager {
       } else if (msg.t === 'input') {
         const playerId = (conn as any)._playerId;
         if (playerId) {
-          this.clientInputs.set(playerId, msg.input);
+          this.mergeClientInput(playerId, msg.seq ?? 0, msg.input);
         }
       } else if (msg.t === 'pick_hero') {
         const playerId = (conn as any)._playerId;
@@ -497,13 +507,19 @@ export class LocalPeerManager {
         this.callbacks.onLobbyUpdate(msg.roomCode, msg.players, this.localPlayerId, false, this.gameMode);
         break;
       case 'start_game':
+        this.lastSnapSeq = -1;
+        this.lastSentInput = null;
         this.callbacks.onGameStart();
         break;
       case 'snap':
+        if (msg.snap.seq <= this.lastSnapSeq) break;
+        this.lastSnapSeq = msg.snap.seq;
         this.callbacks.onSnapshot(msg.snap);
         break;
       case 'stick_snap': {
         const payload = (msg as any).snap || msg;
+        if (payload.seq <= this.lastSnapSeq) break;
+        this.lastSnapSeq = payload.seq;
         this.callbacks.onStickSnapshot(payload);
         break;
       }
@@ -645,8 +661,85 @@ export class LocalPeerManager {
     }
   }
 
+  /**
+   * Merge incoming client input on Host without dropping edge-triggered button presses
+   * that arrive between simulation ticks, while rejecting stale out-of-order packets.
+   */
+  private mergeClientInput(playerId: string, seq: number, incoming: PlayerInput): void {
+    const prevSeq = this.clientLastSeq.get(playerId) ?? -1;
+    if (seq > 0 && seq <= prevSeq) return;
+    if (seq > 0) this.clientLastSeq.set(playerId, seq);
+
+    const prev = this.clientInputs.get(playerId);
+    if (!prev) {
+      this.clientInputs.set(playerId, { ...incoming });
+      return;
+    }
+
+    this.clientInputs.set(playerId, {
+      ...incoming,
+      jumpPressed: prev.jumpPressed || incoming.jumpPressed,
+      dashPressed: prev.dashPressed || incoming.dashPressed,
+      meleePressed: prev.meleePressed || incoming.meleePressed,
+      projPressed: prev.projPressed || incoming.projPressed,
+      ultPressed: prev.ultPressed || incoming.ultPressed,
+      shopPressed: prev.shopPressed || incoming.shopPressed,
+    });
+  }
+
+  /**
+   * Read and consume edge-triggered presses for a remote player on Host.
+   * Ensures every button press fires exactly once (never dropped, never repeated).
+   */
+  public consumeClientInput(playerId: string): PlayerInput | undefined {
+    const cur = this.clientInputs.get(playerId);
+    if (!cur) return undefined;
+    const out: PlayerInput = { ...cur };
+    cur.jumpPressed = false;
+    cur.dashPressed = false;
+    cur.meleePressed = false;
+    cur.projPressed = false;
+    cur.ultPressed = false;
+    cur.shopPressed = false;
+    return out;
+  }
+
   public sendInput(input: PlayerInput): void {
     if (!this.connected || this.isHost) return;
+
+    const now = performance.now();
+    const prev = this.lastSentInput;
+    const hasActionPress =
+      input.jumpPressed ||
+      input.dashPressed ||
+      input.meleePressed ||
+      input.projPressed ||
+      input.ultPressed ||
+      input.shopPressed;
+
+    const dirChanged =
+      !prev ||
+      prev.up !== input.up ||
+      prev.down !== input.down ||
+      prev.left !== input.left ||
+      prev.right !== input.right ||
+      Math.abs((prev.moveX ?? 0) - (input.moveX ?? 0)) > 0.04 ||
+      Math.abs((prev.moveY ?? 0) - (input.moveY ?? 0)) > 0.04;
+
+    const isMoving =
+      input.up ||
+      input.down ||
+      input.left ||
+      input.right ||
+      Math.abs(input.moveX ?? 0) > 0.05 ||
+      Math.abs(input.moveY ?? 0) > 0.05;
+
+    // Immediate 0ms send on any button press or direction change; 15Hz heartbeat only while moving
+    const shouldSend = hasActionPress || dirChanged || (isMoving && now - this.lastInputSendTime >= 66);
+    if (!shouldSend) return;
+
+    this.lastInputSendTime = now;
+    this.lastSentInput = { ...input };
     this.seqCounter++;
 
     if (this.transport === 'socket.io' && this.socket) {
@@ -802,6 +895,10 @@ export class LocalPeerManager {
     this.roomCode = '';
     this.lobbyPlayers = [];
     this.clientInputs.clear();
+    this.clientLastSeq.clear();
+    this.lastSnapSeq = -1;
+    this.lastSentInput = null;
+    this.seqCounter = 0;
     this.transport = 'none';
 
     if (this.socket) {
