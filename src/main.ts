@@ -903,6 +903,7 @@ const localPeer = new LocalPeerManager({
     }
   },
   onSkillPrompt(kind: 'buff' | 'ult', choices: string[]) {
+    if (localPeer.isHost) return;
     if (kind === 'buff') {
       const p = getLocalPlayer();
       if (p) p.pendingBuffChoices = choices as BuffId[];
@@ -911,6 +912,21 @@ const localPeer = new LocalPeerManager({
       const p = getLocalPlayer();
       if (p) p.pendingUltChoice = true;
       checkPendingUltModal();
+    }
+  },
+  onClientPickSkill(playerId: string, kind: 'buff' | 'ult', choice: string) {
+    if (!localPeer.isHost) return;
+    const target = state.players.find((p) => p.id === playerId);
+    if (!target) return;
+    if (kind === 'buff') {
+      target.pendingBuffChoices = [];
+      applyPlayerBuff(state, target, choice as BuffId);
+      audio.playQueue(state.soundQueue);
+      state.soundQueue.length = 0;
+    } else {
+      target.pendingUltChoice = false;
+      target.ult = target.maxUlt;
+      state.soundQueue.push('pickup_kopi');
     }
   },
   onDisconnect(reason: string) {

@@ -109,7 +109,8 @@ assert(html.includes('id="btn-lock-landscape"'), 'Landscape lock button exists i
 assert(html.includes('id="stick-toast"'), 'Stick controller toast banner exists in HTML');
 assert(css.includes('@media (max-width: 960px) and (orientation: portrait)'), 'Portrait mobile screens trigger mandatory landscape overlay');
 assert(ts.includes('localPeer.sendBuyItem(itemId)'), 'Client/Stick Warung purchases sync authoritatively to Host');
-assert(ts.includes('if (snapAccum >= FIXED_DT || state.status !== \'playing\')'), 'Host broadcasts network snapshots at full 60Hz');
+assert(ts.includes('if (snapAccum >= 1 / 30 || state.status !== \'playing\')'), 'Host broadcasts network snapshots at steady 30Hz');
+assert(ts.includes('onClientPickSkill('), 'Host routes Mabar client buff picks to target client player');
 assert(ts.includes("state.mode === 'sandbox'") && ts.includes('Upgrade Bebas hanya di Pelatihan Dojo!'), 'Free element upgrades are strictly restricted to Pelatihan Dojo (sandbox)');
 assert(ts.includes("} else if (state.mode === 'sandbox') {\n    const elements: SlashElement[]"), 'Free element cycling is strictly restricted to Pelatihan Dojo (sandbox)');
 assert(html.includes('id="menu-heroes-view"') && html.includes('id="btn-open-heroes"'), 'Hero Encyclopedia menu and dock button exist in HTML');

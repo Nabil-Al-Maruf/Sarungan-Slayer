@@ -24,6 +24,7 @@ export interface LocalPeerCallbacks {
   onSnapshot: (snap: CompactGameSnapshot) => void;
   onStickSnapshot: (snap: StickPersonalSnapshot) => void;
   onSkillPrompt: (kind: 'buff' | 'ult', choices: string[]) => void;
+  onClientPickSkill?: (playerId: string, kind: 'buff' | 'ult', choice: string) => void;
   onClientBuyItem?: (playerId: string, itemId: ShopItemId) => void;
   onClientSkipIntermission?: (playerId: string) => void;
   onShopResult?: (ok: boolean, message: string) => void;
@@ -213,7 +214,9 @@ export class LocalPeerManager {
       });
 
       this.socket.on('client_pick_skill', (data: { playerId: string; kind: 'buff' | 'ult'; choice: string }) => {
-        this.callbacks.onSkillPrompt(data.kind, [data.choice]);
+        if (data.playerId && data.choice) {
+          this.callbacks.onClientPickSkill?.(data.playerId, data.kind, data.choice);
+        }
       });
 
       this.socket.on('client_buy_item', (data: { playerId: string; itemId: ShopItemId }) => {
@@ -516,8 +519,8 @@ export class LocalPeerManager {
         conn.send({ t: 'pong', timestamp: msg.timestamp } as NetMessage);
       } else if (msg.t === 'pick_skill') {
         const playerId = (conn as any)._playerId;
-        if (playerId) {
-          this.callbacks.onSkillPrompt(msg.kind, [msg.choice]);
+        if (playerId && msg.choice) {
+          this.callbacks.onClientPickSkill?.(playerId, msg.kind, msg.choice);
         }
       } else if (msg.t === 'buy_item') {
         const playerId = (conn as any)._playerId;
