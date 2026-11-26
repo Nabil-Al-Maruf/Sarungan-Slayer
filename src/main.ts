@@ -490,11 +490,16 @@ const localPeer = new LocalPeerManager({
 
     setStickMode(localPeer.localRole === 'stick');
     resetNetTargets();
+    resizeCanvas();
     updateStickHud();
     void requestScreenWakeLock();
   },
   onSnapshot(snap: CompactGameSnapshot) {
     if (localPeer.localRole === 'stick') return;
+    // If start_game packet was missed on P2P/Wi-Fi, auto-enter gameplay as soon as Host snapshots arrive!
+    if ((lobbyOpen || menuOpen) && snap.status === 'playing') {
+      this.onGameStart();
+    }
     // Replicate snapshot into local render state
     state.status = snap.status;
     state.koCount = snap.koCount;
@@ -618,9 +623,9 @@ const localPeer = new LocalPeerManager({
       } else {
         netPlayerTargets.set(sp.id, { x: sp.x, y: sp.y, z: sp.z, vx: sp.vx, vy: sp.vy });
         if (sp.id === localPeer.localPlayerId) {
-          // Reconcile local predicted player smoothly; snap only if divergence is large
+          // Reconcile local predicted player smoothly; snap if divergence > 60px
           const err = Math.hypot(sp.x - lp.x, sp.y - lp.y);
-          if (err > 90) {
+          if (err > 60) {
             lp.x = sp.x;
             lp.y = sp.y;
           }
@@ -2972,6 +2977,7 @@ function showBrawlVictoryModal(): void {
 // Adaptive 16:9 Canvas Fit
 function resizeCanvas(): void {
   const rect = stageWrap.getBoundingClientRect();
+  if (rect.width < 10 || rect.height < 10) return;
   const aspect = VIRTUAL_WIDTH / VIRTUAL_HEIGHT;
   let displayW = rect.width;
   let displayH = displayW / aspect;

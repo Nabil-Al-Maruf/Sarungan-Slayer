@@ -59,6 +59,8 @@ export class LocalPeerManager {
   public selectedHeroId: HeroId = 'bima';
   public connected = false;
   public pingMs = 0;
+  public snapsReceived = 0;
+  public lastSnapReceivedAt = 0;
 
   public lobbyPlayers: LobbyPlayerInfo[] = [];
   public clientInputs = new Map<string, PlayerInput>();
@@ -303,8 +305,11 @@ export class LocalPeerManager {
       });
 
       this.socket.on('snap', (snap: CompactGameSnapshot) => {
+        if (!snap) return;
         if (snap.seq <= this.lastSnapSeq) return;
         this.lastSnapSeq = snap.seq;
+        this.snapsReceived++;
+        this.lastSnapReceivedAt = performance.now();
         this.callbacks.onSnapshot(snap);
       });
 
@@ -402,7 +407,10 @@ export class LocalPeerManager {
     this.peer = new Peer({ debug: 1 });
 
     this.peer.on('open', () => {
-      const conn = this.peer!.connect(targetPeerId);
+      const conn = this.peer!.connect(targetPeerId, {
+        serialization: 'json',
+        reliable: true,
+      });
       this.hostConnection = conn;
 
       conn.on('open', () => {
@@ -445,11 +453,17 @@ export class LocalPeerManager {
   }
 
   private handleIncomingPeerClient(conn: DataConnection): void {
+    // Register immediately so snapshots are NEVER missed even if 'open' already fired or 'data' arrives first!
+    this.connections.set(conn.peer, conn);
+
     conn.on('open', () => {
       this.connections.set(conn.peer, conn);
     });
 
     conn.on('data', (data) => {
+      if (!this.connections.has(conn.peer)) {
+        this.connections.set(conn.peer, conn);
+      }
       const msg = data as NetMessage;
       if (msg.t === 'join') {
         const usedIds = new Set(this.lobbyPlayers.map((p) => p.id));
@@ -546,8 +560,10 @@ export class LocalPeerManager {
         this.callbacks.onGameStart();
         break;
       case 'snap':
-        if (msg.snap.seq <= this.lastSnapSeq) break;
+        if (!msg.snap || msg.snap.seq <= this.lastSnapSeq) break;
         this.lastSnapSeq = msg.snap.seq;
+        this.snapsReceived++;
+        this.lastSnapReceivedAt = performance.now();
         this.callbacks.onSnapshot(msg.snap);
         break;
       case 'stick_snap': {
@@ -879,23 +895,28 @@ export class LocalPeerManager {
         }
       }
     } else {
-      // PeerJS fallback with generous backpressure guard (32KB)
+      // PeerJS fallback with generous backpressure guard (64KB) & safe DataChannel open check
       for (const [_, conn] of this.connections) {
-        if (!conn.open) continue;
+        const dcState = (conn as any).dataChannel?.readyState;
+        if (!conn.open && dcState !== 'open') continue;
         const buffered = (conn as any).dataChannel?.bufferedAmount ?? 0;
-        if (buffered > 32768) continue;
+        if (buffered > 65536) continue;
 
         const pId = (conn as any)._playerId;
         const targetPl = this.lobbyPlayers.find((p) => p.id === pId);
 
-        if (targetPl && targetPl.role === 'stick') {
-          const pState = snap.players.find((p) => p.id === pId);
-          if (pState) {
-            const stickSnap = this.buildStickSnapshot(snap, pState);
-            conn.send({ t: 'stick_snap', snap: stickSnap } as NetMessage);
+        try {
+          if (targetPl && targetPl.role === 'stick') {
+            const pState = snap.players.find((p) => p.id === pId);
+            if (pState) {
+              const stickSnap = this.buildStickSnapshot(snap, pState);
+              conn.send({ t: 'stick_snap', snap: stickSnap } as NetMessage);
+            }
+          } else {
+            conn.send({ t: 'snap', snap } as NetMessage);
           }
-        } else {
-          conn.send({ t: 'snap', snap } as NetMessage);
+        } catch {
+          // Ignore transient send error on closing channel
         }
       }
     }
