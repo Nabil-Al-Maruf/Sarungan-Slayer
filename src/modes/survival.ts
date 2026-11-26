@@ -878,9 +878,12 @@ export function stepSurvival(
       }
 
       // Every 10 Waves (Wave 10, 20, 30, 40...), grant Ultimate Jurus selection modal!
+      // Every 10 Waves (Wave 10, 20, 30...), refill 100% Hero Ultimate as milestone bonus!
+      // Each Hero keeps their own signature Ultimate (no confusing ult-swapping)
       if (surv.wave % 10 === 0) {
         for (const p of state.players) {
-          p.pendingUltChoice = true;
+          p.ult = p.maxUlt;
+          p.pendingUltChoice = false;
         }
       }
 

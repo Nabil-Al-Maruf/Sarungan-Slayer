@@ -89,8 +89,9 @@ assert(css.includes('@media (orientation: landscape) and (max-height: 520px)'), 
 console.log('\n=== TEST 7: Menu Navigation & Modal Logic in main.ts ===');
 assert(ts.includes("menuOverlay.classList.toggle('in-subview', !isHome);"), 'showMenuView toggles in-subview class on menuOverlay');
 assert(ts.includes('function closeAllModals(): void'), 'closeAllModals cleanly hides every overlay without leaking elements');
-assert(ts.includes('heroSection.classList.toggle(\'hidden\', !isBrawl);'), 'setMabarGameType toggles lobby hero section depending on game type');
-assert(ts.includes('skinPicker.classList.toggle(\'hidden\', isBrawl);'), 'setMabarGameType toggles lobby skin picker depending on game type');
+assert(!html.includes('id="settings-skin-picker"'), 'Old redundant settings skin picker removed in favor of 6 Heroes');
+assert(!html.includes('id="lobby-skin-picker"'), 'Old redundant lobby skin picker removed in favor of 6 Heroes');
+assert(ts.includes("if (heroSection) heroSection.classList.remove('hidden');"), 'Lobby Hero Selector stays visible for all modes');
 assert(ts.includes("} else if (state.mode === 'brawl') {\n    if (localPeer.connected && localPeer.isHost) {\n      localPeer.sendStartGame();\n    } else {\n      startSoloBrawl();\n    }"), 'btnPauseRestart restarts brawl mode properly instead of falling into sandbox');
 assert(ts.includes("if (e.key === 'Escape' && (resultShown || (brawlVictoryOverlay && !brawlVictoryOverlay.classList.contains('hidden'))))"), 'Escape key returns to menu cleanly on result or brawl victory');
 assert(ts.includes("statusEl.classList.toggle('locked', !unlocked);"), 'refreshMenuProgress toggles locked class');

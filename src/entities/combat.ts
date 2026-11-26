@@ -159,7 +159,7 @@ export function resolveCombat(state: GameState, dt: number): void {
       player.ultActiveTimer = Math.max(0, player.ultActiveTimer - dt);
       const uType = player.ultType ?? 'gasing';
 
-      if (uType === 'gasing') {
+      if (uType === 'gasing' || uType === 'selendang') {
         player.ultTickTimer -= dt;
 
         // Suction Vacuum: Whirlwind pulls nearby enemies towards the center!

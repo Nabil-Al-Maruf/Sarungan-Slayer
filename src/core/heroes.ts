@@ -7,6 +7,7 @@ export interface HeroDef {
   tagline: string;
   archetype: 'Balanced' | 'Assassin' | 'Juggernaut' | 'Zoner' | 'Trapper' | 'Acrobat';
   avatar: string; // Emoji
+  paletteIndex: number;
   accentColor: string;
   badgeBg: string;
 
@@ -48,6 +49,7 @@ export const HERO_DEFS: Record<HeroId, HeroDef> = {
     tagline: 'Kibasane nggepuk, pecute nyamber!',
     archetype: 'Balanced',
     avatar: '🧣',
+    paletteIndex: 0,
     accentColor: '#ef4444',
     badgeBg: '#7f1d1d',
     weaponName: 'Kibasan Sarung',
@@ -79,6 +81,7 @@ export const HERO_DEFS: Record<HeroId, HeroDef> = {
     tagline: 'Mlayu banter, clurite ngiris kilat!',
     archetype: 'Assassin',
     avatar: '🗡️',
+    paletteIndex: 1,
     accentColor: '#3b82f6',
     badgeBg: '#1e3a8a',
     weaponName: 'Tebasan Clurit',
@@ -110,6 +113,7 @@ export const HERO_DEFS: Record<HeroId, HeroDef> = {
     tagline: 'Awak wesi, tinjune nggilani!',
     archetype: 'Juggernaut',
     avatar: '🥊',
+    paletteIndex: 2,
     accentColor: '#f59e0b',
     badgeBg: '#78350f',
     weaponName: 'Tinju Beton',
@@ -117,8 +121,8 @@ export const HERO_DEFS: Record<HeroId, HeroDef> = {
     projName: 'Bakiak Kayu',
     projDesc: 'Lemparan sandal kayu abot sing nggulingno lawan',
     ultName: 'Gempa Hantam Tunjungan',
-    ultDesc: 'Lompat dhuwur terus ngantem bumi gawe kawah lindu',
-    ultType: 'mercon',
+    ultDesc: 'Lompat dhuwur terus ngantem bumi gawe gelombang seismik & stun berat',
+    ultType: 'gempa',
     slashStyle: 'tinju_shockwave',
     sarungStyle: 'lipit_jawara',
     defaultElement: 'api',
@@ -141,6 +145,7 @@ export const HERO_DEFS: Record<HeroId, HeroDef> = {
     tagline: 'Bambu kuning sakti, ilmu linuwih!',
     archetype: 'Zoner',
     avatar: '🎋',
+    paletteIndex: 3,
     accentColor: '#10b981',
     badgeBg: '#064e3b',
     weaponName: 'Bambu Kuning',
@@ -172,6 +177,7 @@ export const HERO_DEFS: Record<HeroId, HeroDef> = {
     tagline: 'Duwe mercon renteng, ojo cedak-cedak!',
     archetype: 'Trapper',
     avatar: '🧨',
+    paletteIndex: 4,
     accentColor: '#ea580c',
     badgeBg: '#7c2d12',
     weaponName: 'Sapu Lidi Sakti',
@@ -203,15 +209,16 @@ export const HERO_DEFS: Record<HeroId, HeroDef> = {
     tagline: 'Selendang sutra alus tapi mbebayani!',
     archetype: 'Acrobat',
     avatar: '💃',
+    paletteIndex: 5,
     accentColor: '#ec4899',
     badgeBg: '#831843',
     weaponName: 'Selendang Sutra',
     weaponDesc: 'Kibasan selendang amba sing narik musuh nyedak',
     projName: 'Piring Terbang',
     projDesc: 'Lemparan piring sambel cepet kaya frisbee',
-    ultName: 'Pusaran Angin Selendang',
-    ultDesc: 'Badai angin selendang abang nguncalno kabeh musuh munggah',
-    ultType: 'gasing',
+    ultName: 'Badai Selendang Sutra',
+    ultDesc: 'Pusaran pita sutra 360° kecepatan tinggi mengiris & melontarkan musuh ke udara',
+    ultType: 'selendang',
     slashStyle: 'selendang_cyclone',
     sarungStyle: 'lilit_kebaya',
     defaultElement: 'badai',

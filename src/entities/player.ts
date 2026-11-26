@@ -16,7 +16,6 @@ import {
   PROJ_MAX_PIERCE,
   PROJ_RADIUS,
   PROJ_SPEED,
-  ULT_DURATION,
   ULT_MAX,
 } from '../core/constants';
 import { getHeroDef } from '../core/heroes';
@@ -34,11 +33,12 @@ export function createPlayer(
   const pal = PLAYER_PALETTES[paletteIndex % PLAYER_PALETTES.length];
   const resolvedHeroId: HeroId = heroId || pal.heroId || 'bima';
   const hDef = getHeroDef(resolvedHeroId);
+  const resolvedPalette = heroId ? hDef.paletteIndex : paletteIndex % PLAYER_PALETTES.length;
   const defaultName = pal.name.split(' (')[0];
   return {
     id,
     name: (customName && customName.trim().slice(0, 14)) || (heroId ? hDef.name : defaultName),
-    paletteIndex: paletteIndex % PLAYER_PALETTES.length,
+    paletteIndex: resolvedPalette,
     heroId: resolvedHeroId,
     slashStyle: (heroId ? hDef.slashStyle : pal.slashStyle) || hDef.slashStyle || 'sarung_whip',
     sarungStyle: (heroId ? hDef.sarungStyle : pal.sarungStyle) || hDef.sarungStyle || 'gulung_tempur',
@@ -163,14 +163,14 @@ export function updatePlayer(
         maxLife: 1.5,
       });
 
-      // Strike all visible enemies with high-voltage lightning & electric stun!
+      // Strike all visible enemies with balanced high-voltage lightning & electric stun
       const activeEnemies = state.enemies.filter((e) => e.hp > 0);
       for (const e of activeEnemies) {
-        const dmg = Math.round((e.isBoss ? 290 : 210) * player.dmgMult);
+        const dmg = Math.round((e.isBoss ? 225 : 175) * player.dmgMult);
         e.hp = Math.max(0, e.hp - dmg);
-        e.hitFlashTimer = 0.35;
-        e.stunTimer = Math.max(e.stunTimer, 2.4); // 2.4s Complete Electric Paralysis!
-        e.vz = 160; // Electrical launch into the air
+        e.hitFlashTimer = 0.3;
+        e.stunTimer = Math.max(e.stunTimer, 1.8); // Balanced 1.8s Electric Stun
+        e.vz = 150;
 
         state.floatingTexts.push({
           x: e.x,
@@ -310,6 +310,10 @@ export function updatePlayer(
         maxLife: 1.5,
       });
 
+      // Gus Dimas Karomah Healing Bonus (+25% Max HP)
+      const healAmt = Math.round(player.maxHp * 0.25);
+      player.hp = Math.min(player.maxHp, player.hp + healAmt);
+
       const nagaAngle = Math.atan2(player.dirY, player.dirX);
       state.projectiles.push({
         id: state.nextEntityId++,
@@ -320,36 +324,137 @@ export function updatePlayer(
         vx: Math.cos(nagaAngle) * (PROJ_SPEED * 1.05),
         vy: Math.sin(nagaAngle) * (PROJ_SPEED * 1.05),
         angle: nagaAngle,
-        radius: 54,
-        damage: Math.round(240 * player.dmgMult),
-        pierceLeft: 999, // Unstoppable Piercing Rush!
+        radius: 52,
+        damage: Math.round(190 * player.dmgMult),
+        pierceLeft: 999,
         hitIds: [],
-        life: 1.25,
-        maxLife: 1.25,
-        color: '#ef4444',
+        life: 1.2,
+        maxLife: 1.2,
+        color: '#10b981',
       });
 
-      // Ground Inferno path
-      for (let s = 1; s <= 4; s++) {
+      // Ground Sacred Flame path
+      for (let s = 1; s <= 3; s++) {
         state.hazards.push({
           id: state.nextEntityId++,
           kind: 'naga_flame',
           ownerId: player.id,
-          x: player.x + Math.cos(nagaAngle) * (s * 75),
+          x: player.x + Math.cos(nagaAngle) * (s * 80),
           y: player.y + Math.sin(nagaAngle) * (s * 55),
-          radius: 50,
+          radius: 48,
           delay: 0,
           maxDelay: 0,
-          damage: Math.round(55 * player.dmgMult),
+          damage: Math.round(45 * player.dmgMult),
           detonated: true,
-          flashTimer: 3.2,
+          flashTimer: 2.8,
+        });
+      }
+    } else if (uType === 'gempa') {
+      // Bang Bambang: Gempa Hantam Tunjungan (Seismic Slam Ring + Heavy Stun & Knockback)
+      player.ultActiveTimer = 0.65;
+      player.invulnTimer = Math.max(player.invulnTimer, 1.3);
+      player.vz = 240;
+      player.scaleX = 1.45;
+      player.scaleY = 0.65;
+      state.soundQueue.push('ult_start');
+      state.shakeTimer = Math.max(state.shakeTimer, 0.55);
+      state.shakeIntensity = Math.max(state.shakeIntensity, 12);
+      state.floatingTexts.push({
+        x: player.x,
+        y: player.y - player.z - 65,
+        vy: -55,
+        text: '🌋 GEMPA HANTAM TUNJUNGAN! 🌋',
+        color: '#f59e0b',
+        scale: 1.35,
+        life: 1.4,
+        maxLife: 1.4,
+      });
+
+      const quakeRadius = 215;
+      for (const e of state.enemies) {
+        if (e.hp <= 0) continue;
+        const dist = Math.hypot(e.x - player.x, e.y - player.y);
+        if (dist <= quakeRadius) {
+          const dmg = Math.round((e.isBoss ? 235 : 185) * player.dmgMult);
+          e.hp = Math.max(0, e.hp - dmg);
+          e.hitFlashTimer = 0.32;
+          e.stunTimer = Math.max(e.stunTimer, 1.6);
+          const ang = Math.atan2(e.y - player.y, e.x - player.x);
+          e.vx += Math.cos(ang) * 440;
+          e.vy += Math.sin(ang) * 320;
+          e.vz = 210;
+          state.floatingTexts.push({
+            x: e.x,
+            y: e.y - e.z - 42,
+            vy: -55,
+            text: `🌋 -${dmg}`,
+            color: '#fbbf24',
+            scale: 1.1,
+            life: 1.0,
+            maxLife: 1.0,
+          });
+        }
+      }
+      for (let i = 0; i < 24; i++) {
+        const ang = (Math.PI * 2 * i) / 24;
+        state.particles.push({
+          x: player.x + Math.cos(ang) * 20,
+          y: player.y + Math.sin(ang) * 14,
+          z: 8,
+          vx: Math.cos(ang) * 290,
+          vy: Math.sin(ang) * 190,
+          vz: 110 + Math.random() * 80,
+          size: 7 + Math.random() * 5,
+          alpha: 1,
+          gravity: 420,
+          life: 0.55,
+          maxLife: 0.55,
+          color: i % 2 === 0 ? '#f59e0b' : '#ef4444',
+        });
+      }
+    } else if (uType === 'selendang') {
+      // Mbak Sri: Badai Selendang Sutra (High-Speed 360° Silk Cyclone)
+      player.ultActiveTimer = 2.4;
+      player.ultTickTimer = 0;
+      player.invulnTimer = Math.max(player.invulnTimer, 2.5);
+      player.scaleX = 1.32;
+      player.scaleY = 0.78;
+      state.soundQueue.push('ult_start');
+      state.shakeTimer = Math.max(state.shakeTimer, 0.25);
+      state.shakeIntensity = Math.max(state.shakeIntensity, 6);
+      state.floatingTexts.push({
+        x: player.x,
+        y: player.y - player.z - 60,
+        vy: -48,
+        text: '💃 BADAI SELENDANG SUTRA! 💃',
+        color: '#f472b6',
+        scale: 1.3,
+        life: 1.3,
+        maxLife: 1.3,
+      });
+      for (let i = 0; i < 18; i++) {
+        const ang = (Math.PI * 2 * i) / 18;
+        state.particles.push({
+          x: player.x,
+          y: player.y,
+          z: 14,
+          vx: Math.cos(ang) * 240,
+          vy: Math.sin(ang) * 170,
+          vz: 90,
+          size: 6,
+          alpha: 1,
+          gravity: 0,
+          life: 0.5,
+          maxLife: 0.5,
+          color: i % 2 === 0 ? '#ec4899' : '#fbcfe8',
         });
       }
     } else {
-      // Default / Gasing: Badai Gasing Sarung
-      player.ultActiveTimer = ULT_DURATION;
+      // Default / Gasing (Cak Bima): Badai Gasing Sarung
+      const gasingDur = 2.6;
+      player.ultActiveTimer = gasingDur;
       player.ultTickTimer = 0;
-      player.invulnTimer = Math.max(player.invulnTimer, ULT_DURATION + 0.15);
+      player.invulnTimer = Math.max(player.invulnTimer, gasingDur + 0.15);
       player.scaleX = 1.28;
       player.scaleY = 0.78;
       state.soundQueue.push('ult_start');

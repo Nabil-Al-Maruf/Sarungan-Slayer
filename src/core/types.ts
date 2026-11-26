@@ -16,7 +16,7 @@ export interface PlayerInput {
 
 export type MapTheme = 'tambak' | 'tunjungan' | 'suramadu' | 'perempatan' | 'arena_smash';
 
-export type UltType = 'gasing' | 'petir' | 'mercon' | 'naga';
+export type UltType = 'gasing' | 'petir' | 'gempa' | 'naga' | 'mercon' | 'selendang';
 
 export type SlashStyle =
   | 'sarung_whip'

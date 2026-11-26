@@ -1016,6 +1016,7 @@ function selectHero(heroId: HeroId): void {
   });
 
   const hDef = getHeroDef(heroId);
+  syncSelectedSkin(hDef.paletteIndex);
   const playHeroBadge = document.getElementById('play-hero-active-badge');
   if (playHeroBadge) {
     playHeroBadge.textContent = `${hDef.name} • ${hDef.archetype}`;
@@ -1062,11 +1063,8 @@ function setMabarGameType(mode: 'survival' | 'brawl'): void {
   gametypeSurvivalBtn?.classList.toggle('active', mode === 'survival');
   gametypeBrawlBtn?.classList.toggle('active', mode === 'brawl');
 
-  const isBrawl = mode === 'brawl';
   const heroSection = document.getElementById('lobby-hero-section');
-  const skinPicker = document.getElementById('lobby-skin-picker');
-  if (heroSection) heroSection.classList.toggle('hidden', !isBrawl);
-  if (skinPicker) skinPicker.classList.toggle('hidden', isBrawl);
+  if (heroSection) heroSection.classList.remove('hidden');
 
   if (localPeer.connected) {
     localPeer.sendSetGameMode(mode);
@@ -1837,8 +1835,8 @@ window.addEventListener('keydown', (e) => {
     }
   }
 
-  if (state.mode === 'sandbox' && (e.key === '1' || e.key === '2' || e.key === '3' || e.key === '4')) {
-    const ults: UltType[] = ['gasing', 'petir', 'mercon', 'naga'];
+  if (state.mode === 'sandbox' && ['1', '2', '3', '4', '5', '6'].includes(e.key)) {
+    const ults: UltType[] = ['gasing', 'petir', 'gempa', 'naga', 'mercon', 'selendang'];
     const idx = parseInt(e.key, 10) - 1;
     const chosen = ults[idx];
     const player = getLocalPlayer();

@@ -199,11 +199,15 @@ export class HudController {
     const ultLabelName =
       ultType === 'petir'
         ? '⚡ PETIR'
-        : ultType === 'mercon'
-          ? '💥 BAZOOKA'
-          : ultType === 'naga'
-            ? '🐉 NAGA'
-            : '🌀 GASING';
+        : ultType === 'gempa'
+          ? '🌋 GEMPA'
+          : ultType === 'mercon'
+            ? '💥 BAZOOKA'
+            : ultType === 'naga'
+              ? '🐉 NAGA'
+              : ultType === 'selendang'
+                ? '💃 SELENDANG'
+                : '🌀 GASING';
     const ultTxt =
       player.ultActiveTimer > 0
         ? `${ultLabelName}!`

@@ -280,15 +280,27 @@ console.log('\n=== TEST 9: Palette Fallback to Distinct Hero & Sarung Style ==='
   assert(p2.sarungStyle === 'lipit_jawara', 'Palette 2 resolves to lipit_jawara');
   assert(p2.slashStyle === 'tinju_shockwave', 'Palette 2 resolves to tinju_shockwave');
 
+  const p3 = createPlayer('p3', 0, 0, 3);
+  assert(p3.heroId === 'gus_dimas', 'Palette 3 resolves to hero gus_dimas');
+  assert(p3.sarungStyle === 'jubah_wali', 'Palette 3 resolves to jubah_wali');
+  assert(p3.slashStyle === 'bambu_radiant', 'Palette 3 resolves to bambu_radiant');
+  assert(p3.ultType === 'naga', 'Gus Dimas has unique ultType naga');
+
   const p4 = createPlayer('p4', 0, 0, 4);
-  assert(p4.heroId === 'gus_dimas', 'Palette 4 resolves to hero gus_dimas');
-  assert(p4.sarungStyle === 'jubah_wali', 'Palette 4 resolves to jubah_wali');
-  assert(p4.slashStyle === 'bambu_radiant', 'Palette 4 resolves to bambu_radiant');
+  assert(p4.heroId === 'pak_rt', 'Palette 4 resolves to hero pak_rt');
+  assert(p4.sarungStyle === 'lipit_dinas', 'Palette 4 resolves to lipit_dinas');
+  assert(p4.slashStyle === 'mercon_burst', 'Palette 4 resolves to mercon_burst');
+  assert(p4.ultType === 'mercon', 'Pak RT has unique ultType mercon');
 
   const p5 = createPlayer('p5', 0, 0, 5);
-  assert(p5.heroId === 'pak_rt', 'Palette 5 resolves to hero pak_rt');
-  assert(p5.sarungStyle === 'lipit_dinas', 'Palette 5 resolves to lipit_dinas');
-  assert(p5.slashStyle === 'mercon_burst', 'Palette 5 resolves to mercon_burst');
+  assert(p5.heroId === 'mbak_sri', 'Palette 5 resolves to hero mbak_sri');
+  assert(p5.sarungStyle === 'lilit_kebaya', 'Palette 5 resolves to lilit_kebaya');
+  assert(p5.slashStyle === 'selendang_cyclone', 'Palette 5 resolves to selendang_cyclone');
+  assert(p5.ultType === 'selendang', 'Mbak Sri has unique ultType selendang');
+
+  assert(p0.ultType === 'gasing', 'Cak Bima has unique ultType gasing');
+  assert(p1.ultType === 'petir', 'Mat Clurit has unique ultType petir');
+  assert(p2.ultType === 'gempa', 'Bang Bambang has unique ultType gempa');
 }
 
 console.log('\n=== TEST 10: Upgrade Player Slash Level in Dojo ===');
