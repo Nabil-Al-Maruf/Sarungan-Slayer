@@ -37,6 +37,8 @@ import {
   type MabarGameMode,
   type StickPersonalSnapshot,
 } from './net/protocol';
+import { createPlayer } from './entities/player';
+import { drawPlayer } from './render/characterRig';
 import { renderGame } from './render/renderer';
 import {
   isAutoFullscreenEnabled,
@@ -1508,10 +1510,55 @@ function showMenuView(view: 'home' | 'play' | 'settings' | 'story' | 'credits' |
 
 let currentDexHeroId: HeroId = 'bima';
 let heroesReturnView: 'home' | 'play' = 'home';
+const dexHeroCanvas = document.getElementById('dex-hero-canvas') as HTMLCanvasElement | null;
+const dexHeroCtx = dexHeroCanvas ? dexHeroCanvas.getContext('2d') : null;
+let dexPreviewPlayer: PlayerState | null = null;
+
+function renderHeroDexPreview(timeSec: number): void {
+  if (!dexHeroCtx || !dexHeroCanvas || !dexPreviewPlayer) return;
+  const w = dexHeroCanvas.width;
+  const h = dexHeroCanvas.height;
+  dexHeroCtx.clearRect(0, 0, w, h);
+
+  // Subtle glowing arcade pedestal ring
+  const hDef = getHeroDef(dexPreviewPlayer.heroId);
+  dexHeroCtx.save();
+  dexHeroCtx.fillStyle = 'rgba(255, 255, 255, 0.06)';
+  dexHeroCtx.beginPath();
+  dexHeroCtx.ellipse(w * 0.5, h * 0.82, 36, 12, 0, 0, Math.PI * 2);
+  dexHeroCtx.fill();
+  dexHeroCtx.strokeStyle = hDef.accentColor;
+  dexHeroCtx.globalAlpha = 0.55;
+  dexHeroCtx.lineWidth = 2;
+  dexHeroCtx.beginPath();
+  dexHeroCtx.ellipse(w * 0.5, h * 0.82, 34, 11, 0, 0, Math.PI * 2);
+  dexHeroCtx.stroke();
+  dexHeroCtx.restore();
+
+  // Animate breathing + periodic weapon swing showcase
+  dexPreviewPlayer.animTime = timeSec * 4.2;
+  const cycle = timeSec % 2.4;
+  dexPreviewPlayer.meleeTimer = cycle < 0.24 ? 0.24 - cycle : 0;
+
+  dexHeroCtx.save();
+  dexHeroCtx.translate(w * 0.5, h * 0.8);
+  dexHeroCtx.scale(1.42, 1.42);
+  dexPreviewPlayer.x = 0;
+  dexPreviewPlayer.y = 0;
+  dexPreviewPlayer.z = 0;
+  drawPlayer(dexHeroCtx, dexPreviewPlayer, timeSec, false, false);
+  dexHeroCtx.restore();
+}
 
 function renderHeroEncyclopedia(heroId: HeroId): void {
   currentDexHeroId = heroId;
   const h = getHeroDef(heroId);
+  dexPreviewPlayer = createPlayer('dex', 0, 0, h.paletteIndex, h.name, heroId);
+  dexPreviewPlayer.slashElement = h.defaultElement;
+  dexPreviewPlayer.slashElementLevel = 1;
+  dexPreviewPlayer.dirX = 1;
+  dexPreviewPlayer.dirY = 0;
+  renderHeroDexPreview(performance.now() / 1000);
   const uDef = ULT_DEFS[h.ultType];
   const elemBadges: Record<SlashElement, string> = {
     none: '⚪ STANDAR',
@@ -3074,6 +3121,10 @@ function frame(now: number): void {
       }
     }
     accumulator -= FIXED_DT;
+  }
+
+  if (menuOpen && menuHeroesView && !menuHeroesView.classList.contains('hidden')) {
+    renderHeroDexPreview(now / 1000);
   }
 
   if (localPeer.localRole !== 'stick') {
