@@ -166,8 +166,10 @@ export class LocalPeerManager {
   ): void {
     try {
       this.socket = io(window.location.origin, {
-        reconnection: false,
-        timeout: 2000,
+        reconnection: true,
+        reconnectionAttempts: 10,
+        reconnectionDelay: 400,
+        timeout: 3000,
         transports: ['websocket', 'polling'],
       });
 
@@ -254,8 +256,10 @@ export class LocalPeerManager {
   ): void {
     try {
       this.socket = io(window.location.origin, {
-        reconnection: false,
-        timeout: 2000,
+        reconnection: true,
+        reconnectionAttempts: 10,
+        reconnectionDelay: 400,
+        timeout: 3000,
         transports: ['websocket', 'polling'],
       });
 
@@ -861,8 +865,8 @@ export class LocalPeerManager {
     if (!this.isHost) return;
 
     if (this.transport === 'socket.io' && this.socket) {
-      // 1. Emit full snapshot to coop clients at 60Hz
-      this.socket.emit('snap', { snap });
+      // 1. Volatile emit so stale frames NEVER queue up & cause signal lag on Wi-Fi/Hotspot
+      this.socket.volatile.emit('snap', { snap });
 
       // 2. Emit lightweight stick personal snapshots directly to each phone controller
       for (const pl of this.lobbyPlayers) {
@@ -870,13 +874,17 @@ export class LocalPeerManager {
           const pState = snap.players.find((p) => p.id === pl.id);
           if (pState) {
             const stickSnap = this.buildStickSnapshot(snap, pState);
-            this.socket.emit('stick_snap', { playerId: pl.id, snap: stickSnap });
+            this.socket.volatile.emit('stick_snap', { playerId: pl.id, snap: stickSnap });
           }
         }
       }
     } else {
-      // PeerJS fallback
+      // PeerJS fallback with WebRTC backpressure protection (prevents bufferbloat lag!)
       for (const [_, conn] of this.connections) {
+        if (!conn.open) continue;
+        const buffered = (conn as any).dataChannel?.bufferedAmount ?? 0;
+        if (buffered > 8192) continue;
+
         const pId = (conn as any)._playerId;
         const targetPl = this.lobbyPlayers.find((p) => p.id === pId);
 
@@ -926,7 +934,7 @@ export class LocalPeerManager {
       if (this.socket && this.socket.connected) {
         this.socket.emit('ping_check', { timestamp: performance.now() });
       }
-    }, 2000);
+    }, 1000);
   }
 
   private startPeerPingLoop(): void {
@@ -938,7 +946,7 @@ export class LocalPeerManager {
           timestamp: performance.now(),
         } as NetMessage);
       }
-    }, 2000);
+    }, 1000);
   }
 
   private stopPingLoop(): void {

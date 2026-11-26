@@ -4,6 +4,7 @@ import { FIXED_DT, PLAYER_PALETTES, ULT_DEFS, VIRTUAL_HEIGHT, VIRTUAL_WIDTH } fr
 import { HERO_DEFS, getHeroDef } from './core/heroes';
 import { InputManager } from './core/input';
 import { getHeroZombieMatchups } from './core/zombieMatchups';
+import { ENEMY_SPECS } from './entities/enemyFactory';
 import type { BrawlStageTheme, BuffId, EnemyKind, EnemyState, GameState, HeroId, PlayerInput, PlayerState, ProjectileState, SlashElement, UltType } from './core/types';
 import { createBrawlState, stepBrawl, type BrawlRosterMember } from './modes/brawl';
 import { createSandboxState, stepSandbox } from './modes/sandbox';
@@ -497,20 +498,28 @@ const localPeer = new LocalPeerManager({
     // Replicate snapshot into local render state
     state.status = snap.status;
     state.koCount = snap.koCount;
-    state.shakeIntensity = snap.shakeIntensity;
+    if (snap.theme) state.theme = snap.theme;
+    if (snap.shakeIntensity > 0) {
+      state.shakeIntensity = snap.shakeIntensity;
+      state.shakeTimer = Math.max(state.shakeTimer, 0.14);
+    } else {
+      state.shakeIntensity = 0;
+    }
     state.comboUlt = snap.comboUlt;
 
     if (snap.gameMode === 'brawl') {
       state.mode = 'brawl';
       state.stageTitle = 'TAWURAN SMASH BRAWL';
+      const defaultPlats = [
+        { x: 170, y: 390, w: 620, h: 32, dropThrough: false },
+        { x: 210, y: 275, w: 160, h: 14, dropThrough: true },
+        { x: 590, y: 275, w: 160, h: 14, dropThrough: true },
+        { x: 390, y: 175, w: 180, h: 14, dropThrough: true },
+      ];
       if (!state.brawl) {
         state.brawl = {
-          platforms: [
-            { x: 170, y: 390, w: 620, h: 32, dropThrough: false },
-            { x: 210, y: 275, w: 160, h: 14, dropThrough: true },
-            { x: 590, y: 275, w: 160, h: 14, dropThrough: true },
-            { x: 390, y: 175, w: 180, h: 14, dropThrough: true },
-          ],
+          platforms: snap.brawlPlatforms || defaultPlats,
+          stageTheme: snap.brawlStageTheme || 'alun_alun',
           initialStocks: 3,
           matchDuration: 180,
           ringOutBound: { minX: -60, maxX: 1020, minY: -90, maxY: 560 },
@@ -521,6 +530,10 @@ const localPeer = new LocalPeerManager({
       } else {
         if (snap.brawlRemainingTime !== undefined) state.brawl.remainingTime = snap.brawlRemainingTime;
         state.brawl.winnerId = snap.brawlWinnerId;
+        if (snap.brawlStageTheme) state.brawl.stageTheme = snap.brawlStageTheme;
+        if (snap.brawlPlatforms && snap.brawlPlatforms.length > 0) {
+          state.brawl.platforms = snap.brawlPlatforms;
+        }
       }
     } else if (state.survival) {
       state.survival.wave = snap.wave;
@@ -614,10 +627,13 @@ const localPeer = new LocalPeerManager({
           lp.z = sp.z;
         } else {
           lp.dirX = sp.dirX;
+          if (sp.dirY !== undefined) lp.dirY = sp.dirY;
           lp.animTime = sp.animTime;
         }
         lp.vx = sp.vx;
         lp.vy = sp.vy;
+        lp.invulnTimer = sp.invulnTimer;
+        if (sp.ultActiveTimer !== undefined) lp.ultActiveTimer = sp.ultActiveTimer;
         if (sp.meleeTimer !== undefined) lp.meleeTimer = sp.meleeTimer;
         if (sp.dashTimer !== undefined) lp.dashTimer = sp.dashTimer;
         if (sp.hitFlashTimer !== undefined) lp.hitFlashTimer = sp.hitFlashTimer;
@@ -648,24 +664,26 @@ const localPeer = new LocalPeerManager({
         const existing = state.enemies.find((e) => e.id === se.id);
         const aiState = se.aiState as EnemyState['aiState'];
         if (!existing) {
+          const eKind = se.kind as EnemyKind;
+          const spec = ENEMY_SPECS[eKind];
           const newEnemy: EnemyState = {
             id: se.id,
-            kind: se.kind as EnemyKind,
-            name: se.kind,
-            isBoss: se.kind.startsWith('boss_'),
+            kind: eKind,
+            name: spec?.name || se.kind,
+            isBoss: spec?.isBoss ?? se.kind.startsWith('boss_'),
             x: se.x,
             y: se.y,
-            z: 0,
+            z: se.z || 0,
             vx: 0,
             vy: 0,
             vz: 0,
-            radius: 16,
+            radius: spec?.radius || 16,
             dirX: se.dirX,
             dirY: 0,
             hp: se.hp,
             maxHp: se.maxHp,
-            hitFlashTimer: 0,
-            stunTimer: 0,
+            hitFlashTimer: se.hitFlash ? 0.14 : 0,
+            stunTimer: se.stun ? 0.25 : 0,
             attackCooldown: 1,
             specialTimer: 0,
             aiState,
@@ -675,16 +693,19 @@ const localPeer = new LocalPeerManager({
             lastHitSwingId: 0,
             scaleX: 1,
             scaleY: 1,
-            animTime: 0,
-            shirtColor: '#ef4444',
-            sarungColor: '#1e293b',
+            animTime: Math.random() * 6,
+            shirtColor: spec?.shirtColor || '#ef4444',
+            sarungColor: spec?.sarungColor || '#1e293b',
           };
           state.enemies.push(newEnemy);
         } else {
           existing.hp = se.hp;
           existing.maxHp = se.maxHp;
           existing.dirX = se.dirX;
+          existing.z = se.z || 0;
           existing.aiState = aiState;
+          existing.hitFlashTimer = se.hitFlash ? 0.14 : 0;
+          existing.stunTimer = se.stun ? 0.25 : 0;
         }
       }
       state.enemies = state.enemies.filter((e) => seenIds.has(e.id));
@@ -699,7 +720,7 @@ const localPeer = new LocalPeerManager({
         y: pr.y,
         vx: 0,
         vy: 0,
-        angle: 0,
+        angle: pr.angle ?? 0,
         radius: pr.radius,
         damage: 0,
         life: 0.5,
@@ -709,6 +730,69 @@ const localPeer = new LocalPeerManager({
         pierceLeft: 1,
         hitIds: [],
         kind: pr.kind as ProjectileState['kind'],
+      }));
+    }
+
+    // Sync crates (including Kendi Emas!), pickups, hazards & slashes for full multi-screen parity
+    if (snap.crates) {
+      state.crates = snap.crates.map((c) => ({
+        id: c.id,
+        x: c.x,
+        y: c.y,
+        z: c.z ?? 0,
+        vz: 0,
+        hp: c.hp,
+        maxHp: c.maxHp,
+        radius: c.style === 'gold_kendi' ? 20 : 18,
+        hitFlashTimer: 0,
+        lastHitSwingId: -1,
+        style: c.style,
+        bobPhase: c.bobPhase ?? 0,
+      }));
+    }
+    if (snap.pickups) {
+      state.pickups = snap.pickups.map((pk) => ({
+        id: pk.id,
+        kind: pk.kind as any,
+        x: pk.x,
+        y: pk.y,
+        z: pk.z,
+        vx: 0,
+        vy: 0,
+        vz: 0,
+        radius: 12,
+        life: 10,
+        bobPhase: pk.bobPhase,
+      }));
+    }
+    if (snap.hazards) {
+      state.hazards = snap.hazards.map((hz) => ({
+        id: hz.id,
+        kind: hz.kind as any,
+        x: hz.x,
+        y: hz.y,
+        radius: hz.radius,
+        delay: hz.delay,
+        maxDelay: hz.maxDelay,
+        damage: 0,
+        detonated: hz.detonated,
+        flashTimer: hz.flashTimer,
+      }));
+    }
+    if (snap.slashes) {
+      state.slashes = snap.slashes.map((sl) => ({
+        x: sl.x,
+        y: sl.y,
+        angle: sl.angle,
+        color: sl.color,
+        stripeColor: sl.stripeColor,
+        life: sl.life,
+        maxLife: sl.maxLife,
+        comboStep: sl.comboStep,
+        heroId: sl.heroId,
+        slashStyle: sl.slashStyle,
+        element: sl.element,
+        elementLevel: sl.elementLevel,
       }));
     }
 
@@ -2996,6 +3080,16 @@ function frame(now: number): void {
         if (localPeer.localRole === 'stick') {
           updateStickHud();
         } else {
+          // Advance client visual clock & shake decay so all animations run smoothly at 60 FPS!
+          state.time += FIXED_DT;
+          if (state.shakeTimer > 0) {
+            state.shakeTimer = Math.max(0, state.shakeTimer - FIXED_DT);
+            if (state.shakeTimer === 0) state.shakeIntensity = 0;
+          }
+          if (state.comboUlt) {
+            state.comboUlt.elapsed += FIXED_DT;
+          }
+
           // Client-side local player movement prediction (0ms visual response)
           const lp = state.players.find((p) => p.id === localPeer.localPlayerId);
           if (lp && !lp.knockedDown && lp.hp > 0) {
@@ -3018,16 +3112,19 @@ function frame(now: number): void {
                 lp.y = Math.max(96, Math.min(VIRTUAL_HEIGHT - 28, lp.y + ny * predSpeed * FIXED_DT));
               }
               lp.dirX = nx >= 0 ? 1 : -1;
-              lp.animTime += FIXED_DT;
+              lp.dirY = ny;
+              lp.animTime += FIXED_DT * 13;
+            } else {
+              lp.animTime += FIXED_DT * 3;
             }
             const target = netPlayerTargets.get(lp.id);
             if (target) {
-              lp.x += (target.x - lp.x) * 0.2;
-              lp.y += (target.y - lp.y) * 0.2;
+              lp.x += (target.x - lp.x) * 0.25;
+              lp.y += (target.y - lp.y) * 0.25;
             }
           }
 
-          // Smooth 60 FPS interpolation for remote players and enemies (60Hz snapshot stream)
+          // Smooth 60 FPS interpolation for remote players and enemies
           for (const rp of state.players) {
             if (rp.id === localPeer.localPlayerId) continue;
             const target = netPlayerTargets.get(rp.id);
@@ -3040,8 +3137,10 @@ function frame(now: number): void {
           for (const re of state.enemies) {
             const target = netEnemyTargets.get(re.id);
             if (target) {
+              const distMoved = Math.hypot(target.x - re.x, target.y - re.y);
               re.x += (target.x - re.x) * 0.55;
               re.y += (target.y - re.y) * 0.55;
+              re.animTime += FIXED_DT * (distMoved > 0.4 ? 11 : 3);
             }
           }
         }
@@ -3177,8 +3276,11 @@ function frame(now: number): void {
     sandboxSkillsBar.style.display = isSandboxActive ? 'flex' : 'none';
   }
 
+  const sigDot =
+    localPeer.pingMs <= 45 ? '🟢' : localPeer.pingMs <= 110 ? '🟡' : '🔴';
+  const netLabel = localPeer.transport === 'peerjs' ? 'P2P' : 'LAN';
   const perfText = localPeer.connected
-    ? `${currentFps} FPS • ${localPeer.pingMs}ms LAN`
+    ? `${currentFps} FPS • ${sigDot} ${localPeer.pingMs}ms ${netLabel}`
     : `${currentFps} FPS`;
   hud.update(
     state,

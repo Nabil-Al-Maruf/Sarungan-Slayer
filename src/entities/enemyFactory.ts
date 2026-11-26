@@ -13,7 +13,7 @@ interface EnemySpec {
   sarungColor: string;
 }
 
-const ENEMY_SPECS: Record<EnemyKind, EnemySpec> = {
+export const ENEMY_SPECS: Record<EnemyKind, EnemySpec> = {
   dummy: {
     name: 'Samsak Kampung',
     hp: 110,
