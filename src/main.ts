@@ -903,14 +903,13 @@ const localPeer = new LocalPeerManager({
     }
   },
   onSkillPrompt(kind: 'buff' | 'ult', choices: string[]) {
-    if (localPeer.isHost) return;
+    if (localPeer.isHost || localPeer.localRole === 'monitor') return;
+    const exactLocal = state.players.find((pl) => pl.id === localPeer.localPlayerId) ?? getLocalPlayer();
     if (kind === 'buff') {
-      const p = getLocalPlayer();
-      if (p) p.pendingBuffChoices = choices as BuffId[];
+      if (exactLocal) exactLocal.pendingBuffChoices = choices as BuffId[];
       checkPendingBuffModal();
     } else {
-      const p = getLocalPlayer();
-      if (p) p.pendingUltChoice = true;
+      if (exactLocal) exactLocal.pendingUltChoice = true;
       checkPendingUltModal();
     }
   },
@@ -1464,7 +1463,13 @@ function pickUltChoice(ultType: UltType): void {
 }
 
 function checkPendingBuffModal(): void {
-  if (state.mode !== 'survival' || state.status !== 'playing' || menuOpen || lobbyOpen) {
+  if (
+    state.mode !== 'survival' ||
+    state.status !== 'playing' ||
+    menuOpen ||
+    lobbyOpen ||
+    (localPeer.connected && localPeer.localRole === 'monitor')
+  ) {
     if (buffModalOpen) {
       buffModalOpen = false;
       buffOverlay.classList.add('hidden');
@@ -1472,7 +1477,9 @@ function checkPendingBuffModal(): void {
     return;
   }
 
-  const player = getLocalPlayer();
+  const player = localPeer.connected
+    ? state.players.find((p) => p.id === localPeer.localPlayerId)
+    : getLocalPlayer();
   if (ultModalOpen || player?.pendingUltChoice) {
     if (buffModalOpen) {
       buffModalOpen = false;

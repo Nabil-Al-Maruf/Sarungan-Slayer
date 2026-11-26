@@ -13,32 +13,32 @@ export class ProceduralAudio {
   private sfxMuted = false;
   private bgmEnabled = false;
   private bgmAudio: HTMLAudioElement | null = null;
-  private bgmTrackUrl = '/audio/bgm/battle_theme.mp3';
+  private bgmTrackUrl = './audio/bgm/battle_theme.mp3';
   private bgmTimer: number | null = null;
   private bgmStep = 0;
 
   private static readonly EXTERNAL_SFX_FILES: Partial<Record<SoundEvent, string>> = {
-    kibas: '/audio/sfx/kibas.ogg',
-    hit: '/audio/sfx/hit.ogg',
-    pecut: '/audio/sfx/pecut.ogg',
-    jump: '/audio/sfx/jump.ogg',
-    double_jump: '/audio/sfx/double_jump.ogg',
-    dash: '/audio/sfx/dash.ogg',
-    ult_start: '/audio/sfx/ult_start.ogg',
-    ult_tick: '/audio/sfx/ult_tick.ogg',
-    crate_hit: '/audio/sfx/crate_hit.ogg',
-    crate_break: '/audio/sfx/crate_break.ogg',
-    pickup_heal: '/audio/sfx/pickup_heal.ogg',
-    pickup_kopi: '/audio/sfx/pickup_kopi.ogg',
-    buff_pick: '/audio/sfx/buff_pick.ogg',
-    tower_shoot: '/audio/sfx/tower_shoot.ogg',
-    player_hurt: '/audio/sfx/player_hurt.ogg',
-    ko: '/audio/sfx/ko.ogg',
-    slash_clurit: '/audio/sfx/slash_clurit.ogg',
-    slash_tinju: '/audio/sfx/slash_tinju.ogg',
-    slash_api: '/audio/sfx/slash_api.ogg',
-    slash_suci: '/audio/sfx/slash_suci.ogg',
-    smash_ball: '/audio/sfx/smash_ball.ogg',
+    kibas: './audio/sfx/kibas.ogg',
+    hit: './audio/sfx/hit.ogg',
+    pecut: './audio/sfx/pecut.ogg',
+    jump: './audio/sfx/jump.ogg',
+    double_jump: './audio/sfx/double_jump.ogg',
+    dash: './audio/sfx/dash.ogg',
+    ult_start: './audio/sfx/ult_start.ogg',
+    ult_tick: './audio/sfx/ult_tick.ogg',
+    crate_hit: './audio/sfx/crate_hit.ogg',
+    crate_break: './audio/sfx/crate_break.ogg',
+    pickup_heal: './audio/sfx/pickup_heal.ogg',
+    pickup_kopi: './audio/sfx/pickup_kopi.ogg',
+    buff_pick: './audio/sfx/buff_pick.ogg',
+    tower_shoot: './audio/sfx/tower_shoot.ogg',
+    player_hurt: './audio/sfx/player_hurt.ogg',
+    ko: './audio/sfx/ko.ogg',
+    slash_clurit: './audio/sfx/slash_clurit.ogg',
+    slash_tinju: './audio/sfx/slash_tinju.ogg',
+    slash_api: './audio/sfx/slash_api.ogg',
+    slash_suci: './audio/sfx/slash_suci.ogg',
+    smash_ball: './audio/sfx/smash_ball.ogg',
   };
 
   public unlock(): void {
@@ -380,7 +380,7 @@ export class ProceduralAudio {
   }
 
   public setBgmTrack(track: 'battle' | 'brawl'): void {
-    const nextUrl = track === 'brawl' ? '/audio/bgm/brawl_theme.mp3' : '/audio/bgm/battle_theme.mp3';
+    const nextUrl = track === 'brawl' ? './audio/bgm/brawl_theme.mp3' : './audio/bgm/battle_theme.mp3';
     if (this.bgmTrackUrl === nextUrl) return;
     this.bgmTrackUrl = nextUrl;
     if (this.bgmEnabled) {
