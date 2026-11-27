@@ -4,7 +4,7 @@
 > *Zero Install • HTML5 Canvas 2D Engine (60 FPS) • Cross-Platform (Mobile, PC, Tablet, Smart TV) • Local Node.js + Socket.IO LAN Server & PeerJS P2P.*
 
 [![GitHub Pages](https://img.shields.io/badge/PLAY%20ONLINE-GitHub%20Pages-24292e?style=for-the-badge&logo=github)](https://nabil-al-maruf.github.io/Sarungan-Slayer/)
-[![Version](https://img.shields.io/badge/version-1.9.3%20Resonansi%202--5%20Pemain-orange?style=for-the-badge)](https://nabil-al-maruf.github.io/Sarungan-Slayer/)
+[![Version](https://img.shields.io/badge/version-2.0.0%20Survival%20100%20Wave-orange?style=for-the-badge)](https://nabil-al-maruf.github.io/Sarungan-Slayer/)
 [![Tech Stack](https://img.shields.io/badge/tech-Node.js%20%7C%20Socket.IO%20%7C%20TypeScript%20%7C%20Canvas2D-blue?style=for-the-badge)](https://github.com/Nabil-Al-Maruf/Sarungan-Slayer)
 
 ---
@@ -63,8 +63,15 @@ Setiap mode memiliki **BGM (musik latar) tersendiri**: **Menu Utama** (`menu_the
 - **Babak 2 • Kawasan Jalan Tunjungan** vs *Jagoan Tunjungan*
 - **Babak 3 • Jembatan Suramadu (Malam)** vs *Raja Sarung Baja*
 
-### 3. 🛡️ Survival Mode (Warkop Defense — Solo & Mabar Co-op)
-- Pertahankan **Pos Ronda & Warkop Pusat** dari 9 jenis Zombie Suroboyo (dengan info kelebihan & kekurangan tiap zombie di menu Info Hero).
+### 3. 🛡️ Survival Mode (Warkop Defense 1–100 Wave — Solo & Mabar Co-op)
+- **Dikunci Sampai Wave 100/100:** Tuntaskan seluruh 100 Wave & kalahkan **👑 Final Boss Raja Sarung Baja Suramadu** di Wave 100 untuk meraih gelar **Pendekar Abadi Suroboyo**!
+- **Sistem Event Gelombang Anti-Bosan:** Agar pertarungan terus segar hingga Wave 100, gelombang bergantian memicu event spesial:
+  - **💨 Serbuan Kilat:** Musuh cepat membanjiri arena (75% HP, +35% cas Ulti).
+  - **👻 Malam Jumat Mistis:** Pocong, Kuntilanak & Dukun mendominasi (+35% Uang Receh).
+  - **🪙 Hujan Kendi Emas:** Peti/Kendi jatuh lebih sering (+50% Uang Receh).
+  - **⚡ Badai Petir Suroboyo:** Sambaran kilat menyambar zombie di arena tiap 3.2 detik!
+  - **🔥 Overdrive Ulti 2×:** Bar Ultimate terisi 2× lebih cepat untuk pesta Resonansi Gabungan!
+- **Rotasi 4 Peta & Milestone:** Peta berotasi tiap 10 Wave sepanjang 1–100 + bonus +150 Receh & +150 HP Pos Warkop tiap kelipatan 10 Wave.
 - **Warung Warkop (`[B]`):** Upgrade Barikade Lv.1–4, Core HP, Tameng Gaib, Menara Mercon, dan **Upgrade Elemen khas Hero pilihanmu (Lv.1–3)**.
 - **Buff Atribut Tiap 2 Wave:** Pilih 1 dari 3 kartu buff secara independen untuk setiap pemain.
 
@@ -121,6 +128,7 @@ Buka `http://localhost:3000` di Laptop, dan buka alamat IP LAN (misal `http://19
 
 ## 📝 Riwayat Versi Terbaru
 
+- **v2.0.0:** Mengunci mode Survival hingga **Wave 100/100** lengkap dengan **Final Boss & Kemenangan Agung**, menambahkan **6 Event Gelombang Anti-Bosan** (*Serbuan Kilat*, *Malam Jumat Mistis*, *Hujan Kendi Emas*, *Badai Petir Suroboyo*, *Overdrive Ulti 2×*), rotasi 4 peta tiap 10 Wave sepanjang 1–100, serta bonus milestone tiap kelipatan 10 Wave.
 - **v1.9.3:** Menyesuaikan Resonansi Jurus Gabungan Mabar ke batas maksimal 5 pemain Survival Co-op (tier puncak **👑 5× Penta Ultimate** dengan Pentagram + Retakan Kaca Dimensi + Full Heal) serta pembatasan slot room akurat (Survival max 5, Brawl max 6).
 - **v1.9.2:** Variasi animasi arena finisher Resonansi Jurus Gabungan Mabar sesuai elemen & motif latar elemen dinamis di tiap panel cut-in ala *Wuthering Waves*.
 - **v1.9.1:** Overhaul mekanisme Brawl (Coyote Time, Jump Buffer, Up-Diagonal Recovery Dash, Down-Air Meteor Spike, Up-Launcher, gravitasi jatuh lebih mantap, Smash Launch smoke trail, dan Comeback Ult meter).

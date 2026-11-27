@@ -9,6 +9,7 @@ import type {
   SlashElement,
   SlashStyle,
   SoundEvent,
+  SurvivalWaveEvent,
   UltType,
 } from '../core/types';
 import type { ShopItemId } from '../modes/survival';
@@ -81,6 +82,7 @@ export interface CompactGameSnapshot {
   gameMode?: 'survival' | 'brawl';
   theme?: MapTheme;
   wave: number;
+  waveEvent?: SurvivalWaveEvent;
   phase: 'wave' | 'intermission';
   intermissionTimer: number;
   brawlRemainingTime?: number;
@@ -123,6 +125,7 @@ export interface StickPersonalSnapshot {
   kos?: number;
   gameMode?: 'survival' | 'brawl';
   wave: number;
+  waveEvent?: SurvivalWaveEvent;
   phase: 'wave' | 'intermission';
   intermissionTimer: number;
   canShop: boolean;
@@ -280,6 +283,7 @@ export function packGameSnapshot(state: GameState, seq: number): CompactGameSnap
     brawlStageTheme: br?.stageTheme,
     brawlPlatforms: br?.platforms,
     wave: surv?.wave || 1,
+    waveEvent: surv?.waveEvent,
     phase: surv?.phase || 'wave',
     intermissionTimer: surv ? Math.ceil(surv.intermissionTimer) : 0,
     koCount: state.koCount,

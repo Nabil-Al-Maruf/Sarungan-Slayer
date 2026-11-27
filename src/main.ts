@@ -542,6 +542,7 @@ const localPeer = new LocalPeerManager({
       }
     } else if (state.survival) {
       state.survival.wave = snap.wave;
+      state.survival.waveEvent = snap.waveEvent || 'normal';
       state.survival.phase = snap.phase;
       state.survival.intermissionTimer = snap.intermissionTimer;
       state.survival.core.hp = snap.core.hp;
@@ -1254,7 +1255,7 @@ function refreshMenuProgress(): void {
 
   const bestWave = loadBestWave();
   if (menuBestWaveEl) {
-    menuBestWaveEl.textContent = bestWave > 0 ? `REKOR: W${bestWave}` : 'SOLO WARKOP';
+    menuBestWaveEl.textContent = bestWave > 0 ? `REKOR: W${bestWave}/100` : 'SOLO WARKOP';
   }
 }
 
@@ -2914,7 +2915,13 @@ function showResultIfNeeded(): void {
   }
   refreshMenuProgress();
 
-  if (state.status === 'victory') {
+  if (state.status === 'victory' && state.mode === 'survival') {
+    haptic.victory();
+    resultEyebrow.textContent = 'SURVIVAL 100 WAVE CLEAR! 🏆';
+    resultTitle.textContent = 'PENDEKAR ABADI SUROBOYO!';
+    resultDesc.textContent = `Luar biasa! Seluruh 100 Wave berhasil ditaklukkan & Raja Sarung Baja tumbang! Total KO: ${state.koCount}`;
+    btnNextStage.classList.add('hidden');
+  } else if (state.status === 'victory') {
     haptic.victory();
     resultEyebrow.textContent = `STAGE ${state.stageNumber} CLEAR!`;
     resultTitle.textContent =
@@ -2926,11 +2933,11 @@ function showResultIfNeeded(): void {
     btnNextStage.classList.toggle('hidden', state.stageNumber >= 3);
   } else if (state.mode === 'survival' && state.survival) {
     resultEyebrow.textContent = 'SURVIVAL GAME OVER';
-    resultTitle.textContent = `BERTAHAN SAMPAI WAVE ${state.survival.wave}!`;
+    resultTitle.textContent = `BERTAHAN SAMPAI WAVE ${state.survival.wave}/100!`;
     resultDesc.textContent =
       state.survival.core.hp <= 0
         ? `Pos Warkop Pusat jebol diserbu zombie! Total KO: ${state.koCount}`
-        : `Arek Suroboyo tumbang di Wave ${state.survival.wave}! Total KO: ${state.koCount}`;
+        : `Arek Suroboyo tumbang di Wave ${state.survival.wave}/100! Total KO: ${state.koCount}`;
     btnNextStage.classList.add('hidden');
   } else {
     resultEyebrow.textContent = 'GAME OVER';

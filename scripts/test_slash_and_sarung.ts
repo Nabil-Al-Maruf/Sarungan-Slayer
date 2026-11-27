@@ -550,6 +550,45 @@ console.log('\n=== TEST 15: Mabar Co-op Synchronized Combo Ultimate (2x..6x + He
   assert(coop2.comboUlt === undefined, 'Combo Ult cleanly clears after finisher completes');
 }
 
+console.log('\n=== TEST 16: Survival Wave 100 Cap & Anti-Boredom Wave Events ===');
+{
+  const survModule = await import('../src/modes/survival');
+  assert(survModule.MAX_SURVIVAL_WAVE === 100, `MAX_SURVIVAL_WAVE is 100 (got ${survModule.MAX_SURVIVAL_WAVE})`);
+
+  assert(survModule.pickWaveEventForWave(4) === 'rush_hour', 'Wave 4 triggers rush_hour');
+  assert(survModule.pickWaveEventForWave(5) === 'boss_invasion', 'Wave 5 triggers boss_invasion');
+  assert(survModule.pickWaveEventForWave(6) === 'hyper_ult', 'Wave 6 triggers hyper_ult');
+  assert(survModule.pickWaveEventForWave(7) === 'kuntilanak_night', 'Wave 7 triggers kuntilanak_night');
+  assert(survModule.pickWaveEventForWave(8) === 'golden_kendi_rain', 'Wave 8 triggers golden_kendi_rain');
+  assert(survModule.pickWaveEventForWave(9) === 'petir_badai', 'Wave 9 triggers petir_badai');
+  assert(survModule.pickWaveEventForWave(100) === 'final_boss', 'Wave 100 triggers final_boss');
+
+  // Theme rotation continues past Wave 31
+  assert(survModule.getThemeForWave(35).theme === 'perempatan', 'Wave 35 is perempatan');
+  assert(survModule.getThemeForWave(45).theme === 'tambak', 'Wave 45 rotates back to tambak');
+  assert(survModule.getThemeForWave(55).theme === 'tunjungan', 'Wave 55 rotates to tunjungan');
+
+  // Clearing Wave 100 transitions status to victory
+  const s100 = survModule.createSurvivalState(0, undefined, 'Tester', 'bima');
+  s100.survival!.wave = 100;
+  s100.survival!.phase = 'wave';
+  s100.survival!.zombiesRemainingToSpawn = 0;
+  s100.enemies.length = 0;
+  survModule.stepSurvival(s100, {
+    up: false,
+    down: false,
+    left: false,
+    right: false,
+    jumpPressed: false,
+    dashPressed: false,
+    meleePressed: false,
+    projPressed: false,
+    ultPressed: false,
+    shopPressed: false,
+  }, 0.016);
+  assert(s100.status === 'victory', `Clearing Wave 100 sets status to victory (got ${s100.status})`);
+}
+
 console.log('\n=============================================');
 console.log(`SLASH & SARUNG VARIATION TESTS: ${passed} PASSED, ${failed} FAILED`);
 if (failed > 0) {

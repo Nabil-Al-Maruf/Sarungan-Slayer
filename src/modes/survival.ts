@@ -19,6 +19,7 @@ import type {
   PlayerInput,
   PlayerState,
   SlashElement,
+  SurvivalWaveEvent,
   UltType,
 } from '../core/types';
 import { resolveCombat } from '../entities/combat';
@@ -27,6 +28,77 @@ import { spawnEnemy, updateEnemies } from '../entities/enemyFactory';
 import { createPlayer, updatePlayer } from '../entities/player';
 
 const BEST_WAVE_KEY = 'arek_slayer_survival_best_v1';
+
+export const MAX_SURVIVAL_WAVE = 100;
+
+export const WAVE_EVENT_INFO: Record<
+  SurvivalWaveEvent,
+  { label: string; shortLabel: string; color: string; desc: string }
+> = {
+  normal: {
+    label: 'GELOMBANG STANDAR',
+    shortLabel: 'STANDAR',
+    color: '#94a3b8',
+    desc: 'Pertahankan Pos Warkop & Barikade dari serbuan zombie.',
+  },
+  rush_hour: {
+    label: '💨 SERBUAN KILAT (TUYUL & BOCIL)',
+    shortLabel: '💨 SERBUAN KILAT',
+    color: '#38bdf8',
+    desc: 'Musuh lincah menyerbu lebih cepat dengan 75% HP & +35% cas Ulti!',
+  },
+  kuntilanak_night: {
+    label: '👻 MALAM JUMAT MISTIS',
+    shortLabel: '👻 MALAM MISTIS',
+    color: '#c084fc',
+    desc: 'Pocong, Kuntilanak & Dukun mendominasi! Bonus +35% Uang Receh.',
+  },
+  golden_kendi_rain: {
+    label: '🪙 HUJAN KENDI & PETI EMAS',
+    shortLabel: '🪙 HUJAN KENDI EMAS',
+    color: '#facc15',
+    desc: 'Peti/Kendi berjatuhan lebih sering & drop Uang Receh +50%!',
+  },
+  petir_badai: {
+    label: '⚡ BADAI PETIR SUROBOYO',
+    shortLabel: '⚡ BADAI PETIR',
+    color: '#60a5fa',
+    desc: 'Kilat menyambar arena tiap 3.2 detik! Hantam zombie & hati-hati!',
+  },
+  hyper_ult: {
+    label: '🔥 OVERDRIVE ULTI 2×',
+    shortLabel: '🔥 OVERDRIVE ULTI 2×',
+    color: '#fb923c',
+    desc: 'Bar Ultimate terisi 2× lebih cepat! Pesta Jurus & Resonansi Mabar!',
+  },
+  boss_invasion: {
+    label: '🚨 BOSS INVASION',
+    shortLabel: '🚨 BOSS INVASION',
+    color: '#f87171',
+    desc: 'Pimpinan Zombie turun ke lapangan bersama pasukan pengawal!',
+  },
+  final_boss: {
+    label: '👑 FINAL WAVE 100/100 • RAJA SARUNG BAJA',
+    shortLabel: '👑 FINAL BOSS 100',
+    color: '#fde047',
+    desc: 'Pertempuran terakhir menyelamatkan Kota Suroboyo! Tumbangkan untuk Menang!',
+  },
+};
+
+export function pickWaveEventForWave(wave: number): SurvivalWaveEvent {
+  if (wave >= MAX_SURVIVAL_WAVE) return 'final_boss';
+  if (wave % 5 === 0) return 'boss_invasion';
+  if (wave <= 2) return 'normal';
+  if (wave >= 9 && wave % 9 === 0) return 'petir_badai';
+  if (wave % 8 === 0) return 'golden_kendi_rain';
+  if (wave % 7 === 0) return 'kuntilanak_night';
+  if (wave % 6 === 0) return 'hyper_ult';
+  if (wave % 4 === 0) return 'rush_hour';
+  // Add extra mid/late-game spice on odd waves >= 11 so higher waves stay fresh
+  if (wave >= 11 && wave % 10 === 3) return 'petir_badai';
+  if (wave >= 17 && wave % 10 === 7) return 'kuntilanak_night';
+  return 'normal';
+}
 
 export type ShopItemId =
   | 'barricade_left'
@@ -214,9 +286,10 @@ export function loadBestWave(): number {
 
 export function saveBestWave(wave: number): void {
   try {
+    const capped = Math.min(MAX_SURVIVAL_WAVE, Math.max(0, wave));
     const prev = loadBestWave();
-    if (wave > prev) {
-      localStorage.setItem(BEST_WAVE_KEY, String(wave));
+    if (capped > prev) {
+      localStorage.setItem(BEST_WAVE_KEY, String(capped));
     }
   } catch {
     // Ignore storage errors
@@ -224,13 +297,11 @@ export function saveBestWave(wave: number): void {
 }
 
 export function getThemeForWave(wave: number): { theme: MapTheme; locationName: string } {
-  if (wave >= 31) {
-    return { theme: 'perempatan', locationName: 'SIMPANG EMPAT MAUT • JOYOBOYO' };
-  }
-  const block = Math.floor((wave - 1) / 10) % 3;
+  const block = Math.floor((Math.max(1, wave) - 1) / 10) % 4;
   if (block === 0) return { theme: 'tambak', locationName: 'KAMPUNG TAMBAK' };
   if (block === 1) return { theme: 'tunjungan', locationName: 'ALUN-ALUN TUNJUNGAN' };
-  return { theme: 'suramadu', locationName: 'TANJUNG PERAK • SURAMADU' };
+  if (block === 2) return { theme: 'suramadu', locationName: 'TANJUNG PERAK • SURAMADU' };
+  return { theme: 'perempatan', locationName: 'SIMPANG EMPAT MAUT • JOYOBOYO' };
 }
 
 export function createSurvivalState(
@@ -317,7 +388,7 @@ export function createSurvivalState(
     mode: 'survival',
     theme,
     stageNumber: 1,
-    stageTitle: `WAVE 1 • ${locationName}`,
+    stageTitle: `WAVE 1/${MAX_SURVIVAL_WAVE} • ${locationName}`,
     status: 'playing',
     time: 0,
     arenaWidth: VIRTUAL_WIDTH,
@@ -329,6 +400,9 @@ export function createSurvivalState(
     storyZones: [],
     survival: {
       wave: 1,
+      maxWave: MAX_SURVIVAL_WAVE,
+      waveEvent: 'normal',
+      waveEventTimer: 0,
       phase: 'wave',
       intermissionTimer: 0,
       zombiesRemainingToSpawn: 5 + players.length * 2,
@@ -336,7 +410,7 @@ export function createSurvivalState(
       core,
       barricades,
       mapBannerTimer: 2.6,
-      mapBannerText: `WAVE 1 • ${locationName}`,
+      mapBannerText: `WAVE 1/${MAX_SURVIVAL_WAVE} • ${locationName}`,
     },
     obstacles: [],
     players,
@@ -661,7 +735,19 @@ export function skipIntermission(state: GameState): void {
   surv.intermissionTimer = 0.05;
 }
 
-function pickZombieKindForWave(wave: number): EnemyKind {
+function pickZombieKindForWave(wave: number, waveEvent: SurvivalWaveEvent = 'normal'): EnemyKind {
+  if (waveEvent === 'rush_hour') {
+    const rushPool: EnemyKind[] = ['zombie_bocil', 'zombie_bocil', 'zombie_warga'];
+    if (wave >= 8) rushPool.push('zombie_petasan');
+    if (wave >= 12) rushPool.push('zombie_tuyul', 'zombie_tuyul');
+    return rushPool[Math.floor(Math.random() * rushPool.length)];
+  }
+  if (waveEvent === 'kuntilanak_night') {
+    const nightPool: EnemyKind[] = ['zombie_pocong', 'zombie_pocong', 'zombie_kuntilanak', 'zombie_kuntilanak'];
+    if (wave >= 12) nightPool.push('zombie_dukun');
+    return nightPool[Math.floor(Math.random() * nightPool.length)];
+  }
+
   const pool: EnemyKind[] = ['zombie_warga', 'zombie_bocil'];
   if (wave >= 4) pool.push('zombie_pocong');
   if (wave >= 6) pool.push('zombie_kuntilanak');
@@ -674,8 +760,12 @@ function pickZombieKindForWave(wave: number): EnemyKind {
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
-function spawnSurvivalZombie(state: GameState, wave: number): void {
-  const kind = pickZombieKindForWave(wave);
+function spawnSurvivalZombie(
+  state: GameState,
+  wave: number,
+  waveEvent: SurvivalWaveEvent = 'normal'
+): void {
+  const kind = pickZombieKindForWave(wave, waveEvent);
   const laneCount = wave >= 31 ? 4 : 3;
   const lane = Math.floor(Math.random() * laneCount);
   let sx = 46;
@@ -699,8 +789,9 @@ function spawnSurvivalZombie(state: GameState, wave: number): void {
   }
 
   const z = spawnEnemy(state, kind, sx, sy);
-  const hpMult = 1 + (wave - 1) * 0.1;
-  z.hp = Math.round(z.hp * hpMult);
+  let hpMult = 1 + (wave - 1) * 0.1;
+  if (waveEvent === 'rush_hour') hpMult *= 0.75;
+  z.hp = Math.max(20, Math.round(z.hp * hpMult));
   z.maxHp = z.hp;
 }
 
@@ -868,17 +959,57 @@ export function stepSurvival(
 
   // 3. Wave / Intermission State Machine
   if (surv.phase === 'wave') {
+    const waveEvent = surv.waveEvent || 'normal';
+
+    // Dynamic anti-boredom wave event effects
+    if (waveEvent === 'petir_badai' && state.enemies.length > 0) {
+      surv.waveEventTimer = (surv.waveEventTimer ?? 2.2) - dt;
+      if (surv.waveEventTimer <= 0) {
+        surv.waveEventTimer = 3.2;
+        const target = state.enemies[Math.floor(Math.random() * state.enemies.length)];
+        if (target && target.hp > 0) {
+          state.hazards.push({
+            id: state.nextEntityId++,
+            kind: 'mercon',
+            ownerId: 'storm_event',
+            x: target.x + (Math.random() - 0.5) * 32,
+            y: target.y + (Math.random() - 0.5) * 24,
+            radius: 68,
+            delay: 0.75,
+            maxDelay: 0.75,
+            damage: 75 + Math.floor(surv.wave * 3.5),
+            detonated: false,
+            flashTimer: 0,
+          });
+        }
+      }
+    }
+
     if (surv.zombiesRemainingToSpawn > 0) {
       surv.spawnTimer -= dt;
       if (surv.spawnTimer <= 0) {
-        spawnSurvivalZombie(state, surv.wave);
+        spawnSurvivalZombie(state, surv.wave, waveEvent);
         surv.zombiesRemainingToSpawn--;
         const baseInterval = Math.max(0.45, 1.55 - surv.wave * 0.055);
-        surv.spawnTimer = baseInterval * (0.75 + Math.random() * 0.5);
+        const eventMult = waveEvent === 'rush_hour' ? 0.65 : 1.0;
+        surv.spawnTimer = baseInterval * eventMult * (0.75 + Math.random() * 0.5);
       }
     } else if (state.enemies.length === 0) {
       // Wave cleared!
-      saveBestWave(surv.wave);
+      const clearedWave = Math.min(MAX_SURVIVAL_WAVE, surv.wave);
+      saveBestWave(clearedWave);
+
+      // Wave 100 Victory!
+      if (clearedWave >= MAX_SURVIVAL_WAVE) {
+        state.status = 'victory';
+        surv.mapBannerText = `👑 VICTORY! 100/100 WAVE SUROBOYO SELAMAT! 👑`;
+        surv.mapBannerTimer = 6.0;
+        state.stageTitle = `WAVE ${MAX_SURVIVAL_WAVE}/${MAX_SURVIVAL_WAVE} • JUARA MUTLAK!`;
+        state.soundQueue.push('ult_start');
+        state.soundQueue.push('pickup_kopi');
+        return;
+      }
+
       surv.phase = 'intermission';
       surv.intermissionTimer = 20.0;
       state.soundQueue.push('pickup_kopi');
@@ -903,14 +1034,14 @@ export function stepSurvival(
         });
       }
 
-      // Every 10 Waves (Wave 10, 20, 30, 40...), grant Ultimate Jurus selection modal!
-      // Every 10 Waves (Wave 10, 20, 30...), refill 100% Hero Ultimate as milestone bonus!
-      // Each Hero keeps their own signature Ultimate (no confusing ult-swapping)
+      // Every 10 Waves (Wave 10, 20, ..., 90), refill 100% Hero Ultimate + Bonus +150 Receh + +150 Core HP!
       if (surv.wave % 10 === 0) {
         for (const p of state.players) {
           p.ult = p.maxUlt;
+          p.coins += 150;
           p.pendingUltChoice = false;
         }
+        surv.core.hp = Math.min(surv.core.maxHp, surv.core.hp + 150);
       }
 
       // Every 2 Waves (Wave 2, 4, 6, 8, ...), grant 3 random Buff choices (Player picks 1!)
@@ -920,19 +1051,23 @@ export function stepSurvival(
         }
       }
 
-      if (surv.wave % 10 === 0) {
-        surv.mapBannerText = `🔥 WAVE ${surv.wave} TEMBUS! PILIH JURUS ULTIMATE TAHAP BARU! 🔥`;
+      if (surv.wave === MAX_SURVIVAL_WAVE - 1) {
+        surv.mapBannerText = `👑 SIAP-SIAP! WAVE 100/100 FINAL BOSS SUROBOYO! 👑`;
+        surv.mapBannerTimer = 5.0;
+        state.soundQueue.push('ult_start');
+      } else if (surv.wave % 10 === 0) {
+        surv.mapBannerText = `🔥 WAVE ${surv.wave}/100 TEMBUS! +150 RECEH & ULTI PENUH! 🔥`;
         surv.mapBannerTimer = 4.5;
         state.soundQueue.push('ult_start');
       } else if ((surv.wave + 1) % 5 === 0) {
-        surv.mapBannerText = `⚠️ SIAP-SIAP! WAVE ${surv.wave + 1} BOSS INVASION! ⚠️`;
+        surv.mapBannerText = `⚠️ SIAP-SIAP! WAVE ${surv.wave + 1}/100 BOSS INVASION! ⚠️`;
         surv.mapBannerTimer = 4.5;
         state.soundQueue.push('ult_start');
       } else if (surv.wave % 2 === 0) {
-        surv.mapBannerText = `WAVE ${surv.wave} BERES! PILIH 1 BUFF ATRIBUT!`;
+        surv.mapBannerText = `WAVE ${surv.wave}/100 BERES! PILIH 1 BUFF ATRIBUT!`;
         surv.mapBannerTimer = 3.0;
       } else {
-        surv.mapBannerText = `WAVE ${surv.wave} BERES! JEDA WARUNG 20 DETIK`;
+        surv.mapBannerText = `WAVE ${surv.wave}/100 BERES! JEDA WARUNG 20 DETIK`;
         surv.mapBannerTimer = 3.0;
       }
     }
@@ -949,8 +1084,11 @@ export function stepSurvival(
         }
       }
 
-      surv.wave++;
+      surv.wave = Math.min(MAX_SURVIVAL_WAVE, surv.wave + 1);
       surv.phase = 'wave';
+      const nextEvent = pickWaveEventForWave(surv.wave);
+      surv.waveEvent = nextEvent;
+      surv.waveEventTimer = 2.0;
       const isBossWave = surv.wave % 5 === 0;
 
       // Wave 31+ 4-Way Crossroad: Activate 4th Barricade (Bawah / Selatan)
@@ -976,38 +1114,53 @@ export function stepSurvival(
 
       if (isBossWave) {
         let bossKind: EnemyKind = 'boss_koordinator';
-        if (surv.wave % 15 === 0) {
+        if (surv.wave % 15 === 0 || surv.wave === MAX_SURVIVAL_WAVE) {
           bossKind = 'boss_suramadu';
         } else if (surv.wave % 10 === 0) {
           bossKind = 'boss_tunjungan';
         }
 
         const boss = spawnEnemy(state, bossKind, 480, 155);
-        const hpMult = 1 + (surv.wave - 1) * 0.14;
+        const finalMult = surv.wave === MAX_SURVIVAL_WAVE ? 2.2 : 1.0;
+        const hpMult = (1 + (surv.wave - 1) * 0.14) * finalMult;
         boss.maxHp = Math.round(boss.hp * hpMult);
         boss.hp = boss.maxHp;
 
-        surv.zombiesRemainingToSpawn = 6 + Math.min(10, Math.floor(surv.wave * 0.35)) + (state.players.length - 1) * 2;
+        surv.zombiesRemainingToSpawn =
+          (surv.wave === MAX_SURVIVAL_WAVE ? 16 : 6 + Math.min(10, Math.floor(surv.wave * 0.35))) +
+          (state.players.length - 1) * 2;
         surv.spawnTimer = 1.2;
 
         state.soundQueue.push('ult_start');
         state.shakeTimer = 0.9;
         state.shakeIntensity = 10;
-        surv.mapBannerText = `🚨 WAVE ${surv.wave} • BOSS INVASION: ${boss.name}! 🚨`;
-        surv.mapBannerTimer = 4.0;
-        state.stageTitle = `WAVE ${surv.wave} • 🚨 BOSS INVASION 🚨`;
+        surv.mapBannerText =
+          surv.wave === MAX_SURVIVAL_WAVE
+            ? `👑 FINAL WAVE 100/100 • ${boss.name}! 👑`
+            : `🚨 WAVE ${surv.wave}/${MAX_SURVIVAL_WAVE} • BOSS: ${boss.name}! 🚨`;
+        surv.mapBannerTimer = 4.5;
+        state.stageTitle =
+          surv.wave === MAX_SURVIVAL_WAVE
+            ? `WAVE 100/100 • 👑 FINAL BOSS 👑`
+            : `WAVE ${surv.wave}/${MAX_SURVIVAL_WAVE} • 🚨 BOSS INVASION 🚨`;
       } else {
-        surv.zombiesRemainingToSpawn = 5 + surv.wave * 2 + (state.players.length - 1) * 2;
+        const rushExtra = nextEvent === 'rush_hour' ? 6 : 0;
+        surv.zombiesRemainingToSpawn = 5 + surv.wave * 2 + rushExtra + (state.players.length - 1) * 2;
         surv.spawnTimer = 0.8;
-        state.stageTitle = `WAVE ${surv.wave} • ${locationName}`;
+        state.stageTitle = `WAVE ${surv.wave}/${MAX_SURVIVAL_WAVE} • ${locationName}`;
 
+        const evInfo = WAVE_EVENT_INFO[nextEvent];
         if (changedMap) {
           state.soundQueue.push('ult_start');
           surv.mapBannerText = `PINDAH LOKASI: ${locationName}!`;
           surv.mapBannerTimer = 3.5;
           surv.core.hp = Math.min(surv.core.maxHp, surv.core.hp + 100);
+        } else if (nextEvent !== 'normal') {
+          state.soundQueue.push('pickup_kopi');
+          surv.mapBannerText = `WAVE ${surv.wave}/${MAX_SURVIVAL_WAVE} • ${evInfo.label}`;
+          surv.mapBannerTimer = 3.6;
         } else {
-          surv.mapBannerText = `WAVE ${surv.wave} DIMULAI!`;
+          surv.mapBannerText = `WAVE ${surv.wave}/${MAX_SURVIVAL_WAVE} DIMULAI!`;
           surv.mapBannerTimer = 2.0;
         }
       }
@@ -1019,10 +1172,12 @@ export function stepSurvival(
   updateEnemies(state, dt);
   updateCratesAndPickups(state, dt);
 
-  if (state.crates.length < 2) {
+  const maxCrates = surv.waveEvent === 'golden_kendi_rain' ? 4 : 2;
+  const crateInterval = surv.waveEvent === 'golden_kendi_rain' ? 5.0 : 11.5;
+  if (state.crates.length < maxCrates) {
     state.crateSpawnTimer -= dt;
     if (state.crateSpawnTimer <= 0) {
-      state.crateSpawnTimer = 11.5;
+      state.crateSpawnTimer = crateInterval;
       const spots = [
         { x: 330, y: 425 },
         { x: 630, y: 425 },

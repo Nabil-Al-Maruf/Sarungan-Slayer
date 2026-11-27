@@ -170,6 +170,8 @@ export function resolveCombat(state: GameState, dt: number): void {
             }
           }
 
+          const waveEv = state.survival?.waveEvent;
+          const evUltMult = waveEv === 'hyper_ult' ? 2.0 : waveEv === 'rush_hour' ? 1.35 : 1.0;
           const knockbackBase = blocked ? 150 : MELEE_KNOCKBACK * (elem === 'badai' ? 1 + 0.25 * elemLevel : 1);
           hitEnemy(
             state,
@@ -178,7 +180,7 @@ export function resolveCombat(state: GameState, dt: number): void {
             finalDmg,
             nx * knockbackBase,
             ny * knockbackBase,
-            Math.round((blocked ? 4 : MELEE_ULT_GAIN) * player.ultGainMult),
+            Math.round((blocked ? 4 : MELEE_ULT_GAIN) * player.ultGainMult * evUltMult),
             blocked
           );
           state.hitstopTimer = Math.max(state.hitstopTimer, 0.032);
@@ -414,6 +416,8 @@ export function resolveCombat(state: GameState, dt: number): void {
         const knockX = proj.kind === 'naga' ? (proj.vx / speed) * 380 : (proj.vx / speed) * 230;
         const knockY = proj.kind === 'naga' ? (proj.vy / speed) * 380 : (proj.vy / speed) * 230;
 
+        const waveEv = state.survival?.waveEvent;
+        const evUltMult = waveEv === 'hyper_ult' ? 2.0 : waveEv === 'rush_hour' ? 1.35 : 1.0;
         hitEnemy(
           state,
           enemy,
@@ -421,7 +425,7 @@ export function resolveCombat(state: GameState, dt: number): void {
           projDmg,
           knockX,
           knockY,
-          isTower ? 0 : Math.round(PROJ_ULT_GAIN * (owner?.ultGainMult ?? 1)),
+          isTower ? 0 : Math.round(PROJ_ULT_GAIN * (owner?.ultGainMult ?? 1) * evUltMult),
           false,
           isTower ? 'tower' : undefined
         );
@@ -778,8 +782,11 @@ export function handleDefenseKill(
     const count = Math.max(1, recipients.length);
     const splitBase = Math.ceil(baseReward / count);
 
+    const waveEv = state.survival?.waveEvent;
+    const evCoinMult = waveEv === 'golden_kendi_rain' ? 1.5 : waveEv === 'kuntilanak_night' ? 1.35 : 1.0;
+
     for (const p of recipients) {
-      const reward = Math.round(splitBase * (p.coinMult ?? 1));
+      const reward = Math.round(splitBase * (p.coinMult ?? 1) * evCoinMult);
       p.coins += reward;
       state.floatingTexts.push({
         x: p.x,
@@ -1001,9 +1008,11 @@ export function hitEnemy(
         });
       } else {
         const baseReward = getZombieCoinReward(enemy.kind);
+        const waveEv = state.survival?.waveEvent;
+        const evCoinMult = waveEv === 'golden_kendi_rain' ? 1.5 : waveEv === 'kuntilanak_night' ? 1.35 : 1.0;
         const recipient = attacker ?? state.players[0];
         if (recipient) {
-          const reward = Math.round(baseReward * (recipient.coinMult ?? 1));
+          const reward = Math.round(baseReward * (recipient.coinMult ?? 1) * evCoinMult);
           recipient.coins += reward;
           state.floatingTexts.push({
             x: enemy.x,

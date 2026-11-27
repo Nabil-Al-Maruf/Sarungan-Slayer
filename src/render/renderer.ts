@@ -12,7 +12,7 @@ import type {
   SlashStyle,
   SurvivalCore,
 } from '../core/types';
-import { TOWER_TIER_NAME } from '../modes/survival';
+import { TOWER_TIER_NAME, WAVE_EVENT_INFO } from '../modes/survival';
 import { drawTopDownMapGround, drawTopDownObstacle } from './backgrounds';
 import { drawCrate, drawEnemy, drawPickup, drawPlayer } from './characterRig';
 import { drawComboUltArenaFinisher, drawComboUltCutIn } from './comboUltCutin';
@@ -265,9 +265,33 @@ export function renderGame(
     ctx.restore();
   }
 
-  // Survival Intermission & Map Rotation Banner
+  // Survival Intermission, Wave Event Atmosphere & Map Rotation Banner
   if (state.survival) {
     const surv = state.survival;
+    const waveEv = surv.waveEvent || 'normal';
+
+    // Subtle atmosphere tint for special anti-boredom waves
+    if (surv.phase === 'wave' && waveEv !== 'normal') {
+      ctx.save();
+      if (waveEv === 'kuntilanak_night') {
+        ctx.fillStyle = 'rgba(88, 28, 135, 0.14)';
+        ctx.fillRect(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
+      } else if (waveEv === 'petir_badai') {
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.18)';
+        ctx.fillRect(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
+      } else if (waveEv === 'hyper_ult') {
+        ctx.fillStyle = 'rgba(234, 88, 12, 0.08)';
+        ctx.fillRect(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
+      } else if (waveEv === 'golden_kendi_rain') {
+        ctx.fillStyle = 'rgba(250, 204, 21, 0.07)';
+        ctx.fillRect(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
+      } else if (waveEv === 'final_boss') {
+        ctx.fillStyle = 'rgba(185, 28, 28, 0.10)';
+        ctx.fillRect(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
+      }
+      ctx.restore();
+    }
+
     if (surv.phase === 'intermission') {
       ctx.save();
       ctx.fillStyle = 'rgba(9, 12, 20, 0.84)';
@@ -286,6 +310,22 @@ export function renderGame(
         VIRTUAL_WIDTH * 0.5,
         84
       );
+      ctx.restore();
+    } else if (waveEv !== 'normal') {
+      const evInfo = WAVE_EVENT_INFO[waveEv];
+      ctx.save();
+      ctx.fillStyle = 'rgba(9, 12, 20, 0.78)';
+      ctx.strokeStyle = evInfo.color;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(VIRTUAL_WIDTH * 0.5 - 150, 58, 300, 26, 999);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = evInfo.color;
+      ctx.font = '900 11px "Segoe UI", system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(evInfo.label, VIRTUAL_WIDTH * 0.5, 75);
       ctx.restore();
     }
 

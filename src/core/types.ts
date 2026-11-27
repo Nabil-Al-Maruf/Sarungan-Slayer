@@ -399,8 +399,21 @@ export interface SurvivalCore {
   shieldMaxHp: number;
 }
 
+export type SurvivalWaveEvent =
+  | 'normal'
+  | 'rush_hour'
+  | 'kuntilanak_night'
+  | 'golden_kendi_rain'
+  | 'petir_badai'
+  | 'hyper_ult'
+  | 'boss_invasion'
+  | 'final_boss';
+
 export interface SurvivalState {
   wave: number;
+  maxWave?: number;
+  waveEvent?: SurvivalWaveEvent;
+  waveEventTimer?: number;
   phase: 'wave' | 'intermission';
   intermissionTimer: number;
   zombiesRemainingToSpawn: number;
