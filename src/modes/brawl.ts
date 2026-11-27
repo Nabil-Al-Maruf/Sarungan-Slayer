@@ -5,7 +5,6 @@ import {
   PROJ_COOLDOWN,
 } from '../core/constants';
 import { getHeroDef } from '../core/heroes';
-import { registerUltActivationForCombo, stepComboUlt } from '../core/comboUlt';
 import type {
   BrawlPlatform,
   BrawlStageTheme,
@@ -366,23 +365,6 @@ export function stepBrawl(
     return;
   }
 
-  // Co-op Synchronized Combo Ultimate (Wuthering Waves Cut-In Freeze + Live Upgrade for 3-6 players!)
-  if (state.comboUlt) {
-    if (!state.comboUlt.impactApplied) {
-      for (const pl of state.players) {
-        if ((pl.brawlStocks ?? 0) <= 0) continue;
-        const pInp = inputs[pl.id];
-        if (pInp?.ultPressed && pl.ult >= pl.maxUlt) {
-          pl.ult = 0;
-          registerUltActivationForCombo(state, pl);
-        }
-      }
-    }
-    if (stepComboUlt(state, dt)) {
-      return;
-    }
-  }
-
   state.time += dt;
 
   // Match timer
@@ -450,12 +432,12 @@ export function stepBrawl(
 
     const inHitstun = (player.hitFlashTimer ?? 0) > 0;
 
-    // Active Ultimate timer
+    // Active Ultimate timer (Balanced 0.22s tick rate in Brawl PvP)
     if (player.ultActiveTimer > 0) {
       player.ultActiveTimer -= dt;
       player.ultTickTimer -= dt;
       if (player.ultTickTimer <= 0) {
-        player.ultTickTimer = 0.18;
+        player.ultTickTimer = 0.22;
         executeHeroUltTick(state, player, hDef);
       }
       if (player.ultActiveTimer <= 0) {
@@ -622,31 +604,25 @@ export function stepBrawl(
       executeHeroProjectile(state, player, hDef);
     }
 
-    // Ultimate trigger
+    // Ultimate trigger (Pure individual Hero Ultimate in Brawl PvP — no Co-op Combo Ult!)
     if (inp.ultPressed && player.ult >= player.maxUlt && player.ultActiveTimer <= 0 && !inHitstun) {
-      const comboTriggered = registerUltActivationForCombo(state, player);
-      if (comboTriggered) {
-        player.ult = 0;
-        player.ultActiveTimer = 0.5;
-        player.invulnTimer = Math.max(player.invulnTimer, comboTriggered.totalDuration + 0.3);
-      } else {
-        player.ultActiveTimer = 3.2;
-        player.ultTickTimer = 0.1;
-        player.invulnTimer = 3.2;
-        state.soundQueue.push('ult_start');
-        state.shakeTimer = 0.16;
-        state.shakeIntensity = 2.6;
-        state.floatingTexts.push({
-          x: player.x,
-          y: player.y - 65,
-          vy: -55,
-          text: `⚡ JURUS: ${hDef.ultName.toUpperCase()}!`,
-          color: hDef.accentColor,
-          scale: 1.45,
-          life: 1.8,
-          maxLife: 1.8,
-        });
-      }
+      player.ult = 0;
+      player.ultActiveTimer = 2.2;
+      player.ultTickTimer = 0.12;
+      player.invulnTimer = 1.6;
+      state.soundQueue.push('ult_start');
+      state.shakeTimer = 0.16;
+      state.shakeIntensity = 2.6;
+      state.floatingTexts.push({
+        x: player.x,
+        y: player.y - 65,
+        vy: -55,
+        text: `⚡ JURUS: ${hDef.ultName.toUpperCase()}!`,
+        color: hDef.accentColor,
+        scale: 1.4,
+        life: 1.5,
+        maxLife: 1.5,
+      });
     }
 
     // Clean afterimages
@@ -1134,14 +1110,14 @@ function executeHeroMelee(
       }
 
       other.hp = Math.max(0, other.hp - baseDmg);
-      other.hitFlashTimer = isFinisher ? 0.22 : 0.14;
-      if (elem === 'petir') other.hitFlashTimer = Math.max(other.hitFlashTimer, 0.24 * elemLevel);
-      if (elem === 'es') other.hitFlashTimer = Math.max(other.hitFlashTimer, 0.26 * elemLevel);
-      if (elem === 'daun') other.vy = Math.min(other.vy, -190 * elemLevel);
+      other.hitFlashTimer = isFinisher ? 0.2 : 0.13;
+      if (elem === 'petir') other.hitFlashTimer = Math.max(other.hitFlashTimer, 0.2);
+      if (elem === 'es') other.hitFlashTimer = Math.max(other.hitFlashTimer, 0.21);
+      if (elem === 'daun' && !other.isGrounded) other.vy = Math.min(other.vy, -155);
       other.lastHitBy = player.id;
       other.lastHitTime = state.time;
 
-      player.ult = Math.min(player.maxUlt, player.ult + (isFinisher ? 14 : 7));
+      player.ult = Math.min(player.maxUlt, player.ult + (isFinisher ? 12 : 6));
 
       // Elemental hit particles
       if (elem === 'petir') {
@@ -1248,9 +1224,9 @@ function executeHeroMelee(
         }
       }
 
-      // Smash Knockback scaling: lower remaining HP = MASSIVE launch!
-      const damagePercent = Math.max(1, (other.maxHp - other.hp) / 14);
-      const badaiKnockbackMult = elem === 'badai' ? 1 + 0.25 * elemLevel : 1;
+      // Balanced Smash Knockback scaling: lower remaining HP = strong launch, capped to avoid unfair early KOs
+      const damagePercent = Math.min(3.2, Math.max(1, (other.maxHp - other.hp) / 16));
+      const badaiKnockbackMult = elem === 'badai' ? 1 + 0.18 * elemLevel : 1;
 
       if (isFinisher) {
         // SMASH LAUNCH FINISHER: 45-degree upward launch trajectory!
@@ -1350,12 +1326,12 @@ function executeHeroUltTick(
   hDef: ReturnType<typeof getHeroDef>
 ): void {
   const uType = player.ultType ?? hDef.ultType ?? 'gasing';
-  const ultRadius = uType === 'naga' ? 210 : uType === 'selendang' ? 175 : uType === 'gempa' ? 185 : 150;
+  const ultRadius = uType === 'naga' ? 185 : uType === 'selendang' ? 168 : uType === 'gempa' ? 172 : 155;
   state.soundQueue.push('ult_tick');
 
-  // Gus Dimas Karomah Healing tick in Brawl (+4% HP per tick)
+  // Gus Dimas Karomah Healing tick in Brawl (+3 HP per tick)
   if (uType === 'naga') {
-    player.hp = Math.min(player.maxHp, player.hp + 4);
+    player.hp = Math.min(player.maxHp, player.hp + 3);
   }
 
   for (const other of state.players) {
@@ -1365,48 +1341,48 @@ function executeHeroUltTick(
 
     const d = Math.hypot(other.x - player.x, other.y - player.y);
     if (d < ultRadius) {
-      const isExecute = uType === 'petir' && other.hp < other.maxHp * 0.5;
-      const tickDmg = (isExecute ? 22 : 16) * hDef.dmgMult;
+      const isExecute = uType === 'petir' && other.hp < other.maxHp * 0.45;
+      const tickDmg = (isExecute ? 14 : 11) * hDef.dmgMult;
       other.hp = Math.max(0, other.hp - tickDmg);
-      other.hitFlashTimer = uType === 'petir' ? 0.42 : uType === 'gempa' ? 0.34 : 0.18;
+      other.hitFlashTimer = uType === 'petir' ? 0.28 : uType === 'gempa' ? 0.26 : 0.16;
       other.lastHitBy = player.id;
       other.lastHitTime = state.time;
       other.isGrounded = false;
 
-      const damageFactor = Math.max(1, (other.maxHp - other.hp) / 16);
+      const damageFactor = Math.min(2.2, Math.max(1, (other.maxHp - other.hp) / 22));
       const angOut = Math.atan2(other.y - player.y, other.x - player.x);
 
       if (uType === 'gasing') {
         // Cak Bima: Pull inward, then blast outward on final tick
-        if (player.ultActiveTimer <= 0.25) {
-          other.vx = Math.cos(angOut) * (420 * damageFactor);
-          other.vy = -260 * damageFactor;
+        if (player.ultActiveTimer <= 0.28) {
+          other.vx = Math.cos(angOut) * (350 * damageFactor);
+          other.vy = -230 * damageFactor;
         } else {
           const angIn = Math.atan2(player.y - other.y, player.x - other.x);
-          other.vx = Math.cos(angIn) * 260;
-          other.vy = -140;
+          other.vx = Math.cos(angIn) * 230;
+          other.vy = -120;
         }
       } else if (uType === 'selendang') {
-        // Mbak Sri: Continuous upward silk juggle toward top blast zone
-        other.vx = Math.cos(angOut) * 180;
-        other.vy = -310 * Math.min(1.8, damageFactor);
+        // Mbak Sri: Continuous upward leaf-silk juggle
+        other.vx = Math.cos(angOut) * 165;
+        other.vy = -265 * Math.min(1.65, damageFactor);
       } else if (uType === 'gempa') {
-        // Bang Bambang: Massive horizontal seismic smash (1.4x knockback)
-        other.vx = Math.cos(angOut) * (460 * damageFactor);
-        other.vy = -220 * damageFactor;
+        // Bang Bambang: Glacial horizontal smash
+        other.vx = Math.cos(angOut) * (360 * damageFactor);
+        other.vy = -195 * damageFactor;
       } else if (uType === 'mercon') {
         // Pak RT: Explosive skyward mortar blast
-        other.vx = Math.cos(angOut) * (300 * damageFactor);
-        other.vy = -440 * damageFactor;
+        other.vx = Math.cos(angOut) * (270 * damageFactor);
+        other.vy = -340 * damageFactor;
       } else if (uType === 'naga') {
         // Gus Dimas: Long-range directional spirit pushback
         const pushDir = player.dirX >= 0 ? 1 : -1;
-        other.vx = pushDir * (380 * damageFactor);
-        other.vy = -180;
+        other.vx = pushDir * (330 * damageFactor);
+        other.vy = -170;
       } else {
         // Mat Clurit (petir): Stun-lock & lightning execute burst
-        other.vx = Math.cos(angOut) * (340 * damageFactor);
-        other.vy = -240 * damageFactor;
+        other.vx = Math.cos(angOut) * (310 * damageFactor);
+        other.vy = -210 * damageFactor;
       }
     }
   }

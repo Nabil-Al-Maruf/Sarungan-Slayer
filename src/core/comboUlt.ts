@@ -232,8 +232,8 @@ export function registerUltActivationForCombo(
   state: GameState,
   player: PlayerState
 ): ComboUltState | null {
-  // Strictly Mabar / 2+ players only
-  if (state.players.length < 2) return null;
+  // Strictly Mabar Co-op Survival / 2+ players only (disabled in PvP Brawl!)
+  if (state.mode === 'brawl' || state.players.length < 2) return null;
 
   const hDef = getHeroDef(player.heroId);
   const heroId: HeroId = player.heroId || hDef.id;

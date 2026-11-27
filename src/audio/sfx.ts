@@ -13,7 +13,8 @@ export class ProceduralAudio {
   private sfxMuted = false;
   private bgmEnabled = false;
   private bgmAudio: HTMLAudioElement | null = null;
-  private bgmTrackUrl = './audio/bgm/battle_theme.mp3';
+  private bgmTrack: 'menu' | 'story' | 'mabar' | 'brawl' = 'menu';
+  private bgmTrackUrl = './audio/bgm/menu_theme.mp3';
   private bgmTimer: number | null = null;
   private bgmStep = 0;
 
@@ -379,8 +380,15 @@ export class ProceduralAudio {
     return this.bgmEnabled;
   }
 
-  public setBgmTrack(track: 'battle' | 'brawl'): void {
-    const nextUrl = track === 'brawl' ? './audio/bgm/brawl_theme.mp3' : './audio/bgm/battle_theme.mp3';
+  public setBgmTrack(track: 'menu' | 'story' | 'mabar' | 'brawl'): void {
+    const trackUrls: Record<'menu' | 'story' | 'mabar' | 'brawl', string> = {
+      menu: './audio/bgm/menu_theme.mp3',
+      story: './audio/bgm/battle_theme.mp3',
+      mabar: './audio/bgm/mabar_theme.mp3',
+      brawl: './audio/bgm/brawl_theme.mp3',
+    };
+    const nextUrl = trackUrls[track] || trackUrls.menu;
+    this.bgmTrack = track;
     if (this.bgmTrackUrl === nextUrl) return;
     this.bgmTrackUrl = nextUrl;
     if (this.bgmEnabled) {
@@ -410,20 +418,44 @@ export class ProceduralAudio {
 
   private startFallbackBgm(): void {
     if (this.bgmTimer !== null) return;
-    const bassLine = [110, 110, 146.83, 130.81, 110, 110, 164.81, 146.83];
-    const leadLine = [440, 523.25, 587.33, 659.25, 587.33, 523.25, 440, 392.0];
+    const patterns: Record<
+      'menu' | 'story' | 'mabar' | 'brawl',
+      { bass: number[]; lead: number[]; tempoMs: number }
+    > = {
+      menu: {
+        bass: [130.81, 164.81, 196.0, 164.81, 146.83, 174.61, 196.0, 146.83],
+        lead: [523.25, 0, 659.25, 587.33, 523.25, 0, 392.0, 440.0],
+        tempoMs: 220,
+      },
+      story: {
+        bass: [110, 110, 146.83, 130.81, 110, 110, 164.81, 146.83],
+        lead: [440, 523.25, 587.33, 659.25, 587.33, 523.25, 440, 392.0],
+        tempoMs: 170,
+      },
+      mabar: {
+        bass: [98.0, 98.0, 116.54, 130.81, 98.0, 146.83, 130.81, 116.54],
+        lead: [392.0, 466.16, 523.25, 587.33, 698.46, 587.33, 523.25, 466.16],
+        tempoMs: 155,
+      },
+      brawl: {
+        bass: [123.47, 146.83, 164.81, 146.83, 123.47, 185.0, 164.81, 146.83],
+        lead: [493.88, 587.33, 659.25, 739.99, 659.25, 587.33, 493.88, 440.0],
+        tempoMs: 140,
+      },
+    };
+    const pat = patterns[this.bgmTrack] || patterns.menu;
     this.bgmTimer = window.setInterval(() => {
       if (!this.bgmEnabled || !this.ctx || this.ctx.state !== 'running') return;
       const now = this.ctx.currentTime;
-      const idx = this.bgmStep % bassLine.length;
+      const idx = this.bgmStep % pat.bass.length;
 
-      this.playTone(bassLine[idx], bassLine[idx] * 0.99, 0.14, 'triangle', 0.06, now);
-      const lead = leadLine[idx];
+      this.playTone(pat.bass[idx], pat.bass[idx] * 0.99, 0.14, 'triangle', 0.06, now);
+      const lead = pat.lead[idx];
       if (lead > 0) {
         this.playTone(lead, lead, 0.1, 'sine', 0.035, now);
       }
       this.bgmStep++;
-    }, 170);
+    }, pat.tempoMs);
   }
 
   private stopBgm(): void {

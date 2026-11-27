@@ -1,10 +1,10 @@
 # ⚔️ AREK SARUNGAN SLAYER
 
 > **Game Aksi Beat 'em Up, Warkop Defense & Tawuran Smash Bros Khas Suroboyoan**  
-> *Zero Install • HTML5 Canvas 2D Engine (60–90+ FPS) • Cross-Platform (Mobile, PC, Tablet, Smart TV) • Local Node.js + Socket.IO LAN Server & GitHub Pages.*
+> *Zero Install • HTML5 Canvas 2D Engine (60 FPS) • Cross-Platform (Mobile, PC, Tablet, Smart TV) • Local Node.js + Socket.IO LAN Server & PeerJS P2P.*
 
 [![GitHub Pages](https://img.shields.io/badge/PLAY%20ONLINE-GitHub%20Pages-24292e?style=for-the-badge&logo=github)](https://nabil-al-maruf.github.io/Sarungan-Slayer/)
-[![Version](https://img.shields.io/badge/version-1.8.0%20Smash%20Bros%20Release-orange?style=for-the-badge)](https://nabil-al-maruf.github.io/Sarungan-Slayer/)
+[![Version](https://img.shields.io/badge/version-1.9.0%20Resonansi%20%26%206%20Elemen-orange?style=for-the-badge)](https://nabil-al-maruf.github.io/Sarungan-Slayer/)
 [![Tech Stack](https://img.shields.io/badge/tech-Node.js%20%7C%20Socket.IO%20%7C%20TypeScript%20%7C%20Canvas2D-blue?style=for-the-badge)](https://github.com/Nabil-Al-Maruf/Sarungan-Slayer)
 
 ---
@@ -13,70 +13,66 @@
 
 Di tengah hiruk pikuk Kota Pahlawan, kedamaian Kampung Tambak dan Warkop Kopi Giras terusik! Sekelompok geng preman dan wabah Zombie Suroboyo yang dipimpin oleh **Raja Sarung Baja Suramadu** mencuri Kendi Kopi Pusaka dan Sarung Sakti Leluhur.
 
-Sebagai **Cak Bima** bersama arek-arek Suroboyo lainnya, kamu bangkit berbekal sarung sakti dan pecutan maut untuk membasmi gerombolan lawan dari Gang Tambak, Jalan Tunjungan, hingga jembatan ikonik Suramadu!
+Sebagai **Cak Bima** bersama 5 pendekar arek Suroboyo lainnya, kamu bangkit berbekal sarung sakti, 6 elemen unik, dan jurus pamungkas untuk membasmi gerombolan lawan dari Gang Tambak, Jalan Tunjungan, hingga jembatan ikonik Suramadu!
 
 ---
 
-## 🎮 Mode Permainan
+## 🦸‍♂️ 6 Hero Arek Suroboyo — 6 Elemen & 6 Jurus Ultimate Unik
 
-### 1. 🥊 Super Smash Bros Tawuran (Max 6 Pemain / Bot AI) — *BARU di v1.8.0!*
-Arena tawuran bebas gaya Super Smash Bros berlatar Jembatan Suramadu & Atap Warkop:
-- **Aturan Ring-Out Blast Zone:** Lempar atau jatuhkan musuh keluar layar (kiri, kanan, atas, bawah) untuk mendapatkan K.O.!
-- **Sistem 3 Nyawa (Stocks):** Setiap pemain memulai dengan 3 nyawa. Yang bertahan terakhir adalah sang Juara!
-- **Soft Platform Drop:** Tekan **Bawah + Lompat** (`S / ↓` + `Space` di PC, atau analog bawah + tombol Lompat di HP) untuk tembus turun melewati platform jembatan gantung.
-- **Bot AI Dinamis:** Tombol `+ BOT` dan `- BOT` di lobi memungkinkan kamu mengisi slot hingga 6 petarung bot AI yang cerdas (bisa mengejar, melompat platform, dan melancarkan combo pukulan).
-- **Podium Kemenangan:** Layar podium juara 1, 2, dan 3 dengan statistik K.O. dan sisa nyawa di akhir ronde!
+Setiap pendekar punya **siluet sarung, gaya tebasan, elemen khas, animasi ulti, dan dampak musuh yang 100% berbeda** (bisa dilihat live lengkap dengan animasi & matchup zombie di menu **🥋 Info Hero**):
+
+| Hero | Archetype | Elemen Khas | Jurus Ultimate & Dampak Musuh |
+|---|---|---|---|
+| **🧣 Cak Bima** | *Balanced* | 🌀 **Badai Topan** *(Jangkauan lebar & knockback angin)* | **🌀 Badai Gasing Suroboyo** — Menyedot musuh ke pusat pusaran lalu meledakkan mentalan besar |
+| **🗡️ Mat Clurit** | *Assassin* | ⚡ **Petir Halilintar** *(Kilat listrik & stun lumpuh)* | **⚡ Tebasan Petir Halilintar** — Stun listrik 1.8 detik + Eksekusi +40% DMG ke musuh sekarat |
+| **🥊 Bang Bambang** | *Juggernaut* | ❄️ **Es Gletser** *(Kristal es & beku stun)* | **❄️ Hantam Gletser Es** — Pilar es beku 1.8 detik + Pemecah Perisai (+50% DMG ke Boss/Tank) |
+| **🎋 Gus Dimas** | *Zoner (3× Jump)* | ✨ **Cahaya Suci** *(Karomah lifesteal & cas ulti)* | **🐉 Naga Barong & Bambu Suci** — Naga menembus barisan musuh + heal 25% HP tim |
+| **🧨 Pak RT Karbit** | *Trapper* | 🔥 **Api Kobaran** *(Lidah api & bonus bakar)* | **💥 Meriam Bazooka Karbit** — 3 roket artileri + kawah api membara 3.5 detik di tanah |
+| **💃 Mbak Sri** | *Acrobat* | 🍃 **Daun Rimba** *(Daun silet & angkat ke udara)* | **🍃 Badai Daun Sutra** — Pusaran daun tajam 360° menjuggle musuh di udara + lemparan spiral |
+
+---
+
+## ⚡ Resonansi Jurus Gabungan Mabar (Cut-In ala *Wuthering Waves*)
+
+Khusus mode **Mabar Co-op Survival**, ketika **2, 3, 4, 5, atau 6 pemain menekan tombol Ultimate secara bersamaan** (jendela sinkronisasi `0.65 detik`), akan muncul **Scene Cut-In Diagonal Sinematik** diikuti animasi jurus gabungan berskala besar:
+- **⚡ 2× Duo Resonance:** **15 kombinasi pasangan Hero unik** (mis. *Topan Halilintar Suramadu*, *Thermal Shock Meriam Es*, *Taman Surga Sutra*, dll.) dengan animasi *Dual Crossing Beams*.
+- **🔥 3× Trio Trinity:** *Trinitas Resonansi Suroboyo* — animasi *Prisma Segitiga 3 Pilar*.
+- **💥 4× Quartet Cataclysm:** *Kuartet Bencana Elemen* — animasi *Silang 4 Penjuru Layar*.
+- **🌟 5× Penta Overdrive:** *Penta Overdrive Nusantara* — animasi *Pentagram Bintang 5 Elemen*.
+- **👑 6× Hexad Ultimate:** *Kebangkitan 6 Pendekar Suroboyo* — animasi *Hexagram 6 Elemen + Retakan Kaca Dimensi + Full Heal 100% Tim!*
+
+*(Di mode **Brawl PvP**, ulti kombinasi dinonaktifkan agar duel antar pemain tetap murni & kompetitif.)*
+
+---
+
+## 🎮 Mode Permainan & 4 BGM Berbeda
+
+Setiap mode memiliki **BGM (musik latar) tersendiri**: **Menu Utama** (`menu_theme.mp3`), **Story Mode** (`battle_theme.mp3`), **Mabar / Survival** (`mabar_theme.mp3`), dan **Smash Brawl** (`brawl_theme.mp3`).
+
+### 1. 🥊 Super Smash Bros Tawuran (Balanced PvP — Max 6 Pemain / Bot AI)
+- **Ring-Out Blast Zone & 3 Stocks:** Lontarkan lawan keluar arena (kiri, kanan, atas, bawah) untuk K.O.!
+- **Seimbang di Semua Hero:** Stat 6 Hero, durasi Ulti (`2.2s`), knockback, dan hitstun diseimbangkan khusus PvP.
+- **3 Peta Arena:** Alun-Alun, Atap Warga (jurang tengah), dan Jembatan Kali, plus *Soft Platform Drop* (`Bawah + Lompat`) dan **Kendi Emas (Smash Ball)**.
 
 ### 2. ⚔️ Story Mode (Petualangan 3 Babak)
-Jelajahi alur cerita beat 'em up klasik dengan pertarungan boss bertahap:
-- **Babak 1 • Gang Tambak & Kenjeran:** Basmi gerombolan Bocil Sarung & Preman Tambak, taklukkan *Cak Koordinator*.
-- **Babak 2 • Kawasan Jalan Tunjungan:** Tembus blokade gerobak tahu tek & hadapi *Jagoan Tunjungan*.
-- **Babak 3 • Jembatan Suramadu (Malam):** Duel final di atas jembatan legendaris merebut kembali pusaka dari *Raja Sarung Baja*!
+- **Babak 1 • Gang Tambak & Kenjeran** vs *Cak Koordinator*
+- **Babak 2 • Kawasan Jalan Tunjungan** vs *Jagoan Tunjungan*
+- **Babak 3 • Jembatan Suramadu (Malam)** vs *Raja Sarung Baja*
 
-### 3. 🛡️ Survival Mode (Warkop Defense — 4 Arah)
-Pertahankan **Pos Ronda & Warkop Pusat** dari kepungan zombie tak terbatas:
-- **Wave 1–30:** Serbuan datang dari 3 arah (Kiri, Atas, Kanan) dengan rintangan dan barikade pertahanan.
-- **Wave 31+ (Simpang Empat Maut Joyoboyo):** Map khusus 4 arah (Kiri, Atas, Kanan, Bawah)!
-- **Upgrade Bangunan & Barikade:**
-  - Barikade Level 1–4 (Level 4 dilengkapi duri berduri yang membalas damage ke musuh!).
-  - Upgrade Nyawa Warkop (Core HP).
-  - Tameng Pelindung Warkop (Shield 250 HP).
-  - Menara Mercon Otomatis di atap pos warkop.
-- **Distribusi Hadiah Adil:** Uang receh hasil kill dibagi merata ke seluruh pemain tim!
-- **Milestone Jurus Tiap 10 Wave:** Pilih 1 dari 4 Jurus Ultimate Sakti tiap kelipatan 10 wave.
+### 3. 🛡️ Survival Mode (Warkop Defense — Solo & Mabar Co-op)
+- Pertahankan **Pos Ronda & Warkop Pusat** dari 9 jenis Zombie Suroboyo (dengan info kelebihan & kekurangan tiap zombie di menu Info Hero).
+- **Warung Warkop (`[B]`):** Upgrade Barikade Lv.1–4, Core HP, Tameng Gaib, Menara Mercon, dan **Upgrade Elemen khas Hero pilihanmu (Lv.1–3)**.
+- **Buff Atribut Tiap 2 Wave:** Pilih 1 dari 3 kartu buff secara independen untuk setiap pemain.
 
-### 4. 🥋 Dojo Latihan (Camp Sandbox & Jurus Tester)
-Arena latihan bebas untuk menguji kombo kibasan sarung, pantulan proyektil pecut, serta dock pengujian instan untuk mencoba 4 Jurus Ultimate dengan bar energi 100% tanpa batas cooldown.
+### 4. 🥋 Pelatihan Dojo (Sandbox)
+- Bebas gonta-ganti 6 Hero, 6 Elemen (Lv.1–3), 6 Jurus Ultimate, serta isi 100% bar Ulti instan.
 
 ---
 
-## 🦸‍♂️ 6 Hero Arek Suroboyo (Karakter Petarung)
+## 👥 Mode Mabar Local (Socket.IO LAN & PeerJS P2P)
 
-| Hero | Gelar & Gaya Tarung | Senjata & Kombo | Jurus Pamungkas (Ult) |
-|---|---|---|---|
-| **Cak Bima** | *The All-Rounder* | Sarung Loreng Pecut (Jarak menengah seimbang) | Badai Gasing Suroboyo (Vortex 360°) |
-| **Mat Clurit** | *Speed Assassin* | Clurit Celurit Tajam (Lari kilat + kombo sayat cepat) | Tebasan Kilat Clurit |
-| **Bang Bambang** | *Heavy Tank* | Paving Block Tambak (Damage super tebal & tahan pukul) | Gempa Paving Meremukkan Bumi |
-| **Gus Dimas** | *Mage Sholawat* | Tasbih Karomah (Tembakan proyektil energi suci jarak jauh) | Petir Kenjeran 16 Sambaran |
-| **Pak RT Karbit** | *Trapper & Heavy Artillery* | Bedil Karbit Bambu (Ledakan area mortar karbit) | Meriam Bazooka Karbit 3 Laras |
-| **Mbak Sri** | *Agile Rusher* | Sapu Lidi Sakti (Sapuan ganda + recovery lincah) | Sapu Badai Angin Topan |
-
----
-
-## 👥 Mode Mabar Local (Node.js + Socket.IO)
-
-Game ini 100% bebas biaya, anti-cloudflare, dan dirancang khusus untuk mabar lancar di satu jaringan Wi-Fi atau Hotspot HP:
-
-### 1. Mode Monitor Laptop/TV + HP Jadi Stick Controller (Mode 2)
-1. Jalankan server di Laptop/PC dengan `npm start` (atau `node server.js`).
-2. Buka `http://localhost:3000` di laptop/PC, klik **MABAR LOCAL**, pilih **MODE MONITOR (LAYAR UTAMA)**.
-3. Di layar akan muncul **QR Code** dan **Kode Room 4-Digit** (misal: `XFK9`).
-4. Teman-teman di HP cukup buka browser (misal: `http://192.168.18.6:3000`), masukkan kode room, dan pilih **HP JADI STICK**.
-5. Layar HP langsung berubah menjadi **Gamepad Konsol Mewah** (Analog 360°, getaran haptic, status nyawa live, bar ult, dan tombol aksi). PC/TV menjadi layar permainan utama!
-
-### 2. Mode Main Sendiri-Sendiri (Co-op Screen / Mode 1)
-- Setiap pemain melihat layar game penuh di HP / layarnya masing-masing.
-- Snapshot permainan disinkronkan secara realtime 60 FPS lewat Socket.IO LAN.
+1. **Mode 1 — Keroyokan Layar Dewe (Layar Masing-Masing):** Setiap HP/Laptop melihat arena penuh 60 FPS tersinkronisasi penuh (map, zombie, slash elemen, peti/Kendi Emas, hazard, hingga cut-in Resonansi Gabungan).
+2. **Mode 2 — 1 Monitor (Laptop/TV) + HP Jadi Stick Controller:** 1 layar besar jadi Monitor utama, HP teman jadi Gamepad konsol 360° lengkap dengan tombol Warung, Elemen, dan Haptic Rumble.
 
 ---
 
@@ -85,56 +81,42 @@ Game ini 100% bebas biaya, anti-cloudflare, dan dirancang khusus untuk mabar lan
 ### Keyboard (PC / Laptop)
 | Tombol | Fungsi |
 |---|---|
-| `W`, `A`, `S`, `D` / `Tombol Panah` | Bergerak 8-Arah |
-| `Space` | Lompat (Bisa Double Jump) |
-| `S + Space` / `Bawah + Lompat` | Turun Tembus Platform (Khusus Super Smash Brawl) |
+| `W`, `A`, `S`, `D` / `Panah` | Bergerak 8-Arah |
+| `Space` | Lompat (Double / Triple Jump) |
+| `S + Space` | Turun Tembus Platform (Brawl) |
 | `Shift` / `L` | Dash Ngeles Cepat |
 | `J` / `Z` | Serangan Melee / Kombo Hero |
-| `K` / `X` | Pecut / Tembakan Jarak Jauh Hero |
-| `U` / `C` | Jurus Ultimate (Ketika Bar 100%) |
-| `B` | Buka Warung / Toko Survival |
+| `K` / `X` | Proyektil / Skill Jarak Jauh |
+| `U` / `C` | Jurus Ultimate (100% Bar) |
+| `Q` / `E` | Ganti / Upgrade Elemen (Khusus Pelatihan Dojo) |
+| `B` | Buka Warung Warkop (Survival) |
 | `Esc` | Menu Pause / Jeda |
 
-### Layar Sentuh / Smartphone (Mobile Controller)
-- **360° Ergonomic Virtual Analog:** Feedback getaran halus (*haptic tick*) saat bergerak.
-- **Thumb Action Arc Pad:** Tombol KIBAS, LOMPAT, DASH, PECUT, ULT, dan WARUNG yang responsif.
-- **Haptic Feedback:** Getaran fisik saat memukul, terkena damage, atau saat jurus ulti aktif.
+### Layar Sentuh / Smartphone (Wajib Landscape)
+- **360° Virtual Analog** dengan native TouchEvent anti-freeze & getaran *haptic*.
+- **Action Arc Pad:** Tombol `KIBAS`, `LOMPAT`, `DASH`, `PECUT`, `ULT`, `WARUNG`, dan `ELEMEN`.
 
 ---
 
-## 🚀 Cara Menjalankan Server Lokal (100% Bebas Kuota)
+## 🚀 Cara Menjalankan Server Lokal (0 Kuota Internet)
 
-### Prasyarat
-- [Node.js](https://nodejs.org/) (v18 atau lebih baru)
-
-### Langkah-langkah
 ```bash
-# 1. Masuk ke folder proyek
-cd "d:/Game Bacok"
+# 1. Install dependencies
+npm install
 
 # 2. Build frontend
 npm run build
 
-# 3. Jalankan server lokal
+# 3. Jalankan server lokal (Socket.IO LAN port 3000)
 npm start
 ```
 
-Terminal akan menampilkan IP yang siap dibuka di perangkat manapun di jaringan Wi-Fi/Hotspot yang sama:
-```
-================================================================
- 🔥 AREK SARUNGAN SLAYER — LOCAL MULTIPLAYER SERVER (v1.8.0)
- ⚡ Node.js + Socket.IO (Bebas Kuota, Anti-Cloudflare, 100% Free!)
-================================================================
- 🖥️  Local:    http://localhost:3000
- 📱  Wi-Fi / LAN IP (Buka di HP / Laptop teman dalam 1 Wi-Fi):
-     👉  http://192.168.18.6:3000
-================================================================
-```
+Buka `http://localhost:3000` di Laptop, dan buka alamat IP LAN (misal `http://192.168.x.x:3000`) di HP yang terhubung ke Wi-Fi/Hotspot yang sama.
 
 ---
 
-## 👨‍💻 Pengembang (Author)
+## 📝 Riwayat Versi Terbaru
 
-- **Creator & Lead Developer:** [Nabil Al-Ma'ruf](https://github.com/Nabil-Al-Maruf)
-- **Tema & Kultur:** Khas Suroboyoan (Surabaya, Jawa Timur, Indonesia)
-- **Versi:** v1.8.0 Super Smash Bros & LAN Server Release (2026)
+- **v1.9.0:** 6 Hero dengan 6 Elemen unik (*Es Gletser* & *Daun Rimba*), Resonansi Jurus Gabungan Mabar (2–6 pemain ala *Wuthering Waves*), Balanced Brawl PvP (tanpa ulti kombinasi), 4 BGM berbeda (Menu, Story, Mabar, Brawl), Ensiklopedia Info Hero + matchup Zombie, fix Android Chrome 60 FPS repaint, fix 404 audio GitHub Pages, dan fix Buff Picker Mabar.
+- **v1.8.0:** Mode Super Smash Bros Tawuran (Max 6 Pemain/Bot AI), 6 Hero Suroboyo, Server Local Node.js + Socket.IO.
+- **v1.7.0:** 4 Jurus Ultimate, Haptic Controller, Zero-GC 60–90 FPS Engine.

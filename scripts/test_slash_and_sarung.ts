@@ -448,11 +448,21 @@ console.log('\n=== TEST 14: Zombie vs 6-Hero Strengths & Weaknesses ===');
 
 console.log('\n=== TEST 15: Mabar Co-op Synchronized Combo Ultimate (2x..6x + Hero Combos) ===');
 {
-  // 15A: Solo player pressing Ult does NOT trigger Combo Ultimate
+  // 15A: Solo player pressing Ult does NOT trigger Combo Ultimate (and Brawl PvP disables Combo Ult)
   const soloState = createSurvivalState(0, undefined, 'Solo', 'bima');
   soloState.players[0].ult = 100;
   const soloRes = registerUltActivationForCombo(soloState, soloState.players[0]);
   assert(soloRes === null && !soloState.comboUlt, 'Solo player Ult does NOT trigger Co-op Combo Ult');
+
+  const brawlNoCombo = createBrawlState([
+    { id: 'p1', name: 'A', paletteIndex: 0, heroId: 'bima', isBot: false },
+    { id: 'p2', name: 'B', paletteIndex: 1, heroId: 'mat_clurit', isBot: false },
+  ]);
+  brawlNoCombo.players[0].ult = 100;
+  brawlNoCombo.players[1].ult = 100;
+  const brawlRes1 = registerUltActivationForCombo(brawlNoCombo, brawlNoCombo.players[0]);
+  const brawlRes2 = registerUltActivationForCombo(brawlNoCombo, brawlNoCombo.players[1]);
+  assert(brawlRes1 === null && brawlRes2 === null && !brawlNoCombo.comboUlt, 'Brawl PvP disables Co-op Combo Ult');
 
   // 15B: 2 Players pressing Ult simultaneously trigger unique Duo Combo based on Hero pair!
   const coop2 = createSurvivalState(0, [

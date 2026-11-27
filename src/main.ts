@@ -463,7 +463,7 @@ const localPeer = new LocalPeerManager({
       audio.setBgmTrack('brawl');
     } else {
       state = createSurvivalState(selectedPalette, activeRoster, playerName, selectedHeroId);
-      audio.setBgmTrack('battle');
+      audio.setBgmTrack('mabar');
     }
     lastStickCanShop = false;
 
@@ -2352,6 +2352,7 @@ function closeAllModals(): void {
 
 function openMenu(): void {
   setStickMode(false);
+  audio.setBgmTrack('menu');
   releaseScreenWakeLock();
   localPeer.disconnect();
   state.shakeTimer = 0;
@@ -2402,6 +2403,7 @@ lobbyOverlay?.addEventListener('click', (e) => {
 
 function startStoryStage(stage: 1 | 2 | 3): void {
   audio.unlock();
+  audio.setBgmTrack('story');
   triggerAutoFullscreenIfEnabled();
   setStickMode(false);
   localPeer.disconnect();
@@ -2422,6 +2424,7 @@ function startStoryStage(stage: 1 | 2 | 3): void {
 
 function startSoloSurvival(): void {
   audio.unlock();
+  audio.setBgmTrack('mabar');
   triggerAutoFullscreenIfEnabled();
   setStickMode(false);
   localPeer.disconnect();
@@ -2441,6 +2444,7 @@ function startSoloSurvival(): void {
 
 function startSoloBrawl(): void {
   audio.unlock();
+  audio.setBgmTrack('brawl');
   triggerAutoFullscreenIfEnabled();
   setStickMode(false);
   localPeer.disconnect();
