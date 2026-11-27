@@ -158,6 +158,8 @@ export interface PlayerState {
   lastHitBy?: string;
   lastHitTime?: number;
   dropThroughTimer?: number;
+  coyoteTimer?: number;
+  jumpBufferTimer?: number;
   botJumpTimer?: number;
   isGrounded?: boolean;
   comboResetTimer?: number;

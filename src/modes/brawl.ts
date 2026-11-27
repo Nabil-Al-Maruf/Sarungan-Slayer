@@ -25,12 +25,15 @@ export interface BrawlRosterMember {
   isBot?: boolean;
 }
 
-// 2D Platform Fighter Physics Constants (Super Smash Bros style)
-const BRAWL_GRAVITY = 980; // px/s² downward acceleration
-const BRAWL_MAX_FALL = 680; // terminal fall velocity
-const BRAWL_FAST_FALL = 840; // holding down while falling
+// 2D Platform Fighter Physics Constants (Snappy Super Smash Bros style)
+const BRAWL_GRAVITY = 980; // px/s² upward gravity
+const BRAWL_FALL_GRAVITY = 1160; // snappier descent gravity (eliminates floatiness)
+const BRAWL_MAX_FALL = 690; // terminal fall velocity
+const BRAWL_FAST_FALL = 880; // holding down while falling
 const BRAWL_JUMP_IMPULSE = -495; // ground jump launch velocity (clears side platforms cleanly)
-const BRAWL_DOUBLE_JUMP_IMPULSE = -450; // air jump launch velocity
+const BRAWL_DOUBLE_JUMP_IMPULSE = -455; // air jump launch velocity
+const BRAWL_COYOTE_TIME = 0.11; // grace period for jumping right after stepping off a ledge
+const BRAWL_JUMP_BUFFER = 0.12; // buffer jump press right before landing
 
 export function createBrawlState(
   roster: BrawlRosterMember[],
@@ -421,6 +424,10 @@ export function stepBrawl(
     if (player.meleeTimer > 0) player.meleeTimer = Math.max(0, player.meleeTimer - dt);
     if (player.projCooldown > 0) player.projCooldown = Math.max(0, player.projCooldown - dt);
     if ((player.dropThroughTimer ?? 0) > 0) player.dropThroughTimer = Math.max(0, (player.dropThroughTimer ?? 0) - dt);
+    if ((player.coyoteTimer ?? 0) > 0) player.coyoteTimer = Math.max(0, (player.coyoteTimer ?? 0) - dt);
+    if ((player.jumpBufferTimer ?? 0) > 0) player.jumpBufferTimer = Math.max(0, (player.jumpBufferTimer ?? 0) - dt);
+    if (player.isGrounded) player.coyoteTimer = BRAWL_COYOTE_TIME;
+    if (inp.jumpPressed) player.jumpBufferTimer = BRAWL_JUMP_BUFFER;
 
     // Combo window countdown (resets combo chain if no follow-up attack within window)
     if ((player.comboResetTimer ?? 0) > 0) {
@@ -460,20 +467,30 @@ export function stepBrawl(
     }
 
     const isHoldingDown = inp.down || (inp.moveY !== undefined && inp.moveY > 0.45);
+    const isHoldingUp = inp.up || (inp.moveY !== undefined && inp.moveY < -0.45);
 
-    // Dash Action
+    // Dash Action (Horizontal Ground Dash OR Up-Diagonal Off-Stage Recovery Dash!)
     if (inp.dashPressed && player.dashCooldown <= 0 && !inHitstun) {
-      player.dashTimer = 0.22;
-      player.dashCooldown = 0.75 * hDef.cdMult;
+      player.dashTimer = 0.2;
+      player.dashCooldown = 0.72 * hDef.cdMult;
       player.dashDirX = player.dirX;
-      player.vx = player.dirX * hDef.dashSpeed;
-      player.vy = 0; // Pause vertical fall during dash
-      player.invulnTimer = Math.max(player.invulnTimer, 0.12);
+      if (!player.isGrounded && isHoldingUp) {
+        // Clutch Up-Diagonal Recovery Dash!
+        player.dashDirY = -0.55;
+        player.vx = player.dirX * (hDef.dashSpeed * 0.74);
+        player.vy = -295;
+      } else {
+        player.dashDirY = 0;
+        player.vx = player.dirX * hDef.dashSpeed;
+        player.vy = 0; // Pause vertical fall during horizontal dash
+      }
+      player.invulnTimer = Math.max(player.invulnTimer, 0.14);
       state.soundQueue.push('dash');
     }
 
-    // Jump / Drop Through Action
-    if (inp.jumpPressed && !inHitstun) {
+    // Jump / Drop Through Action (with Coyote Time + Jump Buffering!)
+    const wantsJump = (inp.jumpPressed || (player.jumpBufferTimer ?? 0) > 0) && !inHitstun;
+    if (wantsJump) {
       const onSoftPlatform = br.platforms.some(
         (plat) =>
           plat.dropThrough &&
@@ -482,22 +499,27 @@ export function stepBrawl(
           Math.abs(player.y - plat.y) <= 5
       );
 
-      if (player.isGrounded && isHoldingDown && onSoftPlatform) {
+      if (player.isGrounded && isHoldingDown && onSoftPlatform && inp.jumpPressed) {
         // Drop through current soft platform!
         player.dropThroughTimer = 0.28;
+        player.jumpBufferTimer = 0;
+        player.coyoteTimer = 0;
         player.isGrounded = false;
         player.y += 6;
-        player.vy = 80;
-      } else if (player.isGrounded) {
-        // Ground Jump
+        player.vy = 85;
+      } else if (player.isGrounded || ((player.coyoteTimer ?? 0) > 0 && inp.jumpPressed)) {
+        // Ground Jump (or Coyote-Time Ledge Jump)
         player.isGrounded = false;
+        player.coyoteTimer = 0;
+        player.jumpBufferTimer = 0;
         player.vy = BRAWL_JUMP_IMPULSE;
         player.jumpsRemaining = hDef.maxJumps - 1;
-        player.scaleX = 0.85;
-        player.scaleY = 1.25;
+        player.scaleX = 0.84;
+        player.scaleY = 1.26;
         state.soundQueue.push('jump');
-      } else if (player.jumpsRemaining > 0) {
+      } else if (inp.jumpPressed && player.jumpsRemaining > 0) {
         // Air Double / Triple Jump
+        player.jumpBufferTimer = 0;
         player.vy = BRAWL_DOUBLE_JUMP_IMPULSE;
         player.jumpsRemaining--;
         player.scaleX = 0.88;
@@ -528,44 +550,70 @@ export function stepBrawl(
     // Physics Step
     if (player.dashTimer > 0) {
       player.dashTimer -= dt;
-      player.vx = player.dashDirX * hDef.dashSpeed;
-      player.vy = 0;
-      if (state.time % 0.05 < dt) {
+      if (player.dashDirY < -0.1) {
+        player.vx = player.dashDirX * (hDef.dashSpeed * 0.74);
+        player.vy = -295;
+      } else {
+        player.vx = player.dashDirX * hDef.dashSpeed;
+        player.vy = 0;
+      }
+      if (state.time % 0.04 < dt) {
         player.afterimages.push({
           x: player.x,
           y: player.y,
           z: 0,
-          alpha: 0.6,
-          color: hDef.accentColor,
+          alpha: 0.65,
+          color: player.dashDirY < -0.1 ? '#facc15' : hDef.accentColor,
         });
       }
     } else {
       const targetVx = mx * hDef.moveSpeed;
       if (inHitstun) {
-        // DI steering during knockback
-        player.vx += mx * 180 * dt;
+        // DI steering during knockback + Smash Launch Smoke Trail!
+        player.vx += mx * 200 * dt;
         player.vx *= Math.pow(0.95, dt * 60);
+        if (Math.hypot(player.vx, player.vy) > 360 && Math.random() < 0.65) {
+          state.particles.push({
+            x: player.x + (Math.random() - 0.5) * 8,
+            y: player.y - 16 + (Math.random() - 0.5) * 8,
+            z: 0,
+            vx: -player.vx * 0.08,
+            vy: -player.vy * 0.08,
+            vz: 0,
+            size: 4 + Math.random() * 3,
+            color: Math.random() < 0.5 ? '#f8fafc' : '#fb923c',
+            alpha: 0.78,
+            life: 0.24,
+            maxLife: 0.24,
+            gravity: -20,
+          });
+        }
       } else if (player.isGrounded) {
-        // Grounded movement & landing slide friction
+        // Snappy grounded acceleration & crisp landing friction
         if (Math.abs(player.vx) > hDef.moveSpeed * 1.2) {
           player.vx *= Math.pow(0.82, dt * 60);
         } else {
-          player.vx += (targetVx - player.vx) * Math.min(1, dt * 20);
+          player.vx += (targetVx - player.vx) * Math.min(1, dt * 24);
         }
       } else {
-        // Airborne movement & knockback trajectory
+        // Responsive airborne control
         if (Math.abs(player.vx) > hDef.moveSpeed) {
           player.vx *= Math.pow(0.94, dt * 60);
-          player.vx += mx * 220 * dt;
+          player.vx += mx * 240 * dt;
         } else {
-          player.vx += (targetVx - player.vx) * Math.min(1, dt * 9);
+          player.vx += (targetVx - player.vx) * Math.min(1, dt * 12);
         }
       }
 
-      // Gravity
+      // Snappy Gravity (heavier fall for crisp Smash Bros feel)
       if (!player.isGrounded) {
         const fallLimit = isHoldingDown && player.vy > 0 ? BRAWL_FAST_FALL : BRAWL_MAX_FALL;
-        const grav = isHoldingDown && player.vy > 0 ? BRAWL_GRAVITY * 1.5 : BRAWL_GRAVITY;
+        const grav =
+          isHoldingDown && player.vy > 0
+            ? BRAWL_FALL_GRAVITY * 1.4
+            : player.vy > 0
+              ? BRAWL_FALL_GRAVITY
+              : BRAWL_GRAVITY;
         player.vy = Math.min(fallLimit, player.vy + grav * dt);
       }
     }
@@ -594,9 +642,11 @@ export function stepBrawl(
     // Platform Collision Resolution
     handle2DPlatforms(player, prevX, prevY, br.platforms, isHoldingDown, dt);
 
-    // Melee attack trigger
+    // Melee attack trigger (Supports Forward Combo, Up-Launcher & Down-Air Meteor Spike!)
     if (inp.meleePressed && player.meleeCooldown <= 0 && player.dashTimer <= 0 && !inHitstun) {
-      executeHeroMelee(state, player, hDef);
+      const dirMode: 'neutral' | 'up' | 'down_air' =
+        !player.isGrounded && isHoldingDown ? 'down_air' : isHoldingUp ? 'up' : 'neutral';
+      executeHeroMelee(state, player, hDef, dirMode);
     }
 
     // Projectile skill trigger
@@ -929,14 +979,27 @@ function checkBrawlRingOut(
 function executeHeroMelee(
   state: GameState,
   player: PlayerState,
-  hDef: ReturnType<typeof getHeroDef>
+  hDef: ReturnType<typeof getHeroDef>,
+  dirMode: 'neutral' | 'up' | 'down_air' = 'neutral'
 ): void {
   player.meleeComboStep = (player.meleeComboStep % 3) + 1;
   player.meleeTimer = 0.22;
-  player.meleeCooldown = 0.35 * hDef.cdMult;
-  player.comboResetTimer = 0.75 * hDef.cdMult; // Combo window remains open
+  player.meleeCooldown = 0.32 * hDef.cdMult;
+  player.comboResetTimer = 0.78 * hDef.cdMult; // Combo window remains open
   player.meleeSwingId++;
-  player.meleeAngle = player.dirX > 0 ? 0 : Math.PI;
+  player.meleeAngle =
+    dirMode === 'down_air'
+      ? Math.PI * 0.5
+      : dirMode === 'up'
+        ? -Math.PI * 0.5
+        : player.dirX > 0
+          ? 0
+          : Math.PI;
+
+  // Snappy forward micro-lunge on grounded neutral combo so hits connect cleanly!
+  if (dirMode === 'neutral' && player.isGrounded) {
+    player.vx += player.dirX * 85;
+  }
 
   // Spawn visual slash & elemental audio
   const elem = player.slashElement || hDef.defaultElement || 'none';
@@ -1118,6 +1181,8 @@ function executeHeroMelee(
       other.lastHitTime = state.time;
 
       player.ult = Math.min(player.maxUlt, player.ult + (isFinisher ? 12 : 6));
+      // Comeback meter: taking damage also charges a small amount of Ultimate!
+      other.ult = Math.min(other.maxUlt, other.ult + 4);
 
       // Elemental hit particles
       if (elem === 'petir') {
@@ -1228,7 +1293,33 @@ function executeHeroMelee(
       const damagePercent = Math.min(3.2, Math.max(1, (other.maxHp - other.hp) / 16));
       const badaiKnockbackMult = elem === 'badai' ? 1 + 0.18 * elemLevel : 1;
 
-      if (isFinisher) {
+      if (dirMode === 'down_air' && !other.isGrounded) {
+        // METEOR SPIKE! Slams airborne opponents straight down toward the abyss!
+        other.vx = player.dirX * 140;
+        other.vy = Math.max(360, 290 * damagePercent);
+        state.shakeTimer = 0.14;
+        state.shakeIntensity = 2.6;
+        state.hitstopTimer = 0.06;
+        state.floatingTexts.push({
+          x: other.x,
+          y: other.y - 42,
+          vy: -45,
+          text: '⬇️ METEOR SPIKE!',
+          color: '#f97316',
+          scale: 1.15,
+          life: 0.85,
+          maxLife: 0.85,
+        });
+      } else if (dirMode === 'up') {
+        // UP-LAUNCHER! Pops opponent upward for aerial juggle combos
+        other.isGrounded = false;
+        const upPower = (260 + hDef.knockbackMult * 70) * Math.min(2.2, damagePercent) * badaiKnockbackMult;
+        other.vx = player.dirX * 90;
+        other.vy = -upPower;
+        state.shakeTimer = 0.08;
+        state.shakeIntensity = 1.5;
+        state.hitstopTimer = 0.035;
+      } else if (isFinisher) {
         // SMASH LAUNCH FINISHER: 45-degree upward launch trajectory!
         other.isGrounded = false;
         const launchPower = (360 + hDef.knockbackMult * 90) * damagePercent * badaiKnockbackMult;

@@ -4,7 +4,7 @@
 > *Zero Install • HTML5 Canvas 2D Engine (60 FPS) • Cross-Platform (Mobile, PC, Tablet, Smart TV) • Local Node.js + Socket.IO LAN Server & PeerJS P2P.*
 
 [![GitHub Pages](https://img.shields.io/badge/PLAY%20ONLINE-GitHub%20Pages-24292e?style=for-the-badge&logo=github)](https://nabil-al-maruf.github.io/Sarungan-Slayer/)
-[![Version](https://img.shields.io/badge/version-1.9.0%20Resonansi%20%26%206%20Elemen-orange?style=for-the-badge)](https://nabil-al-maruf.github.io/Sarungan-Slayer/)
+[![Version](https://img.shields.io/badge/version-1.9.1%20Snappy%20Brawl%20Overhaul-orange?style=for-the-badge)](https://nabil-al-maruf.github.io/Sarungan-Slayer/)
 [![Tech Stack](https://img.shields.io/badge/tech-Node.js%20%7C%20Socket.IO%20%7C%20TypeScript%20%7C%20Canvas2D-blue?style=for-the-badge)](https://github.com/Nabil-Al-Maruf/Sarungan-Slayer)
 
 ---
@@ -49,8 +49,13 @@ Khusus mode **Mabar Co-op Survival**, ketika **2, 3, 4, 5, atau 6 pemain menekan
 
 Setiap mode memiliki **BGM (musik latar) tersendiri**: **Menu Utama** (`menu_theme.mp3`), **Story Mode** (`battle_theme.mp3`), **Mabar / Survival** (`mabar_theme.mp3`), dan **Smash Brawl** (`brawl_theme.mp3`).
 
-### 1. 🥊 Super Smash Bros Tawuran (Balanced PvP — Max 6 Pemain / Bot AI)
+### 1. 🥊 Super Smash Bros Tawuran (Snappy Balanced PvP — Max 6 Pemain / Bot AI)
 - **Ring-Out Blast Zone & 3 Stocks:** Lontarkan lawan keluar arena (kiri, kanan, atas, bawah) untuk K.O.!
+- **Mekanisme Pertarungan Snappy (v1.9.1):**
+  - **Coyote Time & Jump Buffer** untuk kontrol lompat super responsif di tepi platform.
+  - **Up-Diagonal Recovery Dash (`Atas + Dash` di udara)** untuk penyelamatan darurat kembali ke panggung.
+  - **Serangan Berarah:** `Bawah + Melee` di udara memicu **⬇️ Meteor Spike**, `Atas + Melee` memicu **Up-Launcher** untuk combo udara, dan kombo darat maju dengan micro-lunge.
+  - **Jejak Asap Smash Launch & Comeback Meter** (+4% cas Ult saat menerima serangan).
 - **Seimbang di Semua Hero:** Stat 6 Hero, durasi Ulti (`2.2s`), knockback, dan hitstun diseimbangkan khusus PvP.
 - **3 Peta Arena:** Alun-Alun, Atap Warga (jurang tengah), dan Jembatan Kali, plus *Soft Platform Drop* (`Bawah + Lompat`) dan **Kendi Emas (Smash Ball)**.
 
@@ -117,6 +122,7 @@ Buka `http://localhost:3000` di Laptop, dan buka alamat IP LAN (misal `http://19
 
 ## 📝 Riwayat Versi Terbaru
 
+- **v1.9.1:** Overhaul mekanisme Brawl (Coyote Time, Jump Buffer, Up-Diagonal Recovery Dash, Down-Air Meteor Spike, Up-Launcher, gravitasi jatuh lebih mantap, Smash Launch smoke trail, dan Comeback Ult meter).
 - **v1.9.0:** 6 Hero dengan 6 Elemen unik (*Es Gletser* & *Daun Rimba*), Resonansi Jurus Gabungan Mabar (2–6 pemain ala *Wuthering Waves*), Balanced Brawl PvP (tanpa ulti kombinasi), 4 BGM berbeda (Menu, Story, Mabar, Brawl), Ensiklopedia Info Hero + matchup Zombie, fix Android Chrome 60 FPS repaint, fix 404 audio GitHub Pages, dan fix Buff Picker Mabar.
 - **v1.8.0:** Mode Super Smash Bros Tawuran (Max 6 Pemain/Bot AI), 6 Hero Suroboyo, Server Local Node.js + Socket.IO.
 - **v1.7.0:** 4 Jurus Ultimate, Haptic Controller, Zero-GC 60–90 FPS Engine.
