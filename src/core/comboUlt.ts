@@ -150,7 +150,7 @@ export function resolveComboUltSpec(participants: ComboUltParticipant[]): Omit<
   ComboUltState,
   'elapsed' | 'cutinDuration' | 'totalDuration' | 'impactApplied' | 'centerX' | 'centerY'
 > {
-  const count = Math.max(2, Math.min(6, participants.length)) as 2 | 3 | 4 | 5 | 6;
+  const count = Math.max(2, Math.min(5, participants.length)) as 2 | 3 | 4 | 5;
   const sortedIds = participants.map((p) => p.heroId).sort();
   const comboKey = `${count}x:${sortedIds.join('+')}`;
 
@@ -219,30 +219,16 @@ export function resolveComboUltSpec(participants: ComboUltParticipant[]): Omit<
     };
   }
 
-  if (count === 5) {
-    return {
-      tier: 5,
-      comboKey,
-      title: `PENTA OVERDRIVE NUSANTARA`,
-      subtitle: `${elemChain} • BINTANG 5 ELEMEN`,
-      tierLabel: '🌟 5× PENTA OVERDRIVE',
-      primaryColor,
-      secondaryColor,
-      visualPattern: 'penta_star',
-      participants,
-    };
-  }
-
   return {
-    tier: 6,
+    tier: 5,
     comboKey,
-    title: 'KEBANGKITAN 6 PENDEKAR SUROBOYO',
-    subtitle: '🌀×⚡×❄️×✨×🔥×🍃 • HEXAD RESONANCE SEMPURNA',
-    tierLabel: '👑 6× HEXAD ULTIMATE',
+    title: 'KEBANGKITAN 5 PENDEKAR SUROBOYO',
+    subtitle: `${elemChain} • PENTA RESONANCE SEMPURNA`,
+    tierLabel: '👑 5× PENTA ULTIMATE',
     primaryColor: '#facc15',
     secondaryColor: '#38bdf8',
-    visualPattern: 'hexad_shatter',
-    participants,
+    visualPattern: 'penta_shatter',
+    participants: participants.slice(0, 5),
   };
 }
 
@@ -281,10 +267,10 @@ export function registerUltActivationForCombo(
   );
   state.ultSyncBuffer.push(entry);
 
-  // If a Combo Ult is already in its cut-in phase and a 3rd/4th/5th/6th player joins simultaneously, upgrade it live!
+  // If a Combo Ult is already in its cut-in phase and a 3rd/4th/5th player joins simultaneously, upgrade it live!
   if (state.comboUlt && !state.comboUlt.impactApplied && state.comboUlt.elapsed <= 0.7) {
     const alreadyIn = state.comboUlt.participants.some((p) => p.playerId === player.id);
-    if (!alreadyIn && state.comboUlt.participants.length < 6) {
+    if (!alreadyIn && state.comboUlt.participants.length < 5) {
       const updatedParticipants: ComboUltParticipant[] = [
         ...state.comboUlt.participants,
         {
@@ -311,9 +297,9 @@ export function registerUltActivationForCombo(
     return state.comboUlt;
   }
 
-  // Trigger Combo Ultimate once 2+ distinct players pressed Ultimate together!
+  // Trigger Combo Ultimate once 2+ distinct players pressed Ultimate together (max 5 in Co-op)!
   if (state.ultSyncBuffer.length >= 2) {
-    const participants: ComboUltParticipant[] = state.ultSyncBuffer.slice(0, 6).map((e) => ({
+    const participants: ComboUltParticipant[] = state.ultSyncBuffer.slice(0, 5).map((e) => ({
       playerId: e.playerId,
       name: e.name,
       heroId: e.heroId,
@@ -407,13 +393,12 @@ function applyComboUltImpact(state: GameState, cu: ComboUltState): void {
   if (elements.has('daun')) state.soundQueue.push('slash_daun');
   if (elements.has('api')) state.soundQueue.push('slash_api');
 
-  // Scaled Arena-Wide Damage (2x=240, 3x=360, 4x=500, 5x=680, 6x=950)
-  const tierDmgTable: Record<2 | 3 | 4 | 5 | 6, number> = {
+  // Scaled Arena-Wide Damage (2x=240, 3x=360, 4x=520, 5x=850)
+  const tierDmgTable: Record<2 | 3 | 4 | 5, number> = {
     2: 240,
     3: 360,
-    4: 500,
-    5: 680,
-    6: 950,
+    4: 520,
+    5: 850,
   };
   const baseComboDmg = tierDmgTable[tier];
 
@@ -480,9 +465,9 @@ function applyComboUltImpact(state: GameState, cu: ComboUltState): void {
     }
   }
 
-  // 3. Suci / Hexad Team Heal Bonus!
-  if (elements.has('suci') || tier === 6) {
-    const healRatio = tier === 6 ? 1.0 : 0.35;
+  // 3. Suci / 5x Penta Ultimate Team Heal Bonus!
+  if (elements.has('suci') || tier === 5) {
+    const healRatio = tier === 5 ? 1.0 : 0.35;
     for (const pl of state.players) {
       if (pl.hp <= 0 || pl.knockedDown) continue;
       const healAmt = Math.round(pl.maxHp * healRatio);
@@ -491,7 +476,7 @@ function applyComboUltImpact(state: GameState, cu: ComboUltState): void {
         x: pl.x,
         y: pl.y - pl.z - 54,
         vy: -50,
-        text: tier === 6 ? '👑 FULL HEAL HEXAD!' : `✨ +${healAmt} HP RESONANSI!`,
+        text: tier === 5 ? '👑 FULL HEAL PENTA!' : `✨ +${healAmt} HP RESONANSI!`,
         color: '#4ade80',
         scale: 1.15,
         life: 1.25,

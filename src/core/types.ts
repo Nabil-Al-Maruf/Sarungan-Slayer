@@ -445,8 +445,8 @@ export interface ComboUltParticipant {
 }
 
 export interface ComboUltState {
-  /** Number of synchronized players (2..6) */
-  tier: 2 | 3 | 4 | 5 | 6;
+  /** Number of synchronized players (2..5 — Survival Co-op max 5 players) */
+  tier: 2 | 3 | 4 | 5;
   comboKey: string;
   title: string;
   subtitle: string;
@@ -461,8 +461,7 @@ export interface ComboUltState {
     | 'emerald_cyclone'
     | 'trinity_prism'
     | 'quartet_cross'
-    | 'penta_star'
-    | 'hexad_shatter';
+    | 'penta_shatter';
   participants: ComboUltParticipant[];
   /** Total elapsed time since activation */
   elapsed: number;

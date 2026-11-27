@@ -510,25 +510,23 @@ console.log('\n=== TEST 15: Mabar Co-op Synchronized Combo Ultimate (2x..6x + He
   ]);
   assert(pairLeafWind.visualPattern === 'emerald_cyclone', 'MbakSri+Bima uses emerald_cyclone pattern');
 
-  // 15C: 3, 4, 5, 6 players produce distinct tiers & distinct arena visual patterns
-  const all6 = HERO_LIST.map((h, idx) => ({
+  // 15C: 3, 4, 5 players produce distinct tiers & distinct arena visual patterns (Co-op max 5 players!)
+  const all5 = HERO_LIST.slice(0, 5).map((h, idx) => ({
     playerId: `p${idx + 1}`,
     name: h.name,
     heroId: h.id,
     paletteIndex: h.paletteIndex,
     element: h.defaultElement,
   }));
-  const t3 = resolveComboUltSpec(all6.slice(0, 3));
-  const t4 = resolveComboUltSpec(all6.slice(0, 4));
-  const t5 = resolveComboUltSpec(all6.slice(0, 5));
-  const t6 = resolveComboUltSpec(all6.slice(0, 6));
+  const t3 = resolveComboUltSpec(all5.slice(0, 3));
+  const t4 = resolveComboUltSpec(all5.slice(0, 4));
+  const t5 = resolveComboUltSpec(all5.slice(0, 5));
   assert(t3.tier === 3 && t3.visualPattern === 'trinity_prism', '3 players -> trinity_prism');
   assert(t4.tier === 4 && t4.visualPattern === 'quartet_cross', '4 players -> quartet_cross');
-  assert(t5.tier === 5 && t5.visualPattern === 'penta_star', '5 players -> penta_star');
-  assert(t6.tier === 6 && t6.visualPattern === 'hexad_shatter', '6 players -> hexad_shatter');
+  assert(t5.tier === 5 && t5.visualPattern === 'penta_shatter', '5 players -> penta_shatter');
   assert(
-    t6.title === 'KEBANGKITAN 6 PENDEKAR SUROBOYO',
-    `6-hero Hexad title matches (${t6.title})`
+    t5.title === 'KEBANGKITAN 5 PENDEKAR SUROBOYO',
+    `5-hero Penta Ultimate title matches (${t5.title})`
   );
 
   // 15D: Cut-in freeze pauses world, then detonates AoE damage & clears cleanly

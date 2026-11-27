@@ -4,7 +4,7 @@
 > *Zero Install • HTML5 Canvas 2D Engine (60 FPS) • Cross-Platform (Mobile, PC, Tablet, Smart TV) • Local Node.js + Socket.IO LAN Server & PeerJS P2P.*
 
 [![GitHub Pages](https://img.shields.io/badge/PLAY%20ONLINE-GitHub%20Pages-24292e?style=for-the-badge&logo=github)](https://nabil-al-maruf.github.io/Sarungan-Slayer/)
-[![Version](https://img.shields.io/badge/version-1.9.2%209%20Animasi%20Resonansi-orange?style=for-the-badge)](https://nabil-al-maruf.github.io/Sarungan-Slayer/)
+[![Version](https://img.shields.io/badge/version-1.9.3%20Resonansi%202--5%20Pemain-orange?style=for-the-badge)](https://nabil-al-maruf.github.io/Sarungan-Slayer/)
 [![Tech Stack](https://img.shields.io/badge/tech-Node.js%20%7C%20Socket.IO%20%7C%20TypeScript%20%7C%20Canvas2D-blue?style=for-the-badge)](https://github.com/Nabil-Al-Maruf/Sarungan-Slayer)
 
 ---
@@ -34,12 +34,11 @@ Setiap pendekar punya **siluet sarung, gaya tebasan, elemen khas, animasi ulti, 
 
 ## ⚡ Resonansi Jurus Gabungan Mabar (Cut-In ala *Wuthering Waves*)
 
-Khusus mode **Mabar Co-op Survival**, ketika **2, 3, 4, 5, atau 6 pemain menekan tombol Ultimate secara bersamaan** (jendela sinkronisasi `0.65 detik`), akan muncul **Scene Cut-In Diagonal Sinematik** diikuti animasi jurus gabungan berskala besar:
+Khusus mode **Mabar Co-op Survival (1–5 Pemain)**, ketika **2, 3, 4, atau 5 pemain menekan tombol Ultimate secara bersamaan** (jendela sinkronisasi `0.65 detik`), akan muncul **Scene Cut-In Diagonal Sinematik** diikuti animasi jurus gabungan berskala besar:
 - **⚡ 2× Duo Resonance:** **15 kombinasi pasangan Hero unik** dengan **5 animasi arena finisher berbeda sesuai elemen** (*Storm Lightning*, *Frost Shatter*, *Inferno Vortex*, *Sacred Dragon*, *Emerald Cyclone*) + motif latar elemen di tiap panel cut-in!
 - **🔥 3× Trio Trinity:** *Trinitas Resonansi Suroboyo* — animasi *Prisma Segitiga 3 Pilar*.
 - **💥 4× Quartet Cataclysm:** *Kuartet Bencana Elemen* — animasi *Silang 4 Penjuru Layar*.
-- **🌟 5× Penta Overdrive:** *Penta Overdrive Nusantara* — animasi *Pentagram Bintang 5 Elemen*.
-- **👑 6× Hexad Ultimate:** *Kebangkitan 6 Pendekar Suroboyo* — animasi *Hexagram 6 Elemen + Retakan Kaca Dimensi + Full Heal 100% Tim!*
+- **👑 5× Penta Ultimate:** *Kebangkitan 5 Pendekar Suroboyo* — animasi *Pentagram 5 Elemen + Retakan Kaca Dimensi + Full Heal 100% Tim!*
 
 *(Di mode **Brawl PvP**, ulti kombinasi dinonaktifkan agar duel antar pemain tetap murni & kompetitif.)*
 
@@ -122,7 +121,8 @@ Buka `http://localhost:3000` di Laptop, dan buka alamat IP LAN (misal `http://19
 
 ## 📝 Riwayat Versi Terbaru
 
-- **v1.9.2:** 9 variasi animasi arena finisher Resonansi Jurus Gabungan Mabar (5 animasi Duo sesuai elemen + 4 animasi spesial 3×–6×) & motif latar elemen dinamis di tiap panel cut-in ala *Wuthering Waves*.
+- **v1.9.3:** Menyesuaikan Resonansi Jurus Gabungan Mabar ke batas maksimal 5 pemain Survival Co-op (tier puncak **👑 5× Penta Ultimate** dengan Pentagram + Retakan Kaca Dimensi + Full Heal) serta pembatasan slot room akurat (Survival max 5, Brawl max 6).
+- **v1.9.2:** Variasi animasi arena finisher Resonansi Jurus Gabungan Mabar sesuai elemen & motif latar elemen dinamis di tiap panel cut-in ala *Wuthering Waves*.
 - **v1.9.1:** Overhaul mekanisme Brawl (Coyote Time, Jump Buffer, Up-Diagonal Recovery Dash, Down-Air Meteor Spike, Up-Launcher, gravitasi jatuh lebih mantap, Smash Launch smoke trail, dan Comeback Ult meter).
 - **v1.9.0:** 6 Hero dengan 6 Elemen unik (*Es Gletser* & *Daun Rimba*), Resonansi Jurus Gabungan Mabar (2–6 pemain ala *Wuthering Waves*), Balanced Brawl PvP (tanpa ulti kombinasi), 4 BGM berbeda (Menu, Story, Mabar, Brawl), Ensiklopedia Info Hero + matchup Zombie, fix Android Chrome 60 FPS repaint, fix 404 audio GitHub Pages, dan fix Buff Picker Mabar.
 - **v1.8.0:** Mode Super Smash Bros Tawuran (Max 6 Pemain/Bot AI), 6 Hero Suroboyo, Server Local Node.js + Socket.IO.

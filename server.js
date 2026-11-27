@@ -162,10 +162,11 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // Up to 6 players allowed!
+    // Survival Co-op max 5 players; Brawl PvP max 6 players
+    const maxPlayers = room.mode === 'survival' ? 5 : 6;
     const usedIds = new Set(Array.from(room.players.values()).map((p) => p.id));
     let nextId = '';
-    for (let i = 2; i <= 6; i++) {
+    for (let i = 2; i <= maxPlayers; i++) {
       const candidate = `p${i}`;
       if (!usedIds.has(candidate)) {
         nextId = candidate;
@@ -175,7 +176,7 @@ io.on('connection', (socket) => {
 
     if (!nextId) {
       socket.emit('status_error', {
-        message: 'Room sudah penuh! Maksimal 6 pemain.',
+        message: `Room sudah penuh! Maksimal ${maxPlayers} pemain.`,
       });
       return;
     }

@@ -561,15 +561,17 @@ export function drawComboUltArenaFinisher(ctx: CanvasRenderingContext2D, state: 
     ctx.beginPath();
     ctx.arc(cx, cy, 50 + p * 440, 0, Math.PI * 2);
     ctx.stroke();
-  } else if (cu.visualPattern === 'penta_star') {
-    // === 8. 5x PENTA: Glowing 5-Point Starburst Pentagram + 5-Color Shockwaves ===
+  } else {
+    // === 8. 5x PENTA ULTIMATE: 5-Element Pentagram Starburst + Wuthering Waves Dimensional Glass Shatter! ===
     ctx.globalAlpha = fade;
     ctx.save();
     ctx.translate(cx, cy);
-    ctx.rotate(p * 0.9);
-    const rad = 80 + p * 270;
+    ctx.rotate(p * 0.85);
+    const rad = 92 + p * 275;
+
+    // Glowing 5-Point Star Pentagram
     ctx.strokeStyle = '#fde047';
-    ctx.lineWidth = 7 * fade;
+    ctx.lineWidth = 7.5 * fade;
     ctx.beginPath();
     for (let i = 0; i <= 5; i++) {
       const idx = (i * 2) % 5;
@@ -581,51 +583,27 @@ export function drawComboUltArenaFinisher(ctx: CanvasRenderingContext2D, state: 
     }
     ctx.stroke();
 
+    // 5 Elemental Pillars + 5-Color Shockwave Rings
     for (let i = 0; i < 5; i++) {
-      ctx.strokeStyle = colors[i % colors.length];
-      ctx.lineWidth = 6 * fade;
-      ctx.beginPath();
-      ctx.arc(0, 0, 30 + p * (200 + i * 65), 0, Math.PI * 2);
-      ctx.stroke();
-    }
-    ctx.restore();
-  } else {
-    // === 9. 6x HEXAD: 6-Element Hexagram Mandala + Wuthering Waves Dimensional Glass Shatter! ===
-    ctx.globalAlpha = fade;
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.rotate(p * 0.7);
-    const rad = 95 + p * 280;
-
-    for (let tri = 0; tri < 2; tri++) {
-      ctx.strokeStyle = tri === 0 ? '#facc15' : '#38bdf8';
-      ctx.lineWidth = 7 * fade;
-      ctx.beginPath();
-      for (let i = 0; i <= 3; i++) {
-        const a = (i * Math.PI * 2) / 3 + (tri === 0 ? -Math.PI * 0.5 : Math.PI * 0.5);
-        const vx = Math.cos(a) * rad;
-        const vy = Math.sin(a) * rad * 0.78;
-        if (i === 0) ctx.moveTo(vx, vy);
-        else ctx.lineTo(vx, vy);
-      }
-      ctx.stroke();
-    }
-
-    for (let i = 0; i < 6; i++) {
-      const a = (i * Math.PI * 2) / 6;
+      const a = (i * Math.PI * 2) / 5 - Math.PI * 0.5;
       ctx.strokeStyle = colors[i % colors.length];
       ctx.lineWidth = 18 * fade;
       ctx.beginPath();
       ctx.moveTo(0, 0);
       ctx.lineTo(Math.cos(a) * 600, Math.sin(a) * 420);
       ctx.stroke();
+
+      ctx.lineWidth = 5 * fade;
+      ctx.beginPath();
+      ctx.arc(0, 0, 35 + p * (190 + i * 62), 0, Math.PI * 2);
+      ctx.stroke();
     }
 
     // Dimensional Glass-Shatter Fracture Lines across screen
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.92)';
     ctx.lineWidth = 3 * fade;
-    for (let k = 0; k < 12; k++) {
-      const a = (k * Math.PI * 2) / 12 + 0.13;
+    for (let k = 0; k < 10; k++) {
+      const a = (k * Math.PI * 2) / 10 + 0.14;
       ctx.beginPath();
       ctx.moveTo(0, 0);
       ctx.lineTo(Math.cos(a + 0.08) * 190, Math.sin(a + 0.08) * 130);
