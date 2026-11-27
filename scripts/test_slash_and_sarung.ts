@@ -589,6 +589,15 @@ console.log('\n=== TEST 16: Survival Wave 100 Cap & Anti-Boredom Wave Events ===
   assert(s100.status === 'victory', `Clearing Wave 100 sets status to victory (got ${s100.status})`);
 }
 
+console.log('\n=== TEST 17: Hero Balance & Mat Clurit Glass-Cannon Assassin HP ===');
+{
+  const clurit = HERO_LIST.find((h) => h.id === 'mat_clurit')!;
+  const bambang = HERO_LIST.find((h) => h.id === 'bambang')!;
+  assert(clurit.maxHp === 72, `Mat Clurit HP nerfed drastically to 72 for Assassin role (got ${clurit.maxHp})`);
+  assert(clurit.dmgMult >= 1.1, `Mat Clurit retains high Assassin damage (${clurit.dmgMult})`);
+  assert(clurit.maxHp < bambang.maxHp, 'Assassin has significantly less HP than Juggernaut');
+}
+
 console.log('\n=============================================');
 console.log(`SLASH & SARUNG VARIATION TESTS: ${passed} PASSED, ${failed} FAILED`);
 if (failed > 0) {
