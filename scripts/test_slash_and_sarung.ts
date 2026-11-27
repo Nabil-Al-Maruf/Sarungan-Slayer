@@ -480,17 +480,35 @@ console.log('\n=== TEST 15: Mabar Co-op Synchronized Combo Ultimate (2x..6x + He
     coop2.comboUlt?.title === 'TOPAN HALILINTAR SURAMADU',
     `Bima+MatClurit duo title is TOPAN HALILINTAR SURAMADU (got ${coop2.comboUlt?.title})`
   );
-  assert(coop2.comboUlt?.visualPattern === 'dual_clash', 'Tier 2 uses dual_clash visual pattern');
+  assert(
+    coop2.comboUlt?.visualPattern === 'storm_lightning',
+    `Bima+MatClurit duo uses storm_lightning visual pattern (got ${coop2.comboUlt?.visualPattern})`
+  );
 
-  // Different 2-Hero pair gives a completely different combo name & colors!
+  // Different 2-Hero pair gives a completely different combo name, colors & visual pattern!
   const pairIceFire = resolveComboUltSpec([
     { playerId: 'a', name: 'Bambang', heroId: 'bambang', paletteIndex: 2, element: 'es' },
     { playerId: 'b', name: 'PakRT', heroId: 'pak_rt', paletteIndex: 4, element: 'api' },
   ]);
   assert(
-    pairIceFire.title === 'THERMAL SHOCK MERIAM ES',
-    `Bambang+PakRT duo title is THERMAL SHOCK MERIAM ES (got ${pairIceFire.title})`
+    pairIceFire.title === 'THERMAL SHOCK MERIAM ES' && pairIceFire.visualPattern === 'inferno_vortex',
+    `Bambang+PakRT duo uses inferno_vortex (${pairIceFire.title})`
   );
+  const pairIceWind = resolveComboUltSpec([
+    { playerId: 'a', name: 'Bambang', heroId: 'bambang', paletteIndex: 2, element: 'es' },
+    { playerId: 'b', name: 'Bima', heroId: 'bima', paletteIndex: 0, element: 'badai' },
+  ]);
+  assert(pairIceWind.visualPattern === 'frost_shatter', 'Bambang+Bima uses frost_shatter pattern');
+  const pairSacredFire = resolveComboUltSpec([
+    { playerId: 'a', name: 'Gus', heroId: 'gus_dimas', paletteIndex: 3, element: 'suci' },
+    { playerId: 'b', name: 'PakRT', heroId: 'pak_rt', paletteIndex: 4, element: 'api' },
+  ]);
+  assert(pairSacredFire.visualPattern === 'sacred_dragon', 'GusDimas+PakRT uses sacred_dragon pattern');
+  const pairLeafWind = resolveComboUltSpec([
+    { playerId: 'a', name: 'Sri', heroId: 'mbak_sri', paletteIndex: 5, element: 'daun' },
+    { playerId: 'b', name: 'Bima', heroId: 'bima', paletteIndex: 0, element: 'badai' },
+  ]);
+  assert(pairLeafWind.visualPattern === 'emerald_cyclone', 'MbakSri+Bima uses emerald_cyclone pattern');
 
   // 15C: 3, 4, 5, 6 players produce distinct tiers & distinct arena visual patterns
   const all6 = HERO_LIST.map((h, idx) => ({

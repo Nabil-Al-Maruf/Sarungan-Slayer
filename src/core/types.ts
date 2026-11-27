@@ -454,7 +454,11 @@ export interface ComboUltState {
   primaryColor: string;
   secondaryColor: string;
   visualPattern:
-    | 'dual_clash'
+    | 'storm_lightning'
+    | 'frost_shatter'
+    | 'inferno_vortex'
+    | 'sacred_dragon'
+    | 'emerald_cyclone'
     | 'trinity_prism'
     | 'quartet_cross'
     | 'penta_star'

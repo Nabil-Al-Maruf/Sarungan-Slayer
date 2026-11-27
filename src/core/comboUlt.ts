@@ -26,10 +26,17 @@ interface DuoComboDef {
   subtitle: string;
   primaryColor: string;
   secondaryColor: string;
+  visualPattern:
+    | 'storm_lightning'
+    | 'frost_shatter'
+    | 'inferno_vortex'
+    | 'sacred_dragon'
+    | 'emerald_cyclone';
 }
 
 /**
  * All 15 unique 2-Hero combinations (sorted heroId pair key: "a+b")
+ * Each pair gets its own elemental arena animation pattern!
  */
 const DUO_COMBOS: Record<string, DuoComboDef> = {
   'bima+mat_clurit': {
@@ -37,90 +44,105 @@ const DUO_COMBOS: Record<string, DuoComboDef> = {
     subtitle: '🌀 BADAI × ⚡ PETIR • VORTEX ELEKTRIK',
     primaryColor: '#38bdf8',
     secondaryColor: '#facc15',
+    visualPattern: 'storm_lightning',
   },
   'bambang+bima': {
     title: 'BADAI SALJU GLETSER',
     subtitle: '🌀 BADAI × ❄️ ES • TOPAN PEMBEKU',
     primaryColor: '#67e8f9',
     secondaryColor: '#38bdf8',
+    visualPattern: 'frost_shatter',
   },
   'bima+gus_dimas': {
     title: 'PUSARAN KAROMAH AMPEL',
     subtitle: '🌀 BADAI × ✨ SUCI • TORNADO PENYEMBUH',
     primaryColor: '#38bdf8',
     secondaryColor: '#fde047',
+    visualPattern: 'sacred_dragon',
   },
   'bima+pak_rt': {
     title: 'TORNADO API KARBIT',
     subtitle: '🌀 BADAI × 🔥 API • PILAR NERAKA',
     primaryColor: '#f97316',
     secondaryColor: '#38bdf8',
+    visualPattern: 'inferno_vortex',
   },
   'bima+mbak_sri': {
     title: 'SIKLON RIMBA SUTRA',
     subtitle: '🌀 BADAI × 🍃 DAUN • BADAI SILET',
     primaryColor: '#4ade80',
     secondaryColor: '#38bdf8',
+    visualPattern: 'emerald_cyclone',
   },
   'bambang+mat_clurit': {
     title: 'SUPERKONDUKTOR GLETSER',
     subtitle: '⚡ PETIR × ❄️ ES • PECAH ARMOR KILAT',
     primaryColor: '#facc15',
     secondaryColor: '#67e8f9',
+    visualPattern: 'frost_shatter',
   },
   'gus_dimas+mat_clurit': {
     title: 'PETIR LANGIT WALI',
     subtitle: '⚡ PETIR × ✨ SUCI • HUJAN HALILINTAR',
     primaryColor: '#facc15',
     secondaryColor: '#fde047',
+    visualPattern: 'storm_lightning',
   },
   'mat_clurit+pak_rt': {
     title: 'OVERLOAD KARBIT PETIR',
     subtitle: '⚡ PETIR × 🔥 API • LEDAKAN PLASMA',
     primaryColor: '#f97316',
     secondaryColor: '#facc15',
+    visualPattern: 'inferno_vortex',
   },
   'mat_clurit+mbak_sri': {
     title: 'KILAT DAUN SAKERA',
     subtitle: '⚡ PETIR × 🍃 DAUN • TEBASAN CAHAYA',
     primaryColor: '#4ade80',
     secondaryColor: '#facc15',
+    visualPattern: 'storm_lightning',
   },
   'bambang+gus_dimas': {
     title: 'KUBAH KRISTAL KAROMAH',
     subtitle: '❄️ ES × ✨ SUCI • BENTENG BEKU SUCI',
     primaryColor: '#67e8f9',
     secondaryColor: '#fde047',
+    visualPattern: 'frost_shatter',
   },
   'bambang+pak_rt': {
     title: 'THERMAL SHOCK MERIAM ES',
     subtitle: '❄️ ES × 🔥 API • LEDAKAN UAP EKSTREM',
     primaryColor: '#67e8f9',
     secondaryColor: '#f97316',
+    visualPattern: 'inferno_vortex',
   },
   'bambang+mbak_sri': {
     title: 'KRISTAL BUNGA SALJU',
     subtitle: '❄️ ES × 🍃 DAUN • HUJAN KELOPAK ES',
     primaryColor: '#67e8f9',
     secondaryColor: '#4ade80',
+    visualPattern: 'frost_shatter',
   },
   'gus_dimas+pak_rt': {
     title: 'NAGA KARBIT NUSANTARA',
     subtitle: '✨ SUCI × 🔥 API • NAGA SURYA RAKSASA',
     primaryColor: '#fde047',
     secondaryColor: '#f97316',
+    visualPattern: 'sacred_dragon',
   },
   'gus_dimas+mbak_sri': {
     title: 'TAMAN SURGA SUTRA',
     subtitle: '✨ SUCI × 🍃 DAUN • SIKLON BUNGA KAROMAH',
     primaryColor: '#fde047',
     secondaryColor: '#4ade80',
+    visualPattern: 'sacred_dragon',
   },
   'mbak_sri+pak_rt': {
     title: 'BADAI BARA DAUN MEMBARA',
     subtitle: '🔥 API × 🍃 DAUN • PUSARAN INFERNO',
     primaryColor: '#f97316',
     secondaryColor: '#4ade80',
+    visualPattern: 'inferno_vortex',
   },
 };
 
@@ -151,7 +173,7 @@ export function resolveComboUltSpec(participants: ComboUltParticipant[]): Omit<
         tierLabel: '⚡ 2× DUO RESONANCE',
         primaryColor: duo.primaryColor,
         secondaryColor: duo.secondaryColor,
-        visualPattern: 'dual_clash',
+        visualPattern: duo.visualPattern,
         participants,
       };
     }
@@ -164,7 +186,7 @@ export function resolveComboUltSpec(participants: ComboUltParticipant[]): Omit<
       tierLabel: '⚡ 2× DUO RESONANCE',
       primaryColor,
       secondaryColor: '#ffffff',
-      visualPattern: 'dual_clash',
+      visualPattern: 'emerald_cyclone',
       participants,
     };
   }
