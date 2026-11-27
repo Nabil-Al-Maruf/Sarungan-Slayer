@@ -789,9 +789,10 @@ function spawnSurvivalZombie(
   }
 
   const z = spawnEnemy(state, kind, sx, sy);
-  let hpMult = 1 + (wave - 1) * 0.1;
-  if (waveEvent === 'rush_hour') hpMult *= 0.75;
-  z.hp = Math.max(20, Math.round(z.hp * hpMult));
+  let hpMult = 1 + (wave - 1) * 0.14 + Math.max(0, wave - 10) * 0.04;
+  if (waveEvent === 'rush_hour') hpMult *= 0.85;
+  if (waveEvent === 'kuntilanak_night') hpMult *= 1.2;
+  z.hp = Math.max(25, Math.round(z.hp * hpMult));
   z.maxHp = z.hp;
 }
 
@@ -891,23 +892,23 @@ export function stepSurvival(
         let rad = 11;
 
         if (towerLv === 2) {
-          cd = 0.70;
-          dmg = 32;
+          cd = 0.74;
+          dmg = 28;
           pierce = 2;
           spd = PROJ_SPEED * 1.05;
           col = '#f97316';
         } else if (towerLv === 3) {
-          cd = 0.50;
-          dmg = 46;
+          cd = 0.56;
+          dmg = 38;
           pierce = 3;
           spd = PROJ_SPEED * 1.15;
           col = '#ef4444';
           rad = 13;
         } else if (towerLv >= 4) {
-          cd = 0.28;
-          dmg = 58;
-          pierce = 5;
-          spd = PROJ_SPEED * 1.30;
+          cd = 0.36;
+          dmg = 46;
+          pierce = 4;
+          spd = PROJ_SPEED * 1.28;
           col = '#facc15';
           rad = 14;
         }
@@ -961,23 +962,27 @@ export function stepSurvival(
   if (surv.phase === 'wave') {
     const waveEvent = surv.waveEvent || 'normal';
 
-    // Dynamic anti-boredom wave event effects
-    if (waveEvent === 'petir_badai' && state.enemies.length > 0) {
+    // Dynamic anti-boredom wave event effects (balanced for both sides!)
+    if (waveEvent === 'petir_badai' && (state.enemies.length > 0 || state.players.length > 0)) {
       surv.waveEventTimer = (surv.waveEventTimer ?? 2.2) - dt;
       if (surv.waveEventTimer <= 0) {
         surv.waveEventTimer = 3.2;
-        const target = state.enemies[Math.floor(Math.random() * state.enemies.length)];
-        if (target && target.hp > 0) {
+        const alivePlayers = state.players.filter((p) => !p.knockedDown);
+        const strikePlayer = alivePlayers.length > 0 && Math.random() < 0.4;
+        const target = strikePlayer
+          ? alivePlayers[Math.floor(Math.random() * alivePlayers.length)]
+          : state.enemies[Math.floor(Math.random() * state.enemies.length)];
+        if (target) {
           state.hazards.push({
             id: state.nextEntityId++,
             kind: 'mercon',
-            ownerId: 'storm_event',
+            ownerId: strikePlayer ? undefined : 'storm_event',
             x: target.x + (Math.random() - 0.5) * 32,
             y: target.y + (Math.random() - 0.5) * 24,
             radius: 68,
-            delay: 0.75,
-            maxDelay: 0.75,
-            damage: 75 + Math.floor(surv.wave * 3.5),
+            delay: 0.85,
+            maxDelay: 0.85,
+            damage: strikePlayer ? 22 + Math.floor(surv.wave * 0.4) : 70 + Math.floor(surv.wave * 3.0),
             detonated: false,
             flashTimer: 0,
           });
@@ -1034,14 +1039,14 @@ export function stepSurvival(
         });
       }
 
-      // Every 10 Waves (Wave 10, 20, ..., 90), refill 100% Hero Ultimate + Bonus +150 Receh + +150 Core HP!
+      // Every 10 Waves (Wave 10, 20, ..., 90), refill 100% Hero Ultimate + Bonus +100 Receh + +100 Core HP!
       if (surv.wave % 10 === 0) {
         for (const p of state.players) {
           p.ult = p.maxUlt;
-          p.coins += 150;
+          p.coins += 100;
           p.pendingUltChoice = false;
         }
-        surv.core.hp = Math.min(surv.core.maxHp, surv.core.hp + 150);
+        surv.core.hp = Math.min(surv.core.maxHp, surv.core.hp + 100);
       }
 
       // Every 2 Waves (Wave 2, 4, 6, 8, ...), grant 3 random Buff choices (Player picks 1!)
@@ -1121,8 +1126,8 @@ export function stepSurvival(
         }
 
         const boss = spawnEnemy(state, bossKind, 480, 155);
-        const finalMult = surv.wave === MAX_SURVIVAL_WAVE ? 2.2 : 1.0;
-        const hpMult = (1 + (surv.wave - 1) * 0.14) * finalMult;
+        const finalMult = surv.wave === MAX_SURVIVAL_WAVE ? 2.4 : 1.0;
+        const hpMult = (1 + (surv.wave - 1) * 0.18 + Math.max(0, surv.wave - 10) * 0.06) * finalMult;
         boss.maxHp = Math.round(boss.hp * hpMult);
         boss.hp = boss.maxHp;
 

@@ -258,19 +258,23 @@ export function updateEnemies(state: GameState, dt: number): void {
             break;
           }
 
-          enemy.attackCooldown = enemy.isBoss ? 0.95 : 1.15;
-          const dmg =
+          const survWave = state.survival?.wave ?? 1;
+          const waveDmgScale = state.survival ? 1 + Math.min(1.6, (survWave - 1) * 0.025) : 1;
+          const cdScale = state.survival ? Math.max(0.62, 1 - Math.min(0.35, (survWave - 1) * 0.008)) : 1;
+          enemy.attackCooldown = (enemy.isBoss ? 0.9 : 1.05) * cdScale;
+          const baseDmg =
             enemy.isBoss
-              ? 16
+              ? 18
               : enemy.kind === 'zombie_buto_ijo'
-                ? 22
+                ? 24
                 : enemy.kind === 'zombie_gendruwo'
-                  ? 18
+                  ? 20
                   : enemy.kind === 'zombie_kuntilanak'
-                    ? 14
+                    ? 16
                     : enemy.kind === 'elite'
-                      ? 14
-                      : 10;
+                      ? 15
+                      : 12;
+          const dmg = Math.round(baseDmg * waveDmgScale);
           const dx = targetPlayer.x - enemy.x;
           const dy = targetPlayer.y - enemy.y;
           const d = Math.hypot(dx, dy) || 1;
@@ -1064,20 +1068,23 @@ function updateZombieSurvivalAI(state: GameState, zombie: EnemyState, dt: number
       zombie.vy *= Math.pow(0.04, dt);
 
       if (zombie.attackCooldown <= 0) {
+        const waveDmgScale = 1 + Math.min(1.5, (surv.wave - 1) * 0.024);
+        const cdScale = Math.max(0.65, 1 - Math.min(0.32, (surv.wave - 1) * 0.008));
         zombie.attackCooldown =
-          zombie.kind === 'zombie_buto_ijo'
-            ? 1.2
+          (zombie.kind === 'zombie_buto_ijo'
+            ? 1.15
             : zombie.kind === 'zombie_gendruwo'
-              ? 0.9
-              : 1.1;
-        const barDmg =
+              ? 0.85
+              : 1.0) * cdScale;
+        const baseBarDmg =
           zombie.kind === 'zombie_buto_ijo'
-            ? 40
+            ? 44
             : zombie.kind === 'zombie_gendruwo'
-              ? 34
+              ? 36
               : zombie.kind === 'zombie_pocong'
-                ? 16
-                : 12;
+                ? 18
+                : 14;
+        const barDmg = Math.round(baseBarDmg * waveDmgScale);
         bar.hp = Math.max(0, bar.hp - barDmg);
         bar.hitFlashTimer = 0.14;
         zombie.scaleX = 1.2;
@@ -1086,7 +1093,7 @@ function updateZombieSurvivalAI(state: GameState, zombie: EnemyState, dt: number
 
         // Level 4 Barricade Thorns contact recoil damage to attacking zombie!
         if (bar.level === 4) {
-          const thornDmg = 20;
+          const thornDmg = 14;
           zombie.hp = Math.max(0, zombie.hp - thornDmg);
           zombie.hitFlashTimer = 0.16;
           state.soundQueue.push('hit');
@@ -1159,17 +1166,20 @@ function updateZombieSurvivalAI(state: GameState, zombie: EnemyState, dt: number
     zombie.vy *= Math.pow(0.04, dt);
 
     if (zombie.attackCooldown <= 0) {
-      zombie.attackCooldown = 1.05;
-      const coreDmg =
+      const waveDmgScale = 1 + Math.min(1.5, (surv.wave - 1) * 0.024);
+      const cdScale = Math.max(0.65, 1 - Math.min(0.32, (surv.wave - 1) * 0.008));
+      zombie.attackCooldown = 0.98 * cdScale;
+      const baseCoreDmg =
         zombie.kind === 'zombie_buto_ijo'
-          ? 32
+          ? 36
           : zombie.kind === 'zombie_gendruwo'
-            ? 28
+            ? 30
             : zombie.kind === 'zombie_tuyul'
-              ? 18
+              ? 20
               : zombie.kind === 'zombie_kuntilanak'
-                ? 16
-                : 12;
+                ? 18
+                : 14;
+      const coreDmg = Math.round(baseCoreDmg * waveDmgScale);
 
       // 1-Wave Energy Shield (Tameng Gaib) absorbs damage & deals contact damage to zombies
       if (surv.core.shieldActive && surv.core.shieldHp > 0) {
@@ -1178,7 +1188,7 @@ function updateZombieSurvivalAI(state: GameState, zombie: EnemyState, dt: number
         state.soundQueue.push('hit');
 
         // Contact damage to zombie from energy shield
-        const shieldZombDmg = 14;
+        const shieldZombDmg = 10;
         zombie.hp = Math.max(0, zombie.hp - shieldZombDmg);
         zombie.hitFlashTimer = 0.16;
 
@@ -1261,7 +1271,7 @@ function updateZombieSurvivalAI(state: GameState, zombie: EnemyState, dt: number
     targetY = zombie.y - (coreCy - zombie.y);
   } else if (zombie.kind !== 'zombie_tuyul') {
     const alivePlayer = state.players.find(
-      (p) => !p.knockedDown && Math.hypot(p.x - zombie.x, p.y - zombie.y) < 130
+      (p) => !p.knockedDown && Math.hypot(p.x - zombie.x, p.y - zombie.y) < 175
     );
     if (alivePlayer) {
       targetX = alivePlayer.x;
@@ -1275,18 +1285,24 @@ function updateZombieSurvivalAI(state: GameState, zombie: EnemyState, dt: number
   zombie.dirX = dx / d;
   zombie.dirY = dy / d;
 
-  let speed = 78;
-  if (zombie.kind === 'zombie_bocil') speed = 138;
-  else if (zombie.kind === 'zombie_pocong') speed = zombie.z > 0 ? 128 : 28;
-  else if (zombie.kind === 'zombie_gendruwo') speed = 64;
-  else if (zombie.kind === 'zombie_tuyul') speed = 168;
-  else if (zombie.kind === 'zombie_petasan') speed = 165;
-  else if (zombie.kind === 'zombie_kuntilanak') speed = 92;
-  else if (zombie.kind === 'zombie_buto_ijo') speed = 56;
-  else if (zombie.kind === 'zombie_dukun') speed = 72;
+  let speed = 84;
+  if (zombie.kind === 'zombie_bocil') speed = 146;
+  else if (zombie.kind === 'zombie_pocong') speed = zombie.z > 0 ? 136 : 30;
+  else if (zombie.kind === 'zombie_gendruwo') speed = 68;
+  else if (zombie.kind === 'zombie_tuyul') speed = 178;
+  else if (zombie.kind === 'zombie_petasan') speed = 175;
+  else if (zombie.kind === 'zombie_kuntilanak') speed = 100;
+  else if (zombie.kind === 'zombie_buto_ijo') speed = 60;
+  else if (zombie.kind === 'zombie_dukun') speed = 76;
 
-  // Slight speed scaling per wave
-  const waveMult = 1 + Math.min(0.45, (surv.wave - 1) * 0.02);
+  // High-difficulty speed scaling per wave + wave event buffs for zombies
+  const eventSpeedMult =
+    surv.waveEvent === 'rush_hour'
+      ? 1.2
+      : surv.waveEvent === 'kuntilanak_night'
+        ? 1.15
+        : 1.0;
+  const waveMult = (1 + Math.min(0.7, (surv.wave - 1) * 0.024)) * eventSpeedMult;
   zombie.vx += (zombie.dirX * speed * waveMult - zombie.vx) * Math.min(1, dt * 7);
   zombie.vy += (zombie.dirY * speed * waveMult - zombie.vy) * Math.min(1, dt * 7);
 }

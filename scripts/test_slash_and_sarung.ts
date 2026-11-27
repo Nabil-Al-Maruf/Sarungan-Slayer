@@ -596,6 +596,22 @@ console.log('\n=== TEST 17: Hero Balance & Mat Clurit Glass-Cannon Assassin HP =
   assert(clurit.maxHp === 72, `Mat Clurit HP nerfed drastically to 72 for Assassin role (got ${clurit.maxHp})`);
   assert(clurit.dmgMult >= 1.1, `Mat Clurit retains high Assassin damage (${clurit.dmgMult})`);
   assert(clurit.maxHp < bambang.maxHp, 'Assassin has significantly less HP than Juggernaut');
+
+  // High-difficulty zombie scaling check: Wave 30 zombie hits harder than Wave 1 zombie
+  const survMod = await import('../src/modes/survival');
+  const s1 = survMod.createSurvivalState(0, undefined, 'P1', 'bima');
+  s1.survival!.wave = 30;
+  const z30 = spawnEnemy(s1, 'zombie_warga', 400, 300);
+  const p1 = s1.players[0];
+  p1.x = 400;
+  p1.y = 300;
+  p1.invulnTimer = 0;
+  const hpBefore = p1.hp;
+  z30.attackCooldown = 0;
+  const { updateEnemies } = await import('../src/entities/enemyFactory');
+  updateEnemies(s1, 0.016);
+  const dmgTaken = hpBefore - p1.hp;
+  assert(dmgTaken > 12, `Wave 30 zombie deals scaled High-Difficulty damage (>12, got ${dmgTaken})`);
 }
 
 console.log('\n=============================================');

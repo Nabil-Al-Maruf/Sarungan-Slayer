@@ -692,6 +692,19 @@ export function resolveCombat(state: GameState, dt: number): void {
           });
         }
 
+        // Storm Event lightning hits both zombies AND players fairly!
+        if (hz.ownerId === 'storm_event') {
+          for (const enemy of state.enemies) {
+            if (enemy.hp <= 0) continue;
+            const d = Math.hypot(enemy.x - hz.x, enemy.y - hz.y);
+            if (d <= hz.radius + enemy.radius) {
+              const nx = d > 1 ? (enemy.x - hz.x) / d : 1;
+              const ny = d > 1 ? (enemy.y - hz.y) / d : 0;
+              hitEnemy(state, enemy, state.players[0], Math.round(hz.damage * 2.5), nx * 180, ny * 180, 0, false, 'tower');
+            }
+          }
+        }
+
         // Damage players inside radius (jumping high can dodge slam; player hazards don't hurt players!)
         if (!hz.ownerId || !hz.ownerId.startsWith('p')) {
           for (const player of state.players) {
@@ -699,7 +712,8 @@ export function resolveCombat(state: GameState, dt: number): void {
             if (d <= hz.radius + player.radius && (hz.kind === 'mercon' || player.z < 28)) {
               const nx = d > 1 ? (player.x - hz.x) / d : 1;
               const ny = d > 1 ? (player.y - hz.y) / d : 0;
-              damagePlayer(state, player, hz.damage, nx, ny);
+              const pDmg = hz.ownerId === 'storm_event' ? 22 : hz.damage;
+              damagePlayer(state, player, pDmg, nx, ny);
             }
           }
         }
