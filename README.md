@@ -4,7 +4,7 @@
 > *Zero Install • HTML5 Canvas 2D Engine (60 FPS) • Cross-Platform (Mobile, PC, Tablet, Smart TV) • Local Node.js + Socket.IO LAN Server & PeerJS P2P.*
 
 [![GitHub Pages](https://img.shields.io/badge/PLAY%20ONLINE-GitHub%20Pages-24292e?style=for-the-badge&logo=github)](https://nabil-al-maruf.github.io/Sarungan-Slayer/)
-[![Version](https://img.shields.io/badge/version-2.0.2%20High--Difficulty%20Balanced-orange?style=for-the-badge)](https://nabil-al-maruf.github.io/Sarungan-Slayer/)
+[![Version](https://img.shields.io/badge/version-2.0.3%2016%20Buff%20Roguelite%20%26%20100%20Wave-orange?style=for-the-badge)](https://nabil-al-maruf.github.io/Sarungan-Slayer/)
 [![Tech Stack](https://img.shields.io/badge/tech-Node.js%20%7C%20Socket.IO%20%7C%20TypeScript%20%7C%20Canvas2D-blue?style=for-the-badge)](https://github.com/Nabil-Al-Maruf/Sarungan-Slayer)
 
 ---
@@ -128,6 +128,7 @@ Buka `http://localhost:3000` di Laptop, dan buka alamat IP LAN (misal `http://19
 
 ## 📝 Riwayat Versi Terbaru
 
+- **v2.0.3:** Menambah **10 Buff Pemain Baru (total 16 Variasi Buff)** di mode Survival (*Lifesteal*, *Critical 2×*, *Jangkauan Kibas*, *Knockback*, *Armor -15% DMG*, *Regen Akhir Wave*, *DMG Proyektil*, *DMG Ulti*, *Perbaikan Barikade Instan*, dan *+1 Lompatan Udara*) agar kombinasi build tiap permainan jauh lebih beragam.
 - **v2.0.2:** Penyeimbangan **High-Difficulty Survival**: zombie mendapat scaling damage, attack speed, HP Wave 10+, dan kecepatan kejaran; event **Malam Jumat Mistis** memperkuat zombie (+20% HP & +15% speed) dan **Badai Petir Suroboyo** menyambar adil kedua pihak; serta penyeimbangan Tower & bonus milestone.
 - **v2.0.1:** Penyeimbangan & nerf hero: **Mat Clurit (Petir • Assassin)** mempertahankan burst & kelincahannya dengan **Max HP dikurangi drastis (98 → 72)** (*glass-cannon*), disertai nerf ringan pada **Pak RT**, **Bang Bambang**, **Gus Dimas**, **Mbak Sri**, dan **Cak Bima** agar pertarungan lebih adil.
 - **v2.0.0:** Mengunci mode Survival hingga **Wave 100/100** lengkap dengan **Final Boss & Kemenangan Agung**, menambahkan **6 Event Gelombang Anti-Bosan** (*Serbuan Kilat*, *Malam Jumat Mistis*, *Hujan Kendi Emas*, *Badai Petir Suroboyo*, *Overdrive Ulti 2×*), rotasi 4 peta tiap 10 Wave sepanjang 1–100, serta bonus milestone tiap kelipatan 10 Wave.

@@ -50,7 +50,17 @@ export type BuffId =
   | 'cd_fast'
   | 'move_speed'
   | 'ult_charge'
-  | 'coin_boost';
+  | 'coin_boost'
+  | 'lifesteal'
+  | 'crit_chance'
+  | 'melee_reach'
+  | 'knockback_up'
+  | 'armor_shell'
+  | 'wave_regen'
+  | 'proj_power'
+  | 'ult_nova'
+  | 'warkop_repair'
+  | 'air_master';
 
 export type EnemyKind =
   | 'dummy'
@@ -120,6 +130,15 @@ export interface PlayerState {
   speedMult: number;
   ultGainMult: number;
   coinMult: number;
+  lifestealOnHit?: number;
+  critChance?: number;
+  meleeReachMult?: number;
+  knockbackBonusMult?: number;
+  armorReduction?: number;
+  waveRegenBonus?: number;
+  projDmgMult?: number;
+  ultDmgMult?: number;
+  bonusJumps?: number;
   pendingBuffChoices: BuffId[];
   pendingUltChoice?: boolean;
   buffCount: number;

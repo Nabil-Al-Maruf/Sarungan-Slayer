@@ -612,6 +612,17 @@ console.log('\n=== TEST 17: Hero Balance & Mat Clurit Glass-Cannon Assassin HP =
   updateEnemies(s1, 0.016);
   const dmgTaken = hpBefore - p1.hp;
   assert(dmgTaken > 12, `Wave 30 zombie deals scaled High-Difficulty damage (>12, got ${dmgTaken})`);
+
+  // 16 Buff variety check
+  assert(Object.keys(survMod.BUFF_DEFS).length === 16, `16 varied player buffs defined (got ${Object.keys(survMod.BUFF_DEFS).length})`);
+  const bPlayer = s1.players[0];
+  bPlayer.pendingBuffChoices = [];
+  survMod.applyPlayerBuff(s1, bPlayer, 'lifesteal');
+  survMod.applyPlayerBuff(s1, bPlayer, 'armor_shell');
+  survMod.applyPlayerBuff(s1, bPlayer, 'air_master');
+  assert(bPlayer.lifestealOnHit === 2, 'lifesteal buff grants +2 HP on hit');
+  assert(bPlayer.armorReduction === 0.15, 'armor_shell buff grants 15% damage reduction');
+  assert(bPlayer.bonusJumps === 1, 'air_master buff grants +1 bonus air jump');
 }
 
 console.log('\n=============================================');

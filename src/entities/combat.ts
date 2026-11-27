@@ -45,7 +45,9 @@ export function resolveCombat(state: GameState, dt: number): void {
       const aimY = Math.sin(player.meleeAngle);
       const elem = player.slashElement || 'none';
       const elemLevel = player.slashElementLevel || 1;
-      const extraReach = elem === 'badai' ? 18 * elemLevel : 0;
+      const extraReach =
+        (elem === 'badai' ? 18 * elemLevel : 0) +
+        Math.round(MELEE_REACH * ((player.meleeReachMult || 1) - 1));
 
       for (const enemy of state.enemies) {
         if (enemy.hp <= 0 || enemy.lastHitSwingId === player.meleeSwingId) continue;
@@ -59,6 +61,19 @@ export function resolveCombat(state: GameState, dt: number): void {
 
           // Perisai Kardus blocks frontal melee attacks!
           let finalDmg = Math.round(MELEE_DAMAGE * player.dmgMult);
+          if ((player.critChance || 0) > 0 && Math.random() < (player.critChance || 0)) {
+            finalDmg = Math.round(finalDmg * 2);
+            state.floatingTexts.push({
+              x: enemy.x,
+              y: enemy.y - enemy.z - 52,
+              vy: -55,
+              text: '💥 KRITIS!',
+              color: '#facc15',
+              scale: 1.05,
+              life: 0.75,
+              maxLife: 0.75,
+            });
+          }
           let blocked = false;
           if (enemy.kind === 'perisai_kardus') {
             const facingDot = nx * enemy.dirX + ny * enemy.dirY;
@@ -172,7 +187,9 @@ export function resolveCombat(state: GameState, dt: number): void {
 
           const waveEv = state.survival?.waveEvent;
           const evUltMult = waveEv === 'hyper_ult' ? 2.0 : waveEv === 'rush_hour' ? 1.35 : 1.0;
-          const knockbackBase = blocked ? 150 : MELEE_KNOCKBACK * (elem === 'badai' ? 1 + 0.25 * elemLevel : 1);
+          const knockbackBase =
+            (blocked ? 150 : MELEE_KNOCKBACK * (elem === 'badai' ? 1 + 0.25 * elemLevel : 1)) *
+            (player.knockbackBonusMult || 1);
           hitEnemy(
             state,
             enemy,
@@ -252,7 +269,7 @@ export function resolveCombat(state: GameState, dt: number): void {
                 state,
                 enemy,
                 player,
-                Math.round(ULT_DAMAGE_PER_TICK * player.dmgMult),
+                Math.round(ULT_DAMAGE_PER_TICK * player.dmgMult * (player.ultDmgMult || 1)),
                 nx * ULT_KNOCKBACK,
                 ny * ULT_KNOCKBACK,
                 0,
@@ -908,6 +925,9 @@ export function hitEnemy(
 
   if (attacker && ultGain > 0 && attacker.ultActiveTimer <= 0) {
     attacker.ult = Math.min(attacker.maxUlt, attacker.ult + ultGain);
+  }
+  if (attacker && !defenseSource && (attacker.lifestealOnHit || 0) > 0 && !attacker.knockedDown) {
+    attacker.hp = Math.min(attacker.maxHp, attacker.hp + (attacker.lifestealOnHit || 0));
   }
 
   state.soundQueue.push(blocked ? 'crate_hit' : 'hit');

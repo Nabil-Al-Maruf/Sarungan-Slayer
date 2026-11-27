@@ -738,7 +738,7 @@ export function updatePlayer(
       vy: player.dirY * PROJ_SPEED,
       angle,
       radius: PROJ_RADIUS,
-      damage: Math.round(PROJ_DAMAGE * player.dmgMult),
+      damage: Math.round(PROJ_DAMAGE * player.dmgMult * (player.projDmgMult || 1)),
       pierceLeft: PROJ_MAX_PIERCE,
       hitIds: [],
       life: PROJ_LIFETIME,
@@ -766,6 +766,9 @@ export function updatePlayer(
 
   // Physics step
   const phys = stepTopDownPhysics(player, dt, state.obstacles, state.activeMinX, state.activeMaxX);
+  if (phys.landed) {
+    player.jumpsRemaining = (getHeroDef(player.heroId).maxJumps ?? 2) + (player.bonusJumps || 0);
+  }
   if (phys.landed && phys.impactVz > 160) {
     player.scaleX = 1.24;
     player.scaleY = 0.78;
@@ -801,7 +804,8 @@ export function damagePlayer(
 ): void {
   if (player.invulnTimer > 0 || player.ultActiveTimer > 0) return;
 
-  player.hp = Math.max(0, player.hp - amount);
+  const mitigated = Math.max(1, Math.round(amount * (1 - (player.armorReduction || 0))));
+  player.hp = Math.max(0, player.hp - mitigated);
   player.invulnTimer = 0.85;
   player.hitFlashTimer = 0.16;
   player.vx = kbX * 240;
@@ -818,7 +822,7 @@ export function damagePlayer(
     x: player.x,
     y: player.y - player.z - 46,
     vy: -55,
-    text: `-${amount} ADUH!`,
+    text: `-${mitigated} ADUH!`,
     color: '#f87171',
     scale: 1,
     life: 0.75,

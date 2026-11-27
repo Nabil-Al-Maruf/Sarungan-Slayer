@@ -166,6 +166,66 @@ export const BUFF_DEFS: Record<BuffId, BuffDef> = {
     title: 'Dompet Juragan',
     desc: 'Uang Receh dari zombie +25% lebih banyak',
   },
+  lifesteal: {
+    id: 'lifesteal',
+    icon: '🧛',
+    title: 'Sedot Darah Kalimas',
+    desc: 'Pulih +2 HP setiap kali tebasan mengenai zombie',
+  },
+  crit_chance: {
+    id: 'crit_chance',
+    icon: '💥',
+    title: 'Bacokan Kritis 18%',
+    desc: 'Peluang +18% Critical Hit dengan 2× Damage!',
+  },
+  melee_reach: {
+    id: 'melee_reach',
+    icon: '📏',
+    title: 'Sarung Panjang Sakti',
+    desc: 'Jangkauan tebasan Kibas Sarung +22% lebih luas',
+  },
+  knockback_up: {
+    id: 'knockback_up',
+    icon: '💨',
+    title: 'Mentalan Angin Suramadu',
+    desc: 'Daya lontar (Knockback) ke zombie +28% lebih jauh',
+  },
+  armor_shell: {
+    id: 'armor_shell',
+    icon: '🛡️',
+    title: 'Kulit Kebal Debus',
+    desc: 'Mengurangi 15% semua damage yang masuk ke tubuh',
+  },
+  wave_regen: {
+    id: 'wave_regen',
+    icon: '☕',
+    title: 'Seduhan Jahe Hangat',
+    desc: 'Pulih +35 HP & +60 HP Pos Warkop otomatis tiap akhir wave',
+  },
+  proj_power: {
+    id: 'proj_power',
+    icon: '🎯',
+    title: 'Pecut Penembus Baja',
+    desc: 'Damage Pecut / proyektil jarak jauh +35% lebih sakit',
+  },
+  ult_nova: {
+    id: 'ult_nova',
+    icon: '🌟',
+    title: 'Ledakan Jiwa Pendekar',
+    desc: 'Damage semua Jurus Ultimate meningkat +30%',
+  },
+  warkop_repair: {
+    id: 'warkop_repair',
+    icon: '🧰',
+    title: 'Tukang Kayu Kampung',
+    desc: 'Langsung perbaiki semua Barikade +120 HP & Pos Warkop +150 HP!',
+  },
+  air_master: {
+    id: 'air_master',
+    icon: '🦅',
+    title: 'Langkah Elang Kenjeran',
+    desc: '+1 Lompatan Udara ekstra & kecepatan gerak +8%',
+  },
 };
 
 const ALL_BUFF_IDS: BuffId[] = [
@@ -175,6 +235,16 @@ const ALL_BUFF_IDS: BuffId[] = [
   'move_speed',
   'ult_charge',
   'coin_boost',
+  'lifesteal',
+  'crit_chance',
+  'melee_reach',
+  'knockback_up',
+  'armor_shell',
+  'wave_regen',
+  'proj_power',
+  'ult_nova',
+  'warkop_repair',
+  'air_master',
 ];
 
 export function rollRandomBuffChoices(count = 3): BuffId[] {
@@ -222,6 +292,44 @@ export function applyPlayerBuff(
       break;
     case 'coin_boost':
       player.coinMult = Math.round((player.coinMult + 0.25) * 100) / 100;
+      break;
+    case 'lifesteal':
+      player.lifestealOnHit = (player.lifestealOnHit || 0) + 2;
+      break;
+    case 'crit_chance':
+      player.critChance = Math.min(0.75, Math.round(((player.critChance || 0) + 0.18) * 100) / 100);
+      break;
+    case 'melee_reach':
+      player.meleeReachMult = Math.round(((player.meleeReachMult || 1) + 0.22) * 100) / 100;
+      break;
+    case 'knockback_up':
+      player.knockbackBonusMult = Math.round(((player.knockbackBonusMult || 1) + 0.28) * 100) / 100;
+      break;
+    case 'armor_shell':
+      player.armorReduction = Math.min(0.6, Math.round(((player.armorReduction || 0) + 0.15) * 100) / 100);
+      break;
+    case 'wave_regen':
+      player.waveRegenBonus = (player.waveRegenBonus || 0) + 35;
+      player.hp = Math.min(player.maxHp, player.hp + 20);
+      break;
+    case 'proj_power':
+      player.projDmgMult = Math.round(((player.projDmgMult || 1) + 0.35) * 100) / 100;
+      break;
+    case 'ult_nova':
+      player.ultDmgMult = Math.round(((player.ultDmgMult || 1) + 0.3) * 100) / 100;
+      break;
+    case 'warkop_repair':
+      if (state.survival) {
+        state.survival.core.hp = Math.min(state.survival.core.maxHp, state.survival.core.hp + 150);
+        for (const bar of state.survival.barricades) {
+          if (bar.hp > 0) bar.hp = Math.min(bar.maxHp, bar.hp + 120);
+        }
+      }
+      break;
+    case 'air_master':
+      player.bonusJumps = (player.bonusJumps || 0) + 1;
+      player.jumpsRemaining += 1;
+      player.speedMult = Math.round((player.speedMult + 0.08) * 100) / 100;
       break;
   }
 
@@ -1037,6 +1145,14 @@ export function stepSurvival(
           life: 1.4,
           maxLife: 1.4,
         });
+      }
+
+      // Apply Wave Regen buff (Seduhan Jahe Hangat) at end of each wave
+      for (const p of state.players) {
+        if (!p.knockedDown && (p.waveRegenBonus || 0) > 0) {
+          p.hp = Math.min(p.maxHp, p.hp + (p.waveRegenBonus || 0));
+          surv.core.hp = Math.min(surv.core.maxHp, surv.core.hp + 60);
+        }
       }
 
       // Every 10 Waves (Wave 10, 20, ..., 90), refill 100% Hero Ultimate + Bonus +100 Receh + +100 Core HP!
